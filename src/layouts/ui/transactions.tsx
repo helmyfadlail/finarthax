@@ -58,67 +58,62 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, onDelete
   const config = TYPE_CONFIG[transaction.type as TransactionType] ?? TYPE_CONFIG.EXPENSE;
   const isTransfer = transaction.type === "TRANSFER";
 
-  const formattedDate = React.useMemo(
-    () =>
-      new Date(transaction.date).toLocaleDateString("id-ID", {
-        day: "numeric",
-        month: "short",
-        year: "numeric",
-      }),
-    [transaction.date],
-  );
+  const formattedDate = React.useMemo(() => new Date(transaction.date).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }), [transaction.date]);
 
   const badgeVariant = transaction.type === "INCOME" ? "success" : transaction.type === "TRANSFER" ? "info" : "error";
-
   const badgeLabel = transaction.type === "INCOME" ? `${config.icon} ${t("income")}` : transaction.type === "TRANSFER" ? `${config.icon} ${t("transfer")}` : `${config.icon} ${t("expense")}`;
 
   return (
-    <div className="flex items-center justify-between p-4 transition-all rounded-lg bg-neutral hover:bg-neutral-200 hover:shadow-md group">
-      <div className="flex items-center flex-1 min-w-0 gap-4">
-        <div className={`flex items-center justify-center w-12 h-12 text-2xl rounded-full ${config.bg} transition-transform group-hover:scale-110`}>
+    <div className="flex items-center justify-between gap-2 p-3 transition-all rounded-lg bg-neutral hover:bg-neutral-200 hover:shadow-md group sm:p-4 sm:gap-4">
+      <div className="flex items-center flex-1 min-w-0 gap-2 sm:gap-4">
+        <div className={`flex items-center justify-center shrink-0 w-9 h-9 text-lg sm:w-12 sm:h-12 sm:text-2xl rounded-full ${config.bg} transition-transform group-hover:scale-110`}>
           {isTransfer ? "🔄" : (transaction.category?.icon ?? "💰")}
         </div>
 
         <div className="flex-1 min-w-0">
-          <h4 className="font-medium truncate text-primary-900" title={transaction.description}>
+          <h4 className="text-sm font-medium truncate sm:text-base text-primary-900" title={transaction.description}>
             {transaction.description || t("noDescription")}
           </h4>
-          <div className="flex flex-wrap items-center gap-2 mt-1 text-sm text-primary-600">
+
+          <div className="flex flex-wrap items-center gap-1 mt-0.5 text-xs sm:gap-2 sm:mt-1 sm:text-sm text-primary-600">
             {!isTransfer && transaction.category && (
               <>
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 truncate max-w-24 sm:max-w-none">
                   {transaction.category.icon} {transaction.category.name}
                 </span>
-                <span>•</span>
+                <span className="hidden sm:inline">•</span>
               </>
             )}
-            <span className="flex items-center gap-1">
+            <span className="flex items-center gap-1 truncate max-w-24 sm:max-w-none">
               {transaction.account?.icon} {transaction.account?.name}
             </span>
             {isTransfer && transaction.toAccount && (
               <>
                 <span>→</span>
-                <span className="flex items-center gap-1">
+                <span className="flex items-center gap-1 truncate max-w-20 sm:max-w-none">
                   {transaction.toAccount.icon} {transaction.toAccount.name}
                 </span>
               </>
             )}
-            <span>•</span>
-            <span>📅 {formattedDate}</span>
+
+            <span className="hidden sm:inline">•</span>
+            <span className="hidden sm:inline">📅 {formattedDate}</span>
           </div>
+
+          <p className="mt-0.5 text-xs text-primary-400 sm:hidden">📅 {formattedDate}</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-4 shrink-0">
+      <div className="flex items-center gap-2 shrink-0 sm:gap-4">
         <div className="text-right">
-          <p className={`text-xl font-bold ${config.color}`}>
+          <p className={`text-sm sm:text-lg lg:text-xl font-bold ${config.color} tabular-nums`}>
             {config.prefix} {format(transaction.amount)}
           </p>
-          <Badge variant={badgeVariant} size="sm" className="mt-1">
+          <Badge variant={badgeVariant} className="hidden mt-1 sm:inline-flex">
             {badgeLabel}
           </Badge>
         </div>
-        <Button variant="danger" size="sm" onClick={() => onDelete(transaction.id)} disabled={isDeleting} aria-label={t("deleteButton")}>
+        <Button variant="danger" size="sm" onClick={() => onDelete(transaction.id)} disabled={isDeleting} aria-label={t("deleteButton")} className="px-2 sm:px-3">
           🗑️
         </Button>
       </div>
@@ -129,11 +124,11 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, onDelete
 const EmptyState: React.FC<EmptyStateProps> = ({ onCreateClick }) => {
   const t = useTranslations("transactionsPage");
   return (
-    <div className="py-16 text-center">
-      <div className="mb-4 text-6xl">📝</div>
-      <h3 className="mb-2 text-xl font-bold text-primary-900">{t("empty.title")}</h3>
-      <p className="max-w-md mx-auto mb-6 text-primary-600">{t("empty.description")}</p>
-      <Button variant="primary" onClick={onCreateClick} size="lg">
+    <div className="py-10 text-center sm:py-16">
+      <div className="mb-3 text-4xl sm:mb-4 sm:text-6xl">📝</div>
+      <h3 className="mb-1.5 text-lg font-bold sm:mb-2 sm:text-xl text-primary-900">{t("empty.title")}</h3>
+      <p className="max-w-xs mx-auto mb-5 text-sm sm:max-w-md sm:mb-6 text-primary-600">{t("empty.description")}</p>
+      <Button variant="primary" onClick={onCreateClick} size="md" className="w-full sm:w-auto">
         + {t("empty.action")}
       </Button>
     </div>
@@ -141,16 +136,16 @@ const EmptyState: React.FC<EmptyStateProps> = ({ onCreateClick }) => {
 };
 
 const LoadingSkeleton: React.FC = () => (
-  <div className="space-y-6">
-    <Skeleton className="w-64 h-8" />
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+  <div className="space-y-4 sm:space-y-6">
+    <Skeleton className="w-40 h-7 sm:w-64 sm:h-8" />
+    <div className="grid grid-cols-1 gap-3 sm:gap-4 md:grid-cols-3">
       {[1, 2, 3].map((i) => (
-        <Skeleton key={i} className="h-24" />
+        <Skeleton key={i} className="h-20 sm:h-24" />
       ))}
     </div>
-    <div className="space-y-4">
+    <div className="space-y-3 sm:space-y-4">
       {[1, 2, 3, 4, 5].map((i) => (
-        <Skeleton key={i} className="h-24" />
+        <Skeleton key={i} className="h-16 sm:h-24" />
       ))}
     </div>
   </div>
@@ -181,13 +176,7 @@ export const Transactions: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
 
-  const getFilteredCategories = React.useCallback(
-    (type: TransactionType) => {
-      if (type === "TRANSFER") return [];
-      return categories.filter((c) => c.type === type);
-    },
-    [categories],
-  );
+  const getFilteredCategories = React.useCallback((type: TransactionType) => (type === "TRANSFER" ? [] : categories.filter((c) => c.type === type)), [categories]);
 
   const getDefaultCategory = React.useCallback(
     (type: TransactionType) => {
@@ -198,21 +187,17 @@ export const Transactions: React.FC = () => {
   );
 
   const categoryOptions = React.useMemo<SelectOption[]>(() => getFilteredCategories(formData.type).map((c) => ({ value: c.id, label: `${c.icon} ${c.name}` })), [formData.type, getFilteredCategories]);
-
   const accountOptions = React.useMemo<SelectOption[]>(() => accounts.map((a) => ({ value: a.id, label: `${a.icon} ${a.name}` })), [accounts]);
-
   const toAccountOptions = React.useMemo<SelectOption[]>(
     () => accounts.filter((a) => a.id !== formData.accountId).map((a) => ({ value: a.id, label: `${a.icon} ${a.name}` })),
     [accounts, formData.accountId],
   );
 
   const resetForm = React.useCallback(() => setFormData(INITIAL_FORM_DATA), []);
-
   const openModal = React.useCallback(() => {
     resetForm();
     setIsModalOpen(true);
   }, [resetForm]);
-
   const closeModal = React.useCallback(() => {
     setIsModalOpen(false);
     resetForm();
@@ -222,21 +207,12 @@ export const Transactions: React.FC = () => {
     (field: keyof FormData, value: string) => {
       setFormData((prev) => {
         const updated = { ...prev, [field]: value };
-
         if (field === "type") {
           const newType = value as TransactionType;
           updated.toAccountId = "";
-
-          if (newType === "TRANSFER") {
-            updated.categoryId = "";
-          } else {
-            const defaultCat = getDefaultCategory(newType);
-            updated.categoryId = defaultCat?.id ?? "";
-          }
+          updated.categoryId = newType === "TRANSFER" ? "" : (getDefaultCategory(newType)?.id ?? "");
         }
-
         if (field === "accountId" && updated.toAccountId === value) updated.toAccountId = "";
-
         return updated;
       });
     },
@@ -251,22 +227,18 @@ export const Transactions: React.FC = () => {
         addToast({ message: t("validation.amount"), type: "error" });
         return;
       }
-
       if (!formData.accountId) {
         addToast({ message: t("validation.account"), type: "error" });
         return;
       }
-
       if (formData.type === "TRANSFER" && formData.toAccountId && formData.toAccountId === formData.accountId) {
         addToast({ message: t("validation.sameAccount"), type: "error" });
         return;
       }
-
       if (formData.type !== "TRANSFER" && !formData.categoryId) {
         addToast({ message: t("validation.category"), type: "error" });
         return;
       }
-
       if (!formData.description.trim()) {
         addToast({ message: t("validation.description"), type: "error" });
         return;
@@ -305,7 +277,6 @@ export const Transactions: React.FC = () => {
   );
 
   const handleDeleteClick = React.useCallback((id: string) => setDeleteId(id), []);
-
   const handleDeleteConfirm = React.useCallback(() => {
     if (!deleteId) return;
     deleteTransaction(deleteId, {
@@ -321,7 +292,6 @@ export const Transactions: React.FC = () => {
   }, [deleteId, deleteTransaction, addToast, t]);
 
   const hasActiveFilters = React.useMemo(() => selectedType || selectedCategory || searchQuery, [selectedType, selectedCategory, searchQuery]);
-
   const previewConfig = TYPE_CONFIG[formData.type];
 
   const previewSubtitle = React.useMemo(() => {
@@ -341,29 +311,29 @@ export const Transactions: React.FC = () => {
   if (isLoading) return <LoadingSkeleton />;
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+    <div className="space-y-3 sm:space-y-5 lg:space-y-6">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-primary-900">{t("title")}</h1>
-          <p className="mt-1 text-primary-600">{t("subtitle")}</p>
+          <h1 className="text-xl font-bold sm:text-2xl lg:text-3xl text-primary-900">{t("title")}</h1>
+          <p className="mt-0.5 text-xs sm:text-sm text-primary-600">{t("subtitle")}</p>
         </div>
-        <Button variant="primary" onClick={openModal} className="w-full sm:w-auto">
+        <Button variant="primary" size="lg" onClick={openModal} className="w-full sm:w-auto">
           + {t("addButton")}
         </Button>
       </div>
 
       <Card>
-        <CardContent className="pt-6">
-          <div className="space-y-4">
+        <CardContent className="pt-4 sm:pt-6">
+          <div className="space-y-3 sm:space-y-4">
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-medium text-primary-900">{t("filter.title")}</h3>
+              <h3 className="text-xs font-medium sm:text-sm text-primary-900">{t("filter.title")}</h3>
               {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={resetFilters}>
+                <Button variant="ghost" size="sm" onClick={resetFilters} className="text-xs sm:text-sm">
                   🔄 {t("filter.clear")}
                 </Button>
               )}
             </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3">
               <Select
                 label={t("filter.type")}
                 options={[
@@ -383,20 +353,21 @@ export const Transactions: React.FC = () => {
               />
               <Input label={t("filter.search")} placeholder={t("filter.searchPlaceholder")} value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
             </div>
+
             {hasActiveFilters && (
-              <div className="flex flex-wrap gap-2 pt-2">
+              <div className="flex flex-wrap gap-1.5 pt-1 sm:gap-2 sm:pt-2">
                 {selectedType && (
-                  <Badge variant="default" size="sm">
+                  <Badge variant="default" className="text-xs">
                     {t("filter.type")}: {selectedType}
                   </Badge>
                 )}
                 {selectedCategory && (
-                  <Badge variant="default" size="sm">
+                  <Badge variant="default" className="text-xs">
                     {t("filter.category")}: {categories.find((c) => c.id === selectedCategory)?.name}
                   </Badge>
                 )}
                 {searchQuery && (
-                  <Badge variant="default" size="sm">
+                  <Badge variant="default" className="text-xs">
                     {t("filter.search")}: &quot;{searchQuery}&quot;
                   </Badge>
                 )}
@@ -407,11 +378,11 @@ export const Transactions: React.FC = () => {
       </Card>
 
       <Card>
-        <CardContent className="pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold text-primary-900">{transactions.length > 0 ? `${t("listTitle")} (${transactions.length})` : t("listTitle")}</h2>
+        <CardContent className="pt-4 sm:pt-6">
+          <div className="flex items-center justify-between mb-3 sm:mb-4">
+            <h2 className="text-sm font-bold sm:text-base lg:text-lg text-primary-900">{transactions.length > 0 ? `${t("listTitle")} (${transactions.length})` : t("listTitle")}</h2>
             {pagination && (
-              <p className="text-sm text-primary-600">
+              <p className="text-xs sm:text-sm text-primary-600">
                 {t("pagination.showing", {
                   start: (pagination.page - 1) * 20 + 1,
                   end: Math.min(pagination.page * 20, pagination.total),
@@ -425,21 +396,21 @@ export const Transactions: React.FC = () => {
             <EmptyState onCreateClick={openModal} />
           ) : (
             <>
-              <div className="space-y-3">
+              <div className="space-y-2 sm:space-y-3">
                 {transactions.map((tx) => (
                   <TransactionItem key={tx.id} transaction={tx} onDelete={handleDeleteClick} isDeleting={isDeleting} />
                 ))}
               </div>
 
               {pagination && pagination.totalPages > 1 && (
-                <div className="flex items-center justify-center gap-3 pt-6 mt-6 border-t">
-                  <Button variant="outline" size="sm" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1}>
+                <div className="flex items-center justify-center gap-2 pt-4 mt-4 border-t sm:gap-3 sm:pt-6 sm:mt-6">
+                  <Button variant="outline" size="sm" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="text-xs sm:text-sm">
                     ← {t("pagination.previous")}
                   </Button>
-                  <span className="px-2 text-sm text-primary-600">
+                  <span className="px-1 text-xs sm:px-2 sm:text-sm text-primary-600">
                     {t("pagination.page")} <strong>{pagination.page}</strong> {t("pagination.of")} <strong>{pagination.totalPages}</strong>
                   </span>
-                  <Button variant="outline" size="sm" onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === pagination.totalPages}>
+                  <Button variant="outline" size="sm" onClick={() => handlePageChange(currentPage + 1)} disabled={currentPage === pagination.totalPages} className="text-xs sm:text-sm">
                     {t("pagination.next")} →
                   </Button>
                 </div>
@@ -448,14 +419,13 @@ export const Transactions: React.FC = () => {
           )}
         </CardContent>
       </Card>
-
       <Modal isOpen={isModalOpen} onClose={closeModal} title={`➕ ${t("modal.addTitle")}`} size="lg">
-        <div className="space-y-4">
-          <div className="p-3 border rounded-lg bg-primary-50 border-primary-200">
-            <p className="text-sm font-medium text-primary-700">💡 {t("modal.hint")}</p>
+        <div className="space-y-3 sm:space-y-4">
+          <div className="p-2.5 border rounded-lg sm:p-3 bg-primary-50 border-primary-200">
+            <p className="text-xs font-medium sm:text-sm text-primary-700">💡 {t("modal.hint")}</p>
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
             <Select
               label={`${t("modal.type")} *`}
               options={[
@@ -479,7 +449,7 @@ export const Transactions: React.FC = () => {
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
             <Select
               label={`${formData.type === "TRANSFER" ? t("modal.fromAccount") : t("modal.account")} *`}
               options={[{ value: "", label: t("modal.selected", { type: t("modal.account") }) }, ...accountOptions]}
@@ -487,7 +457,6 @@ export const Transactions: React.FC = () => {
               onChange={(e) => handleChangeForm("accountId", e.target.value)}
               required
             />
-
             {formData.type === "TRANSFER" ? (
               <Select
                 label={t("modal.toAccount")}
@@ -519,21 +488,21 @@ export const Transactions: React.FC = () => {
           />
 
           {formData.amount && formData.description && (
-            <div className="p-4 border rounded-lg bg-linear-to-br from-primary-50 to-neutral border-primary-200">
-              <p className="mb-3 text-sm font-medium text-primary-700">{t("modal.preview")}:</p>
-              <div className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm">
-                <div className="flex items-center gap-3">
-                  <div className={`flex items-center justify-center w-10 h-10 text-xl rounded-full ${previewConfig.bg}`}>{previewIcon}</div>
-                  <div>
-                    <p className="font-medium text-primary-900">{formData.description}</p>
-                    <p className="text-xs text-primary-600">{previewSubtitle}</p>
+            <div className="p-3 border rounded-lg sm:p-4 bg-linear-to-br from-primary-50 to-neutral border-primary-200">
+              <p className="mb-2 text-xs font-medium sm:mb-3 sm:text-sm text-primary-700">{t("modal.preview")}:</p>
+              <div className="flex items-center justify-between p-2.5 bg-white rounded-lg shadow-sm sm:p-3">
+                <div className="flex items-center min-w-0 gap-2 sm:gap-3">
+                  <div className={`flex items-center justify-center shrink-0 w-8 h-8 text-lg sm:w-10 sm:h-10 sm:text-xl rounded-full ${previewConfig.bg}`}>{previewIcon}</div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate text-primary-900">{formData.description}</p>
+                    <p className="text-xs truncate text-primary-600">{previewSubtitle}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className={`font-bold ${previewConfig.color}`}>
+                <div className="ml-2 text-right shrink-0">
+                  <p className={`text-sm sm:text-base font-bold ${previewConfig.color} tabular-nums`}>
                     {previewConfig.prefix} {format(formData.amount)}
                   </p>
-                  <Badge variant={formData.type === "INCOME" ? "success" : formData.type === "TRANSFER" ? "info" : "error"} size="sm">
+                  <Badge variant={formData.type === "INCOME" ? "success" : formData.type === "TRANSFER" ? "info" : "error"} className="text-xs">
                     {formData.type}
                   </Badge>
                 </div>
@@ -541,11 +510,11 @@ export const Transactions: React.FC = () => {
             </div>
           )}
 
-          <div className="flex justify-end gap-3 pt-4 border-t">
-            <Button type="button" variant="ghost" onClick={closeModal} disabled={isCreating}>
+          <div className="flex justify-end gap-2 pt-3 border-t sm:gap-3 sm:pt-4">
+            <Button type="button" variant="ghost" onClick={closeModal} disabled={isCreating} className="text-xs sm:text-sm">
               {t("modal.cancel")}
             </Button>
-            <Button onClick={handleSubmitForm} variant="primary" isLoading={isCreating}>
+            <Button onClick={handleSubmitForm} variant="primary" isLoading={isCreating} className="text-xs sm:text-sm">
               {t("modal.create")}
             </Button>
           </div>
@@ -553,19 +522,19 @@ export const Transactions: React.FC = () => {
       </Modal>
 
       <Modal isOpen={!!deleteId} onClose={() => setDeleteId(null)} title={t("deleteModal.title")} size="sm">
-        <div className="space-y-4">
-          <div className="flex items-start gap-3 p-4 border border-red-200 rounded-lg bg-red-50">
-            <span className="text-2xl">⚠️</span>
+        <div className="space-y-3 sm:space-y-4">
+          <div className="flex items-start gap-2.5 p-3 border border-red-200 rounded-lg sm:gap-3 sm:p-4 bg-red-50">
+            <span className="text-xl sm:text-2xl shrink-0">⚠️</span>
             <div>
-              <p className="mb-1 font-medium text-red-900">{t("deleteModal.confirm")}</p>
-              <p className="text-sm text-red-700">{t("deleteModal.warning")}</p>
+              <p className="mb-0.5 text-sm font-medium sm:mb-1 text-red-900">{t("deleteModal.confirm")}</p>
+              <p className="text-xs text-red-700 sm:text-sm">{t("deleteModal.warning")}</p>
             </div>
           </div>
-          <div className="flex justify-end gap-3">
-            <Button variant="ghost" onClick={() => setDeleteId(null)} disabled={isDeleting}>
+          <div className="flex justify-end gap-2 sm:gap-3">
+            <Button variant="ghost" onClick={() => setDeleteId(null)} disabled={isDeleting} className="text-xs sm:text-sm">
               {t("deleteModal.cancel")}
             </Button>
-            <Button variant="danger" onClick={handleDeleteConfirm} isLoading={isDeleting}>
+            <Button variant="danger" onClick={handleDeleteConfirm} isLoading={isDeleting} className="text-xs sm:text-sm">
               {t("deleteModal.delete")}
             </Button>
           </div>

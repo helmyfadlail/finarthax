@@ -25,19 +25,21 @@ const Alert = forwardRef<HTMLDivElement, AlertProps>(({ className, variant = "de
   };
 
   return (
-    <div ref={ref} className={cn("relative w-full rounded-lg border p-4 flex items-start gap-3", variants[variant], className)} {...props}>
+    <div ref={ref} className={cn("relative w-full rounded-lg border flex items-start", "p-3 gap-2", "md:p-4 md:gap-3", "lg:p-5 lg:gap-4", variants[variant], className)} {...props}>
       {icon && <div className={cn("shrink-0", iconColors[variant])}>{icon}</div>}
-      <div className="flex-1">{children}</div>
+      <div className="flex-1 min-w-0">{children}</div>
     </div>
   );
 });
 Alert.displayName = "Alert";
 
-const AlertTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingElement>>(({ className, ...props }, ref) => <h5 ref={ref} className={cn("font-semibold mb-1", className)} {...props} />);
+const AlertTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingElement>>(({ className, ...props }, ref) => (
+  <h5 ref={ref} className={cn("font-semibold", "text-sm mb-0.5", "md:text-base md:mb-1", "lg:text-base lg:mb-1", className)} {...props} />
+));
 AlertTitle.displayName = "AlertTitle";
 
 const AlertDescription = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLParagraphElement>>(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("text-sm opacity-90", className)} {...props} />
+  <div ref={ref} className={cn("opacity-90", "text-xs", "md:text-sm", "lg:text-sm", className)} {...props} />
 ));
 AlertDescription.displayName = "AlertDescription";
 

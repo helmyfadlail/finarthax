@@ -447,12 +447,6 @@ export const Profiles: React.FC = () => {
         <p className="mt-1 text-primary-600">{t("subtitle")}</p>
       </div>
 
-      {/*
-        KEY PATTERN: when `profile` changes (e.g. after a successful save,
-        the server returns fresh data), React unmounts the old ProfileForm
-        and mounts a new one — lazy initializers run again with the latest
-        values. No useEffect, no manual sync.
-      */}
       {profile && (
         <ProfileForm
           key={profile.id ?? profile.email}

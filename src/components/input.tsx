@@ -35,7 +35,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({ className, label, erro
 
   return (
     <div className="w-full">
-      {label && <label className="block text-sm font-medium text-primary-700 mb-1.5">{label}</label>}
+      {label && <label className="block text-sm font-medium text-primary-700 mb-0.5 md:mb-1.5">{label}</label>}
       <div className="relative">
         {icon && <div className="absolute -translate-y-1/2 left-3 top-1/2 text-primary-400">{icon}</div>}
         {minusNumber && <div className="absolute -translate-y-1/2 left-9 top-1/2 text-primary-400">{minusNumber}</div>}
@@ -45,7 +45,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({ className, label, erro
           onWheel={handleWheel}
           onKeyDown={handleKeyDown}
           className={cn(
-            "w-full px-4 py-2.5 rounded-lg border-2 border-primary-100 bg-white text-primary-900 placeholder:text-primary-300",
+            "w-full px-4 py-2.5 text-sm md:text-base rounded-lg border-2 border-primary-100 bg-white text-primary-900 placeholder:text-primary-300",
             "focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none",
             "transition-all duration-200",
             "disabled:bg-neutral-100 disabled:cursor-not-allowed",
@@ -58,7 +58,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({ className, label, erro
           {...props}
         />
       </div>
-      {error && <p className="mt-1.5 text-sm text-red-500">{error}</p>}
+      {error && <p className="mt-0.5 md:mt-1.5 text-sm text-red-500">{error}</p>}
     </div>
   );
 });

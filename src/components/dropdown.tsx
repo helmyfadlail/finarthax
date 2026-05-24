@@ -37,10 +37,13 @@ export const Dropdown = ({ trigger, children, align = "right", position = "origi
 
       <div
         className={cn(
-          "absolute z-10 mt-2 w-56 rounded bg-white shadow-lg focus:outline-none overflow-hidden transition-all duration-100",
+          "absolute z-10 mt-1.5 rounded bg-white shadow-lg focus:outline-none overflow-hidden transition-all duration-100",
+          "w-44",
+          "md:w-52",
+          "lg:w-56",
           align === "right" ? "right-0" : "left-0",
           position,
-          isOpen ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none"
+          isOpen ? "opacity-100 scale-100" : "opacity-0 scale-95 pointer-events-none",
         )}
       >
         {children}
@@ -57,14 +60,16 @@ interface DropdownItemProps {
 }
 
 export const DropdownItem = ({ children, onClick, icon, danger }: DropdownItemProps) => {
-  const [isHovered, setIsHovered] = useState(false);
-
   return (
     <button
       onClick={onClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className={cn("group flex w-full items-center gap-3 px-4 py-3 text-sm transition-colors", isHovered && "bg-primary-50", danger ? "text-red-600" : "text-primary-900")}
+      className={cn(
+        "group flex w-full items-center transition-colors hover:bg-primary-50",
+        "gap-2 px-3 py-2 text-xs",
+        "md:gap-2.5 md:px-3.5 md:py-2.5 md:text-xs",
+        "lg:gap-3 lg:px-4 lg:py-3 lg:text-sm",
+        danger ? "text-red-600" : "text-primary-900",
+      )}
     >
       {icon && <span className="shrink-0">{icon}</span>}
       <span>{children}</span>
@@ -73,5 +78,5 @@ export const DropdownItem = ({ children, onClick, icon, danger }: DropdownItemPr
 };
 
 export const DropdownDivider = () => {
-  return <div className="h-px my-1 bg-primary-100" />;
+  return <div className="h-px my-0.5 md:my-1 bg-primary-100" />;
 };

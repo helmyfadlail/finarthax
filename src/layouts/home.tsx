@@ -211,7 +211,7 @@ export const Home: React.FC = () => {
               <span className="text-lg sm:text-xl md:text-2xl shrink-0">💡</span>
               <div className="flex-1 min-w-0">
                 <p className="mb-1.5 sm:mb-2 text-xs sm:text-sm md:text-base font-medium text-primary-900">How it works:</p>
-                <ul className="space-y-0.5 sm:space-y-1 text-xs sm:text-sm text-primary-700">
+                <ul className="space-y-0.5 sm:space-y-1 text-sm sm:text-base text-primary-700">
                   <li>✓ Record transactions without creating an account</li>
                   <li>✓ Transactions saved locally on your device</li>
                   <li>✓ Perfect for quick expense tracking on the go</li>
@@ -327,7 +327,7 @@ export const Home: React.FC = () => {
                           <p className={`font-bold text-sm sm:text-base ${config.text}`}>
                             {config.prefix} {"Rp." + (formData.amount || "0")}
                           </p>
-                          <Badge variant={config.badge} size="sm" className="mt-0.5">
+                          <Badge variant={config.badge} className="mt-0.5">
                             {formData.type}
                           </Badge>
                         </div>
@@ -348,8 +348,8 @@ export const Home: React.FC = () => {
           <CardContent className="pt-4 sm:pt-6">
             <div className="p-4 text-center border-2 border-dashed sm:p-6 rounded-xl border-primary-300 bg-primary-50">
               <div className="mb-2 text-3xl sm:mb-3 sm:text-4xl">🚀</div>
-              <h3 className="mb-1.5 sm:mb-2 text-lg sm:text-xl font-bold text-primary-900">Ready for More?</h3>
-              <p className="max-w-xs mx-auto mb-3 text-xs sm:mb-4 sm:text-sm md:text-base text-primary-600">Create a free account to sync your data, set budgets, and access powerful analytics</p>
+              <h3 className="mb-1.5 sm:mb-2 text-xl sm:text-2xl font-bold text-primary-900">Ready for More?</h3>
+              <p className="max-w-xs mx-auto mb-3 text-sm sm:mb-4 md:text-base text-primary-600">Create a free account to sync your data, set budgets, and access powerful analytics</p>
               <div className="flex flex-col justify-center gap-2 sm:flex-row sm:gap-3">
                 <Button variant="primary" size="lg" onClick={() => router.push("/register")} className="w-full sm:w-auto">
                   Sign Up Free

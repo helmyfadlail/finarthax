@@ -4,7 +4,7 @@ import * as React from "react";
 
 import { useSettings } from "@/hooks";
 
-import { BASE_CURRENCY, CURRENCY_LOCALE_MAP, ZERO_DECIMAL_CURRENCIES } from "@/static";
+import { BASE_CURRENCY, BASE_CURRENCY_SYMBOL, CURRENCY_LOCALE_MAP, ZERO_DECIMAL_CURRENCIES } from "@/static";
 
 interface CurrencyOption {
   value: string;
@@ -15,7 +15,6 @@ interface CurrencyOption {
 export interface CurrencyContextType {
   currency: string;
   symbol: string;
-  currencyOptions: CurrencyOption[];
   rates: Record<string, number> | null;
   isLoading: boolean;
   format: (amount: number | string, fromCurrency?: string) => string;
@@ -29,7 +28,8 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const currency = React.useMemo<string>(() => {
     const setting = getUserSetting("currency");
-    return setting?.value ?? BASE_CURRENCY;
+    if (!setting) return BASE_CURRENCY;
+    return setting.value;
   }, [getUserSetting]);
 
   const currencyOptions = React.useMemo<CurrencyOption[]>(() => {
@@ -37,13 +37,6 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!setting || !Array.isArray(setting.value)) return [];
     return setting.value as unknown as CurrencyOption[];
   }, [getAppSetting]);
-
-  const symbol = React.useMemo<string>(() => {
-    if (currencyOptions.length === 0) {
-      return currency;
-    }
-    return currencyOptions.find((o) => o.value === currency)?.symbol ?? currency;
-  }, [currency, currencyOptions]);
 
   const localeMap = React.useMemo<Record<string, string>>(() => {
     const setting = getAppSetting("currency_locale_map");
@@ -56,6 +49,11 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!setting || !Array.isArray(setting.value)) return new Set(ZERO_DECIMAL_CURRENCIES);
     return new Set(setting.value as string[]);
   }, [getAppSetting]);
+
+  const symbol = React.useMemo<string>(() => {
+    if (currencyOptions.length === 0) return currency;
+    return currencyOptions.find((o) => o.value === currency)?.symbol || BASE_CURRENCY_SYMBOL;
+  }, [currency, currencyOptions]);
 
   const convert = React.useCallback(
     (amount: number, from: string, to: string): number => {
@@ -103,13 +101,12 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     () => ({
       currency,
       symbol,
-      currencyOptions,
       rates: exchangeRates ?? null,
       isLoading: isLoadingUserSettings || isLoadingAppSettings || isLoadingRates,
       format,
       convert,
     }),
-    [currency, symbol, currencyOptions, exchangeRates, isLoadingUserSettings, isLoadingAppSettings, isLoadingRates, format, convert],
+    [currency, symbol, exchangeRates, isLoadingUserSettings, isLoadingAppSettings, isLoadingRates, format, convert],
   );
 
   return <CurrencyContext.Provider value={value}>{children}</CurrencyContext.Provider>;

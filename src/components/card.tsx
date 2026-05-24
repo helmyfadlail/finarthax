@@ -17,24 +17,26 @@ const Card = forwardRef<HTMLDivElement, CardProps>(({ className, variant = "defa
 });
 Card.displayName = "Card";
 
-const CardHeader = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => <div ref={ref} className={cn("p-6 pb-4", className)} {...props} />);
+const CardHeader = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => <div ref={ref} className={cn("p-4 pb-3", "xl:p-6 xl:pb-4", className)} {...props} />);
 CardHeader.displayName = "CardHeader";
 
 const CardTitle = forwardRef<HTMLHeadingElement, HTMLAttributes<HTMLHeadingElement>>(({ className, ...props }, ref) => (
-  <h3 ref={ref} className={cn("text-xl font-bold text-primary-900", className)} {...props} />
+  <h3 ref={ref} className={cn("font-bold text-primary-900", "text-lg", "md:text-xl", "lg:text-2xl", className)} {...props} />
 ));
 CardTitle.displayName = "CardTitle";
 
 const CardDescription = forwardRef<HTMLParagraphElement, HTMLAttributes<HTMLParagraphElement>>(({ className, ...props }, ref) => (
-  <p ref={ref} className={cn("text-sm text-primary-600 mt-1", className)} {...props} />
+  <p ref={ref} className={cn("text-primary-600 mt-1", "text-xs", "md:text-sm", className)} {...props} />
 ));
 CardDescription.displayName = "CardDescription";
 
-const CardContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => <div ref={ref} className={cn("p-6 pt-0", className)} {...props} />);
+const CardContent = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
+  <div ref={ref} className={cn("px-4 pb-4 pt-0", "xl:px-6 xl:pb-6", className)} {...props} />
+));
 CardContent.displayName = "CardContent";
 
 const CardFooter = forwardRef<HTMLDivElement, HTMLAttributes<HTMLDivElement>>(({ className, ...props }, ref) => (
-  <div ref={ref} className={cn("p-6 pt-0 flex items-center gap-3", className)} {...props} />
+  <div ref={ref} className={cn("px-4 pb-4 pt-0 flex items-center gap-2", "xl:px-6 xl:pb-6 xl:gap-3", className)} {...props} />
 ));
 CardFooter.displayName = "CardFooter";
 

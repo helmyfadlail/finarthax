@@ -60,9 +60,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ title, amount, change, icon, 
   const { format } = useCurrency();
 
   const isPositive = type === "expense" ? change <= 0 : type === "transfer" ? true : change >= 0;
-
   const colorClass = type === "income" ? "text-emerald-600" : type === "expense" ? "text-rose-600" : type === "transfer" ? "text-sky-600" : "text-primary-900";
-
   const cardBg =
     type === "income"
       ? "from-emerald-50 to-white border-emerald-100"
@@ -71,33 +69,32 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ title, amount, change, icon, 
         : type === "transfer"
           ? "from-sky-50 to-white border-sky-100"
           : "from-primary-50 to-white border-primary-100";
-
   const changeColor = type === "transfer" ? "text-sky-500" : isPositive ? "text-emerald-600" : "text-rose-600";
 
   return (
     <Card variant="elevated" className={`bg-linear-to-br ${cardBg} hover:shadow-xl transition-all duration-300 border`}>
-      <CardHeader className="pb-2">
+      <CardHeader>
         <CardTitle className="flex items-center justify-between text-sm font-medium">
-          <span className="text-xs tracking-wide uppercase text-primary-500">{title}</span>
-          <span className="text-xl sm:text-2xl">{icon}</span>
+          <span className="pr-1 text-xs tracking-wide uppercase truncate text-primary-500">{title}</span>
+          <span className="text-lg lg:text-xl shrink-0">{icon}</span>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className={`text-xl sm:text-2xl md:text-3xl font-bold ${colorClass} mb-2 tabular-nums`}>{format(amount)}</p>
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
+        <p className={`text-base sm:text-xl md:text-2xl lg:text-xl xl:text-3xl font-bold ${colorClass} mb-1.5 tabular-nums truncate`}>{format(amount)}</p>
+        <div className="flex items-center justify-between gap-1">
+          <div className="flex items-center gap-1">
             {type !== "transfer" ? (
               <>
-                <span className={`text-xs sm:text-sm font-medium ${changeColor}`}>
+                <span className={`text-xs font-medium ${changeColor}`}>
                   {change >= 0 ? "↗" : "↘"} {Math.abs(change).toFixed(1)}%
                 </span>
-                <span className="hidden text-xs text-primary-400 sm:inline">{t("vsLastMonth")}</span>
+                <span className="hidden text-xs md:inline text-primary-400">{t("vsLastMonth")}</span>
               </>
             ) : (
               <span className="text-xs font-medium text-sky-500">⇄ {t("neutral")}</span>
             )}
           </div>
-          {count !== undefined && <span className="text-xs text-primary-400 tabular-nums">{count} txn</span>}
+          {count !== undefined && <span className="text-xs text-primary-400 tabular-nums shrink-0">{count} txn</span>}
         </div>
       </CardContent>
     </Card>
@@ -113,25 +110,27 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
   const isTransfer = type === "TRANSFER";
 
   return (
-    <div className="flex items-center justify-between gap-3 p-3 transition-all sm:p-4 rounded-xl bg-neutral hover:bg-neutral-100 hover:shadow-sm group">
-      <div className="flex items-center flex-1 min-w-0 gap-3">
-        <div className={`flex items-center justify-center shrink-0 w-9 h-9 sm:w-11 sm:h-11 text-lg sm:text-2xl rounded-full ${config.iconBg} transition-transform group-hover:scale-110`}>
+    <div className="flex items-center justify-between gap-2 p-2.5 sm:gap-3 sm:p-4 rounded-xl bg-neutral hover:bg-neutral-100 hover:shadow-sm transition-all group">
+      <div className="flex items-center flex-1 min-w-0 gap-2 sm:gap-3">
+        <div
+          className={`flex items-center justify-center shrink-0 w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 text-base sm:text-xl rounded-full ${config.iconBg} transition-transform group-hover:scale-110`}
+        >
           {isTransfer ? "🔄" : (transaction.category?.icon ?? "💰")}
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-semibold truncate sm:text-base text-primary-900">{transaction.description || t("noDescription")}</h4>
-          <p className="text-xs truncate sm:text-sm text-primary-500">
+          <h4 className="text-xs font-semibold truncate sm:text-sm text-primary-900">{transaction.description || t("noDescription")}</h4>
+          <p className="text-xs truncate text-primary-500">
             {isTransfer ? (transaction.toAccount ? `${transaction.account?.name} → ${transaction.toAccount.name}` : transaction.account?.name) : (transaction.category?.name ?? t("uncategorized"))}
           </p>
         </div>
       </div>
 
       <div className="text-right shrink-0">
-        <p className={`text-base sm:text-xl font-bold ${config.color} tabular-nums`}>
+        <p className={`text-sm sm:text-base md:text-lg font-bold ${config.color} tabular-nums`}>
           {config.prefix}
           {format(transaction.amount)}
         </p>
-        <Badge variant={config.badge} size="sm" className="hidden mt-1 sm:inline-flex">
+        <Badge variant={config.badge} className="hidden mt-1 sm:inline-flex">
           {config.icon} {t(type.toLowerCase() as "income" | "expense" | "transfer")}
         </Badge>
       </div>
@@ -144,29 +143,29 @@ const BudgetProgress: React.FC<BudgetProgressProps> = ({ budget }) => {
   const { format } = useCurrency();
 
   const status = useMemo(() => {
-    if (budget.percentage >= 100) return { color: "bg-rose-500", bar: "from-rose-400 to-rose-600", text: "text-rose-600", label: t("budgetStatus.overBudget") };
-    if (budget.percentage >= 80) return { color: "bg-amber-500", bar: "from-amber-400 to-amber-500", text: "text-amber-600", label: t("budgetStatus.nearLimit") };
-    return { color: "bg-emerald-500", bar: "from-emerald-400 to-emerald-500", text: "text-emerald-600", label: t("budgetStatus.onTrack") };
+    if (budget.percentage >= 100) return { bar: "from-rose-400 to-rose-600", text: "text-rose-600", label: t("budgetStatus.overBudget") };
+    if (budget.percentage >= 80) return { bar: "from-amber-400 to-amber-500", text: "text-amber-600", label: t("budgetStatus.nearLimit") };
+    return { bar: "from-emerald-400 to-emerald-500", text: "text-emerald-600", label: t("budgetStatus.onTrack") };
   }, [budget.percentage, t]);
 
   return (
-    <div className="p-3 transition-colors border border-transparent sm:p-4 rounded-xl bg-neutral hover:bg-neutral-50 hover:border-primary-100">
-      <div className="flex items-center justify-between mb-2 sm:mb-3">
-        <div className="flex items-center min-w-0 gap-2">
-          <span className="text-lg sm:text-xl shrink-0">{budget.icon ?? "📊"}</span>
-          <span className="text-sm font-semibold truncate sm:text-base text-primary-900">{budget.category}</span>
+    <div className="p-2.5 sm:p-4 rounded-xl bg-neutral hover:bg-neutral-50 hover:border-primary-100 border border-transparent transition-colors">
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center min-w-0 gap-1.5 sm:gap-2">
+          <span className="text-base sm:text-xl shrink-0">{budget.icon ?? "📊"}</span>
+          <span className="text-xs font-semibold truncate sm:text-sm text-primary-900">{budget.category}</span>
         </div>
         <div className="ml-2 text-right shrink-0">
-          <p className="text-sm font-medium text-primary-900 tabular-nums">{format(budget.spent)}</p>
+          <p className="text-xs font-medium sm:text-sm text-primary-900 tabular-nums">{format(budget.spent)}</p>
           <p className="text-xs text-primary-400 tabular-nums">
             {t("of")} {format(budget.budget)}
           </p>
         </div>
       </div>
-      <div className="relative w-full h-2.5 sm:h-3 overflow-hidden rounded-full bg-primary-100">
+      <div className="relative w-full h-2 sm:h-2.5 overflow-hidden rounded-full bg-primary-100">
         <div className={`h-full rounded-full bg-linear-to-r ${status.bar} transition-all duration-700`} style={{ width: `${Math.min(budget.percentage, 100)}%` }} />
       </div>
-      <div className="flex items-center justify-between mt-1.5 sm:mt-2">
+      <div className="flex items-center justify-between mt-1.5">
         <span className={`text-xs font-medium ${status.text}`}>{status.label}</span>
         <span className="text-xs text-primary-400 tabular-nums">
           {budget.percentage?.toFixed(1)}% {t("used")}
@@ -185,13 +184,13 @@ const EmptyState: React.FC<{
 }> = ({ icon, title, description, actionLabel, actionHref }) => {
   const router = useRouter();
   return (
-    <div className="px-4 py-10 text-center sm:py-16">
-      <div className="mb-3 text-4xl sm:text-6xl sm:mb-4">{icon}</div>
-      <h3 className="mb-2 text-lg font-bold sm:text-xl text-primary-900">{title}</h3>
-      <p className="max-w-xs mx-auto mb-5 text-sm sm:text-base text-primary-500 sm:mb-6 sm:max-w-md">{description}</p>
+    <div className="px-3 py-8 text-center sm:py-12 sm:px-4">
+      <div className="mb-2 text-3xl sm:text-5xl sm:mb-3">{icon}</div>
+      <h3 className="mb-1.5 text-sm sm:text-lg font-bold text-primary-900">{title}</h3>
+      <p className="max-w-xs mx-auto mb-4 text-xs sm:text-sm text-primary-500 sm:mb-5">{description}</p>
       {actionLabel && actionHref && (
         <button onClick={() => router.push(actionHref)}>
-          <Button variant="primary" size="lg" className="w-full sm:w-auto">
+          <Button variant="primary" size="md" className="w-full sm:w-auto">
             {actionLabel}
           </Button>
         </button>
@@ -201,18 +200,18 @@ const EmptyState: React.FC<{
 };
 
 const LoadingSkeleton: React.FC = () => (
-  <div className="px-1 space-y-4 sm:space-y-6">
-    <Skeleton className="w-40 sm:w-64 h-7 sm:h-8" />
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 sm:gap-4">
+  <div className="px-1 space-y-3 sm:space-y-5">
+    <Skeleton className="w-32 h-6 sm:w-56 sm:h-8" />
+    <div className="grid grid-cols-2 gap-2 lg:grid-cols-4 sm:gap-3">
       {[1, 2, 3, 4].map((i) => (
-        <Skeleton key={i} className="h-28 sm:h-36 md:h-40" />
+        <Skeleton key={i} className="h-24 sm:h-32 md:h-36" />
       ))}
     </div>
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 sm:gap-6">
-      <Skeleton className="h-64 sm:h-80" />
-      <Skeleton className="h-64 sm:h-80" />
+    <div className="grid grid-cols-1 gap-3 lg:grid-cols-2 sm:gap-5">
+      <Skeleton className="h-52 sm:h-72" />
+      <Skeleton className="h-52 sm:h-72" />
     </div>
-    <Skeleton className="h-64 sm:h-96" />
+    <Skeleton className="h-52 sm:h-80" />
   </div>
 );
 
@@ -224,10 +223,10 @@ const ChartTooltip: React.FC<{
 }> = ({ active, payload, label, formatter }) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="p-3 text-xs bg-white border shadow-xl border-primary-100 rounded-xl sm:text-sm">
-      <p className="mb-2 font-semibold text-primary-700">{label}</p>
+    <div className="p-2.5 sm:p-3 text-xs bg-white border shadow-xl border-primary-100 rounded-xl">
+      <p className="mb-1.5 font-semibold text-primary-700">{label}</p>
       {payload.map((p) => (
-        <div key={p.name} className="flex items-center gap-2 mb-1">
+        <div key={p.name} className="flex items-center gap-1.5 mb-1">
           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
           <span className="capitalize text-primary-500">{p.name}:</span>
           <span className="font-semibold text-primary-900 tabular-nums">{formatter ? formatter(p.value) : p.value.toLocaleString()}</span>
@@ -264,47 +263,43 @@ export const Dashboard: React.FC = () => {
   const transferSummary = charts?.data?.transferSummary;
 
   const categoryData = useMemo(() => charts?.data?.categoryData ?? [], [charts?.data?.categoryData]);
+  const monthlyData = useMemo(() => charts?.data?.monthlyData ?? [], [charts?.data?.monthlyData]);
 
   const currentMonthName = useMemo(() => new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" }), []);
 
-  const monthlyData = useMemo(() => charts?.data?.monthlyData ?? [], [charts?.data?.monthlyData]);
-
   const safeMonthlyData = useMemo(() => monthlyData.map((d) => ({ ...d, income: Number(d.income), expense: Number(d.expense), transfer: Number(d.transfer ?? 0) })), [monthlyData]);
-
   const safeCategoryData = useMemo(() => categoryData.map((d) => ({ ...d, value: Number(d.value) })), [categoryData]);
-
-  const pieData = safeCategoryData.map((item, index) => ({ ...item, fill: item.color && item.color !== "#6b7280" ? item.color : PIE_PALETTE[index % PIE_PALETTE.length] }));
+  const pieData = safeCategoryData.map((item, i) => ({ ...item, fill: item.color && item.color !== "#6b7280" ? item.color : PIE_PALETTE[i % PIE_PALETTE.length] }));
 
   if (isLoading) return <LoadingSkeleton />;
 
   return (
-    <div className="space-y-4 sm:space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+    <div className="space-y-3 sm:space-y-5 lg:space-y-6">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div>
-          <h1 className="text-2xl font-bold sm:text-3xl text-primary-900">{t("title")}</h1>
-          <p className="mt-0.5 sm:mt-1 text-sm sm:text-base text-primary-500">{t("welcome", { month: currentMonthName })}</p>
+          <h1 className="text-xl font-bold sm:text-2xl lg:text-3xl text-primary-900">{t("title")}</h1>
+          <p className="mt-0.5 text-xs sm:text-sm text-primary-500">{t("welcome", { month: currentMonthName })}</p>
         </div>
-        <Button variant="primary" className="w-full sm:w-auto" onClick={() => router.push("/admin/dashboard/transactions")}>
+        <Button variant="primary" size="lg" className="w-full sm:w-auto" onClick={() => router.push("/admin/dashboard/transactions")}>
           + {t("addTransaction")}
         </Button>
       </div>
 
-      <div className="p-4 shadow-lg text-primary-900 rounded-2xl bg-linear-to-br from-primary-50 via-primary-100 to-primary-200 sm:p-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="p-3 shadow-lg text-primary-900 rounded-2xl bg-linear-to-br from-primary-50 via-primary-100 to-primary-200 sm:p-5 lg:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <p className="mb-1 text-xs font-medium tracking-widest uppercase sm:text-sm text-primary">{t("totalBalance")}</p>
-            <p className="text-2xl font-bold sm:text-3xl md:text-4xl tabular-nums">{format(totalBalance)}</p>
-            <p className="mt-1 text-xs sm:text-sm text-primary sm:mt-2">
+            <p className="mb-0.5 text-xs font-medium tracking-widest uppercase text-primary sm:text-sm">{t("totalBalance")}</p>
+            <p className="text-2xl font-bold lg:text-3xl xl:text-4xl tabular-nums">{format(totalBalance)}</p>
+            <p className="mt-0.5 text-xs text-primary sm:text-sm sm:mt-1">
               {accounts.length} {t("accountsLinked")}
             </p>
           </div>
 
-          {/* Mini account list */}
-          <div className="flex flex-col gap-2 sm:items-end">
+          <div className="flex flex-col gap-0.5 xl:gap-1.5 sm:items-end">
             {accounts.slice(0, 3).map((acc) => (
-              <div key={acc.id} className="flex items-center gap-2 text-xs sm:text-sm">
+              <div key={acc.id} className="flex items-center gap-2 text-xs lg:text-sm">
                 <span className="opacity-70">{acc.icon}</span>
-                <span className="truncate text-primary max-w-28 sm:max-w-40">{acc.name}</span>
+                <span className="truncate text-primary max-w-24 sm:max-w-40">{acc.name}</span>
                 <span className="font-bold text-primary-900 tabular-nums">{format(acc.balance)}</span>
               </div>
             ))}
@@ -313,24 +308,24 @@ export const Dashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 sm:gap-4">
+      <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4 lg:gap-4">
         <SummaryCard title={t("totalIncome")} amount={currentMonth?.income ?? 0} change={changes?.income ?? 0} icon="💰" type="income" count={counts?.income} />
         <SummaryCard title={t("totalExpenses")} amount={currentMonth?.expense ?? 0} change={changes?.expense ?? 0} icon="💳" type="expense" count={counts?.expense} />
         <SummaryCard title={t("transfer")} amount={currentMonth?.transfer ?? 0} change={changes?.transfer ?? 0} icon="🔄" type="transfer" count={counts?.transfer} />
         <SummaryCard title={t("netBalance")} amount={currentMonth?.balance ?? 0} change={changes?.balance ?? 0} icon="📊" type="balance" count={counts?.total} />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 sm:gap-6">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3 lg:gap-5">
         <Card className="lg:col-span-2">
-          <CardHeader className="pb-2 sm:pb-4">
-            <CardTitle className="flex items-center gap-2 text-sm sm:text-base">📈 {t("monthlyOverview")}</CardTitle>
+          <CardHeader className="pb-2 sm:pb-3">
+            <CardTitle className="flex items-center gap-2 text-xs sm:text-sm lg:text-base">📈 {t("monthlyOverview")}</CardTitle>
           </CardHeader>
           <CardContent>
             {safeMonthlyData.length === 0 ? (
               <EmptyState icon="📈" title={t("empty.charts.title")} description={t("empty.charts.description")} />
             ) : (
-              <ResponsiveContainer width="100%" height={220}>
-                <AreaChart data={safeMonthlyData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+              <ResponsiveContainer width="100%" height={180}>
+                <AreaChart data={safeMonthlyData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                   <defs>
                     <linearGradient id="gradIncome" x1="0" y1="0" x2="0" y2="1">
                       <stop offset="5%" stopColor={CHART_COLORS.income} stopOpacity={0.25} />
@@ -346,13 +341,13 @@ export const Dashboard: React.FC = () => {
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1_000_000).toFixed(1)}M`} />
+                  <XAxis dataKey="month" tick={{ fontSize: 10, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}M`} />
                   <ReTooltip content={<ChartTooltip formatter={(v) => format(v)} />} />
-                  <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} formatter={(value) => <span className="capitalize text-primary-600">{value}</span>} />
-                  <Area type="monotone" dataKey="income" stroke={CHART_COLORS.income} strokeWidth={2} fill="url(#gradIncome)" dot={false} activeDot={{ r: 4 }} />
-                  <Area type="monotone" dataKey="expense" stroke={CHART_COLORS.expense} strokeWidth={2} fill="url(#gradExpense)" dot={false} activeDot={{ r: 4 }} />
-                  <Area type="monotone" dataKey="transfer" stroke={CHART_COLORS.transfer} strokeWidth={2} fill="url(#gradTransfer)" dot={false} activeDot={{ r: 4 }} strokeDasharray="4 2" />
+                  <Legend wrapperStyle={{ fontSize: 10, paddingTop: 6 }} formatter={(value) => <span className="capitalize text-primary-600">{value}</span>} />
+                  <Area type="monotone" dataKey="income" stroke={CHART_COLORS.income} strokeWidth={2} fill="url(#gradIncome)" dot={false} activeDot={{ r: 3 }} />
+                  <Area type="monotone" dataKey="expense" stroke={CHART_COLORS.expense} strokeWidth={2} fill="url(#gradExpense)" dot={false} activeDot={{ r: 3 }} />
+                  <Area type="monotone" dataKey="transfer" stroke={CHART_COLORS.transfer} strokeWidth={2} fill="url(#gradTransfer)" dot={false} activeDot={{ r: 3 }} strokeDasharray="4 2" />
                 </AreaChart>
               </ResponsiveContainer>
             )}
@@ -360,28 +355,28 @@ export const Dashboard: React.FC = () => {
         </Card>
 
         <Card className="lg:col-span-1">
-          <CardHeader className="pb-2 sm:pb-4">
-            <CardTitle className="flex items-center gap-2 text-sm sm:text-base">🥧 {t("expenseBreakdown")}</CardTitle>
+          <CardHeader className="pb-2 sm:pb-3">
+            <CardTitle className="flex items-center gap-2 text-xs sm:text-sm lg:text-base">🥧 {t("expenseBreakdown")}</CardTitle>
           </CardHeader>
           <CardContent>
             {safeCategoryData.length === 0 ? (
               <EmptyState icon="🥧" title={t("empty.categories.title")} description={t("empty.categories.description")} />
             ) : (
-              <div className="flex flex-col items-center gap-3">
-                <ResponsiveContainer width="100%" height={160}>
+              <div className="flex flex-col items-center gap-2 sm:gap-3">
+                <ResponsiveContainer width="100%" height={140}>
                   <PieChart>
-                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={45} outerRadius={72} paddingAngle={3} dataKey="value" />
+                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={38} outerRadius={60} paddingAngle={3} dataKey="value" />
                     <ReTooltip content={<ChartTooltip formatter={(v) => format(v)} />} />
                   </PieChart>
                 </ResponsiveContainer>
-                <div className="w-full space-y-1.5">
+                <div className="w-full space-y-1">
                   {safeCategoryData.slice(0, 5).map((entry, index) => {
                     const color = entry.color && entry.color !== "#6b7280" ? entry.color : PIE_PALETTE[index % PIE_PALETTE.length];
                     const total = safeCategoryData.reduce((s, d) => s + d.value, 0);
                     const pct = total > 0 ? ((entry.value / total) * 100).toFixed(0) : "0";
                     return (
                       <div key={entry.name} className="flex items-center justify-between text-xs">
-                        <div className="flex items-center min-w-0 gap-2">
+                        <div className="flex items-center min-w-0 gap-1.5">
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
                           <span className="truncate text-primary-600">{entry.name}</span>
                         </div>
@@ -398,23 +393,23 @@ export const Dashboard: React.FC = () => {
       </div>
 
       <Card>
-        <CardHeader className="pb-2 sm:pb-4">
-          <CardTitle className="flex items-center gap-2 text-sm sm:text-base">📊 {t("monthlyComparison")}</CardTitle>
+        <CardHeader className="pb-2 sm:pb-3">
+          <CardTitle className="flex items-center gap-2 text-xs sm:text-sm lg:text-base">📊 {t("monthlyComparison")}</CardTitle>
         </CardHeader>
         <CardContent>
           {safeMonthlyData.length === 0 ? (
             <EmptyState icon="📊" title={t("empty.charts.title")} description={t("empty.charts.description")} />
           ) : (
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={safeMonthlyData} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barCategoryGap="30%">
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={safeMonthlyData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }} barCategoryGap="30%">
                 <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1_000_000).toFixed(1)}M`} />
+                <XAxis dataKey="month" tick={{ fontSize: 10, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 10, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}M`} />
                 <ReTooltip content={<ChartTooltip formatter={(v) => format(v)} />} />
-                <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} formatter={(value) => <span className="capitalize text-primary-600">{value}</span>} />
-                <Bar dataKey="income" fill={CHART_COLORS.income} radius={[4, 4, 0, 0]} />
-                <Bar dataKey="expense" fill={CHART_COLORS.expense} radius={[4, 4, 0, 0]} />
-                <Bar dataKey="transfer" fill={CHART_COLORS.transfer} radius={[4, 4, 0, 0]} />
+                <Legend wrapperStyle={{ fontSize: 10, paddingTop: 6 }} formatter={(value) => <span className="capitalize text-primary-600">{value}</span>} />
+                <Bar dataKey="income" fill={CHART_COLORS.income} radius={[3, 3, 0, 0]} />
+                <Bar dataKey="expense" fill={CHART_COLORS.expense} radius={[3, 3, 0, 0]} />
+                <Bar dataKey="transfer" fill={CHART_COLORS.transfer} radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -422,31 +417,31 @@ export const Dashboard: React.FC = () => {
       </Card>
 
       {transferSummary && transferSummary.totalMoved > 0 && (
-        <div className="grid grid-cols-3 gap-3 sm:gap-4">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
           {[
             { label: t("transferFlow.totalMoved"), value: transferSummary.totalMoved, icon: "🔄", color: "text-sky-600" },
             { label: t("transferFlow.totalReceived"), value: transferSummary.totalReceived, icon: "📥", color: "text-emerald-600" },
             { label: t("transferFlow.withdrawals"), value: transferSummary.withdrawals, icon: "🏧", color: "text-amber-600" },
           ].map(({ label, value, icon, color }) => (
             <Card key={label} className="border bg-sky-50 border-sky-100">
-              <CardContent className="pt-3 pb-3 sm:pt-4 sm:pb-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-lg sm:text-xl">{icon}</span>
+              <CardContent className="pt-2.5 pb-2.5 sm:pt-4 sm:pb-4">
+                <div className="flex items-center gap-1.5 mb-1 sm:gap-2">
+                  <span className="text-base sm:text-lg">{icon}</span>
                   <span className="text-xs font-medium tracking-wide uppercase truncate text-sky-600">{label}</span>
                 </div>
-                <p className={`text-lg sm:text-2xl font-bold tabular-nums ${color}`}>{format(value)}</p>
+                <p className={`text-sm sm:text-lg lg:text-2xl font-bold tabular-nums ${color}`}>{format(value)}</p>
               </CardContent>
             </Card>
           ))}
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 sm:gap-6">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2 lg:gap-5">
         <Card>
-          <CardHeader className="pb-2 sm:pb-4">
+          <CardHeader className="pb-2 sm:pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">📝 {t("recentTransactions")}</CardTitle>
-              <Button variant="ghost" size="sm" className="text-xs sm:text-sm" onClick={() => router.push("/admin/dashboard/transactions")}>
+              <CardTitle className="flex items-center gap-2 text-xs sm:text-sm lg:text-base">📝 {t("recentTransactions")}</CardTitle>
+              <Button variant="ghost" size="sm" className="text-xs" onClick={() => router.push("/admin/dashboard/transactions")}>
                 {t("viewAll")} →
               </Button>
             </div>
@@ -461,7 +456,7 @@ export const Dashboard: React.FC = () => {
                 actionHref="/admin/dashboard/transactions"
               />
             ) : (
-              <div className="pr-1 space-y-2 overflow-y-auto sm:space-y-3 max-h-72 sm:max-h-96">
+              <div className="pr-1 space-y-1.5 sm:space-y-2 overflow-y-auto max-h-64 sm:max-h-80 lg:max-h-96">
                 {recentTxns.slice(0, 5).map((tx) => (
                   <TransactionItem key={tx.id} transaction={tx} />
                 ))}
@@ -471,10 +466,10 @@ export const Dashboard: React.FC = () => {
         </Card>
 
         <Card>
-          <CardHeader className="pb-2 sm:pb-4">
+          <CardHeader className="pb-2 sm:pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-sm sm:text-base">🎯 {t("budgetProgress")}</CardTitle>
-              <Button variant="ghost" size="sm" className="text-xs sm:text-sm" onClick={() => router.push("/admin/dashboard/budgets")}>
+              <CardTitle className="flex items-center gap-2 text-xs sm:text-sm lg:text-base">🎯 {t("budgetProgress")}</CardTitle>
+              <Button variant="ghost" size="sm" className="text-xs" onClick={() => router.push("/admin/dashboard/budgets")}>
                 {t("manage")} →
               </Button>
             </div>
@@ -489,7 +484,7 @@ export const Dashboard: React.FC = () => {
                 actionHref="/admin/dashboard/budgets"
               />
             ) : (
-              <div className="pr-1 space-y-2 overflow-y-auto sm:space-y-3 max-h-72 sm:max-h-96">
+              <div className="pr-1 space-y-1.5 sm:space-y-2 overflow-y-auto max-h-64 sm:max-h-80 lg:max-h-96">
                 {budgetProgress.map((budget, index) => (
                   <BudgetProgress key={index} budget={budget} />
                 ))}
@@ -500,11 +495,11 @@ export const Dashboard: React.FC = () => {
       </div>
 
       <Card>
-        <CardHeader className="pb-2 sm:pb-4">
-          <CardTitle className="flex items-center gap-2 text-sm sm:text-base">⚡ {t("quickAction")}</CardTitle>
+        <CardHeader className="pb-2 sm:pb-3">
+          <CardTitle className="flex items-center gap-2 text-xs sm:text-sm lg:text-base">⚡ {t("quickAction")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4 sm:gap-4">
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4 lg:gap-4">
             {[
               {
                 href: "/admin/dashboard/transactions",
@@ -543,10 +538,10 @@ export const Dashboard: React.FC = () => {
                 sub: "text-violet-600",
               },
             ].map(({ href, icon, bg, title, subtitle, text, sub }) => (
-              <button onClick={() => router.push(href)} key={href} className="block">
-                <div className={`p-3 sm:p-4 rounded-xl ${bg} transition-colors border cursor-pointer group`}>
-                  <div className="flex items-start gap-2 sm:items-center sm:gap-3">
-                    <span className="text-2xl transition-transform sm:text-3xl group-hover:scale-110 shrink-0">{icon}</span>
+              <button key={href} onClick={() => router.push(href)} className="block text-left">
+                <div className={`p-2.5 sm:p-3 lg:p-4 rounded-xl ${bg} transition-colors border cursor-pointer group`}>
+                  <div className="flex items-center gap-2 sm:gap-3">
+                    <span className="text-xl transition-transform sm:text-2xl lg:text-3xl group-hover:scale-110 shrink-0">{icon}</span>
                     <div className="min-w-0">
                       <p className={`font-semibold text-xs sm:text-sm ${text} truncate`}>{title}</p>
                       <p className={`text-xs ${sub} hidden sm:block truncate`}>{subtitle}</p>
