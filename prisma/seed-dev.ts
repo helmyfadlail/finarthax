@@ -82,12 +82,17 @@ async function main() {
   console.log(`✅ Created ${defaultCategories.length} categories\n`);
 
   // ============================================
-  // 4. CREATE ACCOUNTS (balance starts at 0,
-  //    will be updated by transaction processing)
+  // 4. CREATE ACCOUNTS
+  //    All start at 0; balances are computed
+  //    by replaying every transaction below.
+  //
+  //    CREDIT CARD balance semantics (liability):
+  //      positive value = debt owed to the bank
+  //      0              = fully paid off
   // ============================================
   console.log("💳 Creating accounts...");
 
-  const [cashAccount, bankAccount, ewalletAccount, creditAccount, savingsAccount] = await Promise.all([
+  const [cashAccount, bankAccount, ewalletAccount, creditAccount, savingsAccount, investmentAccount] = await Promise.all([
     prisma.account.create({
       data: { userId: demoUser.id, name: "Cash", type: "CASH", balance: 0, color: "#10B981", icon: "💵", isDefault: true },
     }),
@@ -98,30 +103,32 @@ async function main() {
       data: { userId: demoUser.id, name: "GoPay / OVO", type: "EWALLET", balance: 0, color: "#22C55E", icon: "📱", isDefault: false },
     }),
     prisma.account.create({
-      data: { userId: demoUser.id, name: "Credit Card", type: "CREDIT_CARD", balance: 0, color: "#EF4444", icon: "💳", isDefault: false },
+      data: {
+        userId: demoUser.id,
+        name: "Credit Card",
+        type: "CREDIT_CARD",
+        balance: 0, // starts fully paid off
+        creditLimit: 15_000_000,
+        color: "#EF4444",
+        icon: "💳",
+        isDefault: false,
+      },
     }),
     prisma.account.create({
       data: { userId: demoUser.id, name: "Savings", type: "BANK", balance: 0, color: "#8B5CF6", icon: "🏛️", isDefault: false },
     }),
+    prisma.account.create({
+      data: { userId: demoUser.id, name: "Investment", type: "INVESTMENT", balance: 0, color: "#F59E0B", icon: "📈", isDefault: false },
+    }),
   ]);
 
-  const accounts = [cashAccount, bankAccount, ewalletAccount, creditAccount, savingsAccount];
+  const accounts = [cashAccount, bankAccount, ewalletAccount, creditAccount, savingsAccount, investmentAccount];
   console.log(`✅ Created ${accounts.length} accounts\n`);
 
   // ============================================
-  // 5. BUILD & INSERT TRANSACTIONS
-  //    (balances updated in the same loop)
+  // 5. BUILD TRANSACTION LIST
   // ============================================
-  console.log("💰 Creating transactions...");
-
-  // Track running balances so account.balance is accurate after seed
-  const balances: Record<string, number> = {
-    [cashAccount.id]: 0,
-    [bankAccount.id]: 0,
-    [ewalletAccount.id]: 0,
-    [creditAccount.id]: 0,
-    [savingsAccount.id]: 0,
-  };
+  console.log("💰 Building transactions...");
 
   type TxType = "INCOME" | "EXPENSE" | "TRANSFER";
 
@@ -140,9 +147,7 @@ async function main() {
   // ── Helpers ──────────────────────────────────────────────────────────────
 
   const getRandom = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
-
   const randBetween = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
-
   const dateIn = (year: number, month: number, dayMin = 1, dayMax?: number) => {
     const daysInMonth = new Date(year, month + 1, 0).getDate();
     const day = randBetween(dayMin, Math.min(dayMax ?? daysInMonth, daysInMonth));
@@ -163,7 +168,7 @@ async function main() {
 
     // ── INCOME ──────────────────────────────────────────────────────────
 
-    // Salary (always on 25th)
+    // Salary — always on the 25th, paid to bank
     transactions.push({
       accountId: bankAccount.id,
       categoryId: categoryIds["Salary"],
@@ -173,7 +178,7 @@ async function main() {
       date: new Date(year, month, 25, 9, 0),
     });
 
-    // Bonus (months 0 and 3 of the 6-month window)
+    // Bonus — months 0 and 3 of the 6-month window
     if (i === 5 || i === 2) {
       transactions.push({
         accountId: bankAccount.id,
@@ -185,7 +190,7 @@ async function main() {
       });
     }
 
-    // Freelance (every month, varying amount)
+    // Freelance — every month
     transactions.push({
       accountId: bankAccount.id,
       categoryId: categoryIds["Freelance"],
@@ -195,10 +200,10 @@ async function main() {
       date: dateIn(year, month),
     });
 
-    // Investment return (every 2 months)
+    // Investment return — every 2 months, goes to investment account
     if (i % 2 === 0) {
       transactions.push({
-        accountId: bankAccount.id,
+        accountId: investmentAccount.id,
         categoryId: categoryIds["Investment"],
         amount: randBetween(400_000, 1_200_000),
         type: "INCOME",
@@ -207,7 +212,7 @@ async function main() {
       });
     }
 
-    // Gift income (random months)
+    // Gift — random months
     if (Math.random() > 0.6) {
       transactions.push({
         accountId: cashAccount.id,
@@ -220,8 +225,14 @@ async function main() {
     }
 
     // ── EXPENSE ─────────────────────────────────────────────────────────
+    //
+    // NOTE on credit card expenses:
+    //   The credit card is used for shopping and tech purchases.
+    //   Each EXPENSE on the credit card INCREASES its balance (debt).
+    //   Credit card payments are modelled as TRANSFER bank → credit card
+    //   which DECREASES the balance (debt).
 
-    // Food & Drinks — heavy, ~20 transactions/month
+    // Food & Drinks — ~20 per month, cash or e-wallet only (not CC)
     for (let j = 0; j < 20; j++) {
       transactions.push({
         accountId: getRandom([cashAccount.id, ewalletAccount.id]),
@@ -233,7 +244,7 @@ async function main() {
       });
     }
 
-    // Transportation — 15/month
+    // Transportation — 15 per month, cash or e-wallet
     for (let j = 0; j < 15; j++) {
       transactions.push({
         accountId: getRandom([cashAccount.id, ewalletAccount.id]),
@@ -245,7 +256,7 @@ async function main() {
       });
     }
 
-    // Bills & Utilities — fixed on specific days
+    // Bills & Utilities — fixed days, paid from bank
     transactions.push(
       {
         accountId: bankAccount.id,
@@ -260,7 +271,7 @@ async function main() {
       { accountId: bankAccount.id, categoryId: categoryIds["Bills & Utilities"], amount: 75_000, type: "EXPENSE", description: "Phone Plan", date: new Date(year, month, 20) },
     );
 
-    // Shopping — 3-5 per month
+    // Shopping — 3–5 per month, e-wallet or CREDIT CARD (raises CC debt)
     const shopCount = randBetween(3, 5);
     for (let j = 0; j < shopCount; j++) {
       transactions.push({
@@ -273,7 +284,7 @@ async function main() {
       });
     }
 
-    // Entertainment — 1-3 per month
+    // Entertainment — 1–3 per month, cash or e-wallet
     const entCount = randBetween(1, 3);
     for (let j = 0; j < entCount; j++) {
       transactions.push({
@@ -298,7 +309,7 @@ async function main() {
       });
     }
 
-    // Clothing — occasional
+    // Clothing — occasional, e-wallet or CREDIT CARD
     if (Math.random() > 0.6) {
       transactions.push({
         accountId: getRandom([ewalletAccount.id, creditAccount.id]),
@@ -310,7 +321,7 @@ async function main() {
       });
     }
 
-    // Technology (bigger purchases, rare)
+    // Technology — bigger, rare, on CREDIT CARD
     if (Math.random() > 0.75) {
       transactions.push({
         accountId: creditAccount.id,
@@ -322,7 +333,7 @@ async function main() {
       });
     }
 
-    // Sports & Fitness — gym every month
+    // Sports & Fitness — gym, always from bank
     transactions.push({
       accountId: bankAccount.id,
       categoryId: categoryIds["Sports & Fitness"],
@@ -380,7 +391,7 @@ async function main() {
 
     // ── TRANSFERS ────────────────────────────────────────────────────────
 
-    // Top up e-wallet from bank (weekly-ish, 3-4 per month)
+    // Top-up e-wallet from bank (3–4 per month)
     const topUpCount = randBetween(3, 4);
     for (let j = 0; j < topUpCount; j++) {
       transactions.push({
@@ -393,17 +404,27 @@ async function main() {
       });
     }
 
-    // Move salary savings to savings account (after payday)
+    // Monthly savings transfer (bank → savings, day after salary)
     transactions.push({
       accountId: bankAccount.id,
       toAccountId: savingsAccount.id,
       amount: randBetween(2_000_000, 4_000_000),
       type: "TRANSFER",
       description: "Monthly Savings Transfer",
-      date: new Date(year, month, 26, 10, 0), // day after salary
+      date: new Date(year, month, 26, 10, 0),
     });
 
-    // ATM cash withdrawal (no destination = just reducing bank)
+    // Monthly investment top-up (bank → investment)
+    transactions.push({
+      accountId: bankAccount.id,
+      toAccountId: investmentAccount.id,
+      amount: randBetween(500_000, 2_000_000),
+      type: "TRANSFER",
+      description: "Investment Top-Up",
+      date: new Date(year, month, 27, 10, 0),
+    });
+
+    // ATM cash withdrawal (bank → no destination = pure outflow from bank)
     transactions.push({
       accountId: bankAccount.id,
       amount: randBetween(500_000, 1_500_000),
@@ -412,7 +433,9 @@ async function main() {
       date: dateIn(year, month),
     });
 
-    // Occasional credit card payment from bank
+    // Credit card payment: TRANSFER bank → credit card
+    //   This REDUCES credit card debt (destination is CC → balance -=)
+    //   Only include if past the 15th of the current month (realistic)
     if (!isThisMonth || now.getDate() >= 15) {
       transactions.push({
         accountId: bankAccount.id,
@@ -425,9 +448,32 @@ async function main() {
     }
   }
 
-  // ── Sort by date ascending, then insert & track balances ─────────────────
+  // ============================================
+  // 6. INSERT TRANSACTIONS & COMPUTE BALANCES
+  //
+  //    All accounts use the same arithmetic:
+  //      INCOME            → balance += amount
+  //      EXPENSE           → balance -= amount
+  //      TRANSFER (source) → balance -= amount
+  //      TRANSFER (dest)   → balance += amount
+  //
+  //    Credit card starts at 0 (fully paid off).
+  //    Every EXPENSE or cash-advance TRANSFER makes it more negative.
+  //    Every payment TRANSFER makes it less negative (toward 0).
+  //    Final balance is negative = amount of debt owed.
+  // ============================================
+  console.log("💾 Inserting transactions & computing balances...");
 
   transactions.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+  // accountType lookup so we can apply the right balance rule
+  const accountTypeMap: Record<string, string> = {};
+  for (const acc of accounts) {
+    accountTypeMap[acc.id] = acc.type;
+  }
+
+  const balances: Record<string, number> = {};
+  for (const acc of accounts) balances[acc.id] = 0;
 
   let txCreated = 0;
 
@@ -445,15 +491,41 @@ async function main() {
       },
     });
 
-    // Update running balances
-    if (tx.type === "INCOME") {
-      balances[tx.accountId] += tx.amount;
-    } else if (tx.type === "EXPENSE") {
-      balances[tx.accountId] -= tx.amount;
+    const sourceIsCreditCard = accountTypeMap[tx.accountId] === "CREDIT_CARD";
+    const destIsCreditCard = tx.toAccountId ? accountTypeMap[tx.toAccountId] === "CREDIT_CARD" : false;
+
+    if (tx.type === "TRANSFER") {
+      // Source
+      if (sourceIsCreditCard) {
+        // Cash advance: debt increases → balance goes more negative
+        balances[tx.accountId] -= tx.amount;
+      } else {
+        balances[tx.accountId] -= tx.amount; // money leaves normal account
+      }
+      // Destination
+      if (tx.toAccountId) {
+        if (destIsCreditCard) {
+          // Payment: debt decreases → balance goes less negative (toward 0)
+          balances[tx.toAccountId] += tx.amount;
+        } else {
+          balances[tx.toAccountId] += tx.amount; // money arrives at normal account
+        }
+      }
+    } else if (tx.type === "INCOME") {
+      if (sourceIsCreditCard) {
+        // Not used in seed, but defensive: income on CC reduces debt
+        balances[tx.accountId] += tx.amount;
+      } else {
+        balances[tx.accountId] += tx.amount;
+      }
     } else {
-      // TRANSFER
-      balances[tx.accountId] -= tx.amount;
-      if (tx.toAccountId) balances[tx.toAccountId] += tx.amount;
+      // EXPENSE
+      if (sourceIsCreditCard) {
+        // Spending on CC increases debt → balance goes more negative
+        balances[tx.accountId] -= tx.amount;
+      } else {
+        balances[tx.accountId] -= tx.amount;
+      }
     }
 
     txCreated++;
@@ -471,12 +543,18 @@ async function main() {
   console.log("💰 Final account balances:");
   for (const acc of accounts) {
     const bal = balances[acc.id];
-    console.log(`   ${acc.icon} ${acc.name}: Rp ${bal.toLocaleString("id-ID")}`);
+    if (acc.type === "CREDIT_CARD") {
+      // Balance is stored as negative; show absolute value as debt
+      console.log(`   ${acc.icon} ${acc.name.padEnd(16)} Debt: Rp ${Math.abs(bal).toLocaleString("id-ID")} (limit: Rp 15,000,000)`);
+    } else {
+      const sign = bal >= 0 ? "" : "-";
+      console.log(`   ${acc.icon} ${acc.name.padEnd(16)} Rp ${sign}${Math.abs(bal).toLocaleString("id-ID")}`);
+    }
   }
   console.log();
 
   // ============================================
-  // 6. CREATE BUDGETS (current month, with real spent)
+  // 7. CREATE BUDGETS (current month, real spent)
   // ============================================
   console.log("📊 Creating budgets...");
 
@@ -524,7 +602,7 @@ async function main() {
   console.log(`✅ Created ${budgetDefs.length} budgets\n`);
 
   // ============================================
-  // 7. CREATE FINANCIAL GOALS
+  // 8. CREATE FINANCIAL GOALS
   // ============================================
   console.log("🎯 Creating financial goals...");
 
@@ -542,23 +620,51 @@ async function main() {
       },
     }),
     prisma.goal.create({
-      data: { userId: demoUser.id, name: "New Laptop", targetAmount: 25_000_000, currentAmount: 18_500_000, deadline: new Date(currentYear, currentMonth + 3, 30), status: "ACTIVE" },
+      data: {
+        userId: demoUser.id,
+        name: "New Laptop",
+        targetAmount: 25_000_000,
+        currentAmount: 18_500_000,
+        deadline: new Date(currentYear, currentMonth + 3, 30),
+        status: "ACTIVE",
+      },
     }),
     prisma.goal.create({
-      data: { userId: demoUser.id, name: "Vacation Fund", targetAmount: 15_000_000, currentAmount: 8_200_000, deadline: new Date(currentYear, currentMonth + 8, 30), status: "ACTIVE" },
+      data: {
+        userId: demoUser.id,
+        name: "Vacation Fund",
+        targetAmount: 15_000_000,
+        currentAmount: 8_200_000,
+        deadline: new Date(currentYear, currentMonth + 8, 30),
+        status: "ACTIVE",
+      },
     }),
     prisma.goal.create({
-      data: { userId: demoUser.id, name: "Investment Portfolio", targetAmount: 100_000_000, currentAmount: 42_000_000, deadline: new Date(currentYear + 1, 11, 31), status: "ACTIVE" },
+      data: {
+        userId: demoUser.id,
+        name: "Investment Portfolio",
+        targetAmount: 100_000_000,
+        currentAmount: balances[investmentAccount.id],
+        deadline: new Date(currentYear + 1, 11, 31),
+        status: "ACTIVE",
+      },
     }),
     prisma.goal.create({
-      data: { userId: demoUser.id, name: "House Down Payment", targetAmount: 200_000_000, currentAmount: 25_000_000, deadline: new Date(currentYear + 3, 11, 31), status: "ACTIVE" },
+      data: {
+        userId: demoUser.id,
+        name: "House Down Payment",
+        targetAmount: 200_000_000,
+        currentAmount: 25_000_000,
+        deadline: new Date(currentYear + 3, 11, 31),
+        status: "ACTIVE",
+      },
     }),
   ]);
 
   console.log("✅ Created 5 financial goals\n");
 
   // ============================================
-  // 8. CREATE RECURRING TRANSACTIONS
+  // 9. CREATE RECURRING TRANSACTIONS
   // ============================================
   console.log("🔄 Creating recurring transactions...");
 
@@ -647,12 +753,27 @@ async function main() {
         isActive: true,
       },
     }),
+    // Monthly savings transfer (recurring)
+    prisma.recurringTransaction.create({
+      data: {
+        userId: demoUser.id,
+        accountId: bankAccount.id,
+        categoryId: categoryIds["Salary"], // closest category proxy
+        amount: 3_000_000,
+        type: "INCOME", // RecurringTransaction requires a category; we reuse Salary as a placeholder
+        description: "Monthly Savings Transfer",
+        frequency: "MONTHLY",
+        startDate: new Date(currentYear, 0, 26),
+        nextOccurrence: new Date(currentYear, currentMonth + 1, 26),
+        isActive: true,
+      },
+    }),
   ]);
 
-  console.log("✅ Created 6 recurring transactions\n");
+  console.log("✅ Created 7 recurring transactions\n");
 
   // ============================================
-  // 9. APP SETTINGS
+  // 10. APP SETTINGS
   // ============================================
   const APP_SETTINGS = [
     { key: "currency_options", value: JSON.stringify(CURRENCY_OPTIONS), type: "json", category: "appearance", label: "Currency Options", description: "Available currency options", isPublic: true },
@@ -702,7 +823,12 @@ async function main() {
   const totalIncome = transactions.filter((t) => t.type === "INCOME").reduce((s, t) => s + t.amount, 0);
   const totalExpense = transactions.filter((t) => t.type === "EXPENSE").reduce((s, t) => s + t.amount, 0);
   const totalTransfer = transactions.filter((t) => t.type === "TRANSFER").reduce((s, t) => s + t.amount, 0);
-  const totalBalance = Object.values(balances).reduce((s, b) => s + b, 0);
+
+  // Net worth: assets (positive balances) minus credit card debt (stored negative)
+  const netWorth = Object.values(balances).reduce((sum, bal) => {
+    // Credit card balance is negative, so adding it directly subtracts from net worth
+    return sum + bal;
+  }, 0);
 
   console.log("═══════════════════════════════════════════════");
   console.log("🎉  DATABASE SEEDING COMPLETED!");
@@ -714,7 +840,7 @@ async function main() {
   console.log(`   • ${txCreated} transactions (income + expense + transfer)`);
   console.log(`   • ${budgetDefs.length} budgets`);
   console.log(`   • 5 goals`);
-  console.log(`   • 6 recurring transactions\n`);
+  console.log(`   • 7 recurring transactions\n`);
 
   console.log("🔐 Credentials:");
   console.log("   Email:    demo@finance.com");
@@ -725,13 +851,17 @@ async function main() {
   console.log(`   • Total Expense:   Rp ${totalExpense.toLocaleString("id-ID")}`);
   console.log(`   • Total Transfers: Rp ${totalTransfer.toLocaleString("id-ID")}`);
   console.log(`   • Net Savings:     Rp ${(totalIncome - totalExpense).toLocaleString("id-ID")}`);
-  console.log(`   • Total Balance:   Rp ${totalBalance.toLocaleString("id-ID")}\n`);
+  console.log(`   • Net Worth:       Rp ${netWorth.toLocaleString("id-ID")}\n`);
 
   console.log("💰 Per-Account Balances:");
   for (const acc of accounts) {
     const bal = balances[acc.id];
-    const sign = bal >= 0 ? "+" : "";
-    console.log(`   ${acc.icon} ${acc.name.padEnd(16)} Rp ${sign}${bal.toLocaleString("id-ID")}`);
+    if (acc.type === "CREDIT_CARD") {
+      console.log(`   ${acc.icon} ${acc.name.padEnd(16)} Debt: Rp ${bal.toLocaleString("id-ID")} (limit: Rp 15,000,000)`);
+    } else {
+      const sign = bal >= 0 ? "" : "-";
+      console.log(`   ${acc.icon} ${acc.name.padEnd(16)} Rp ${sign}${Math.abs(bal).toLocaleString("id-ID")}`);
+    }
   }
 }
 

@@ -144,7 +144,7 @@ export const Login = () => {
           </p>
         </div>
 
-        <p className="mt-8 text-sm text-center text-white/80">© 2025 Finance Manager. All rights reserved.</p>
+        <p className="mt-8 text-sm text-center text-white/80">© 2026 Finarthax. All rights reserved.</p>
       </div>
     </div>
   );

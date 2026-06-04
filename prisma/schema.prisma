@@ -87,6 +87,7 @@ enum AccountType {
   BANK
   EWALLET
   CREDIT_CARD
+  INVESTMENT
 }
 
 model Account {
@@ -95,6 +96,7 @@ model Account {
   name                  String
   type                  AccountType
   balance               Decimal                   @default(0) @db.Decimal(15, 2)
+  creditLimit           Decimal?                  @db.Decimal(15, 2)
   color                 String?
   icon                  String?
   isDefault             Boolean                   @default(false)

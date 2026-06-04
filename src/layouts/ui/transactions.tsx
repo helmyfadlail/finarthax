@@ -8,7 +8,7 @@ import { useTransactions, useCategories, useAccounts, useSearchPagination } from
 
 import { Card, CardContent, Button, Input, Select, Badge, Modal, Skeleton, useToast, useCurrency } from "@/components";
 
-import type { Transaction, TransactionFilter, TransactionType } from "@/types";
+import type { Transaction, TransactionFilter, TransactionType, Account } from "@/types";
 
 interface FormData {
   accountId: string;
@@ -51,6 +51,64 @@ const TYPE_CONFIG: Record<TransactionType, { color: string; bg: string; icon: st
   TRANSFER: { color: "text-blue-600", bg: "bg-blue-100", icon: "🔄", prefix: "⇄" },
 };
 
+const isCreditCard = (account?: Account | null): boolean => account?.type === "CREDIT_CARD";
+
+const getTransactionHint = (
+  type: TransactionType,
+  sourceAccount?: Account | null,
+  destAccount?: Account | null,
+  t?: (key: string, opts?: Record<string, unknown>) => string,
+): { text: string; variant: "info" | "warning" | "error" } | null => {
+  if (!t) return null;
+
+  if (isCreditCard(sourceAccount)) {
+    if (type === "INCOME") {
+      return {
+        text: t("hints.creditCardNoIncome", {
+          defaultValue: "⚠️ Income transactions are not allowed on a credit card. To reduce your balance, use a Transfer from your bank account to this credit card instead.",
+        }),
+        variant: "error",
+      };
+    }
+    if (type === "EXPENSE") {
+      return {
+        text: t("hints.creditCardExpense", {
+          defaultValue: "💳 This expense will increase your credit card debt — it is money borrowed from the bank, not from your own funds.",
+        }),
+        variant: "warning",
+      };
+    }
+    if (type === "TRANSFER") {
+      return {
+        text: t("hints.creditCardCashAdvance", {
+          defaultValue: "🏧 Transferring FROM a credit card is a cash advance. This increases your debt.",
+        }),
+        variant: "warning",
+      };
+    }
+  }
+
+  if (type === "TRANSFER" && isCreditCard(destAccount)) {
+    return {
+      text: t("hints.creditCardPayoff", {
+        defaultValue: "✅ Transferring TO your credit card will reduce your debt — this is a credit card payment.",
+      }),
+      variant: "info",
+    };
+  }
+
+  if (type === "TRANSFER") {
+    return {
+      text: t("hints.transfer", {
+        defaultValue: "🔄 Transfer moves money between your own accounts. The source account balance decreases and the destination increases.",
+      }),
+      variant: "info",
+    };
+  }
+
+  return null;
+};
+
 const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, onDelete, isDeleting }) => {
   const t = useTranslations("transactionsPage");
   const { format } = useCurrency();
@@ -58,10 +116,20 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, onDelete
   const config = TYPE_CONFIG[transaction.type as TransactionType] ?? TYPE_CONFIG.EXPENSE;
   const isTransfer = transaction.type === "TRANSFER";
 
-  const formattedDate = React.useMemo(() => new Date(transaction.date).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" }), [transaction.date]);
+  const formattedDate = React.useMemo(
+    () =>
+      new Date(transaction.date).toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      }),
+    [transaction.date],
+  );
 
   const badgeVariant = transaction.type === "INCOME" ? "success" : transaction.type === "TRANSFER" ? "info" : "error";
   const badgeLabel = transaction.type === "INCOME" ? `${config.icon} ${t("income")}` : transaction.type === "TRANSFER" ? `${config.icon} ${t("transfer")}` : `${config.icon} ${t("expense")}`;
+
+  const isCreditCardExpense = transaction.type === "EXPENSE" && transaction.account?.type === "CREDIT_CARD";
 
   return (
     <div className="flex items-center justify-between gap-2 p-3 transition-all rounded-lg bg-neutral hover:bg-neutral-200 hover:shadow-md group sm:p-4 sm:gap-4">
@@ -84,14 +152,18 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, onDelete
                 <span className="hidden sm:inline">•</span>
               </>
             )}
+
             <span className="flex items-center gap-1 truncate max-w-24 sm:max-w-none">
               {transaction.account?.icon} {transaction.account?.name}
+              {isCreditCardExpense && <span className="ml-1 px-1 py-0.5 text-[10px] font-semibold rounded bg-red-100 text-red-600">debt</span>}
             </span>
+
             {isTransfer && transaction.toAccount && (
               <>
                 <span>→</span>
                 <span className="flex items-center gap-1 truncate max-w-20 sm:max-w-none">
                   {transaction.toAccount.icon} {transaction.toAccount.name}
+                  {transaction.toAccount.type === "CREDIT_CARD" && <span className="ml-1 px-1 py-0.5 text-[10px] font-semibold rounded bg-green-100 text-green-600">payoff</span>}
                 </span>
               </>
             )}
@@ -176,6 +248,31 @@ export const Transactions: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
 
+  const sourceAccount = React.useMemo(() => accounts.find((a) => a.id === formData.accountId) ?? null, [accounts, formData.accountId]);
+
+  const destAccount = React.useMemo(() => accounts.find((a) => a.id === formData.toAccountId) ?? null, [accounts, formData.toAccountId]);
+
+  const isSourceCreditCard = isCreditCard(sourceAccount);
+
+  // INCOME is not allowed on credit cards
+  const allowedTypes = React.useMemo<SelectOption[]>(() => {
+    const base: SelectOption[] = [
+      { value: "EXPENSE", label: `💳 ${t("expense")}` },
+      { value: "INCOME", label: `💰 ${t("income")}` },
+      { value: "TRANSFER", label: `🔄 ${t("transfer")}` },
+    ];
+    if (isSourceCreditCard) {
+      // Grey-out INCOME visually by excluding it when credit card is selected
+      return base.filter((o) => o.value !== "INCOME");
+    }
+    return base;
+  }, [isSourceCreditCard, t]);
+
+  const contextHint = React.useMemo(
+    () => getTransactionHint(formData.type, sourceAccount, destAccount, t as (key: string, opts?: Record<string, unknown>) => string),
+    [formData.type, sourceAccount, destAccount, t],
+  );
+
   const getFilteredCategories = React.useCallback((type: TransactionType) => (type === "TRANSFER" ? [] : categories.filter((c) => c.type === type)), [categories]);
 
   const getDefaultCategory = React.useCallback(
@@ -186,14 +283,35 @@ export const Transactions: React.FC = () => {
     [getFilteredCategories],
   );
 
-  const categoryOptions = React.useMemo<SelectOption[]>(() => getFilteredCategories(formData.type).map((c) => ({ value: c.id, label: `${c.icon} ${c.name}` })), [formData.type, getFilteredCategories]);
+  const categoryOptions = React.useMemo<SelectOption[]>(
+    () =>
+      getFilteredCategories(formData.type).map((c) => ({
+        value: c.id,
+        label: `${c.icon} ${c.name}`,
+      })),
+    [formData.type, getFilteredCategories],
+  );
+
   const accountOptions = React.useMemo<SelectOption[]>(() => accounts.map((a) => ({ value: a.id, label: `${a.icon} ${a.name}` })), [accounts]);
+
   const toAccountOptions = React.useMemo<SelectOption[]>(
-    () => accounts.filter((a) => a.id !== formData.accountId).map((a) => ({ value: a.id, label: `${a.icon} ${a.name}` })),
+    () =>
+      accounts
+        .filter((a) => a.id !== formData.accountId)
+        .map((a) => ({
+          value: a.id,
+          label: `${a.icon} ${a.name}${a.type === "CREDIT_CARD" ? " 💳" : ""}`,
+        })),
     [accounts, formData.accountId],
   );
 
+  const fromAccountLabel = React.useMemo(() => {
+    if (formData.type === "TRANSFER") return t("modal.fromAccount");
+    return t("modal.account");
+  }, [formData.type, t]);
+
   const resetForm = React.useCallback(() => setFormData(INITIAL_FORM_DATA), []);
+
   const openModal = React.useCallback(() => {
     resetForm();
     setIsModalOpen(true);
@@ -207,16 +325,27 @@ export const Transactions: React.FC = () => {
     (field: keyof FormData, value: string) => {
       setFormData((prev) => {
         const updated = { ...prev, [field]: value };
+
         if (field === "type") {
           const newType = value as TransactionType;
           updated.toAccountId = "";
           updated.categoryId = newType === "TRANSFER" ? "" : (getDefaultCategory(newType)?.id ?? "");
         }
-        if (field === "accountId" && updated.toAccountId === value) updated.toAccountId = "";
+
+        if (field === "accountId") {
+          const account = accounts.find((a) => a.id === value);
+          if (account?.type === "CREDIT_CARD" && updated.type === "INCOME") {
+            updated.type = "EXPENSE";
+            updated.categoryId = getDefaultCategory("EXPENSE")?.id ?? "";
+          }
+
+          if (updated.toAccountId === value) updated.toAccountId = "";
+        }
+
         return updated;
       });
     },
-    [getDefaultCategory],
+    [getDefaultCategory, accounts],
   );
 
   const handleSubmitForm = React.useCallback(
@@ -231,6 +360,17 @@ export const Transactions: React.FC = () => {
         addToast({ message: t("validation.account"), type: "error" });
         return;
       }
+
+      if (isSourceCreditCard && formData.type === "INCOME") {
+        addToast({
+          message: t("validation.creditCardNoIncome", {
+            defaultValue: "Income is not allowed on a credit card. Use a Transfer from your bank account instead.",
+          }),
+          type: "error",
+        });
+        return;
+      }
+
       if (formData.type === "TRANSFER" && formData.toAccountId && formData.toAccountId === formData.accountId) {
         addToast({ message: t("validation.sameAccount"), type: "error" });
         return;
@@ -273,7 +413,7 @@ export const Transactions: React.FC = () => {
         },
       });
     },
-    [formData, createTransaction, addToast, closeModal, t],
+    [formData, createTransaction, addToast, closeModal, t, isSourceCreditCard],
   );
 
   const handleDeleteClick = React.useCallback((id: string) => setDeleteId(id), []);
@@ -292,6 +432,7 @@ export const Transactions: React.FC = () => {
   }, [deleteId, deleteTransaction, addToast, t]);
 
   const hasActiveFilters = React.useMemo(() => selectedType || selectedCategory || searchQuery, [selectedType, selectedCategory, searchQuery]);
+
   const previewConfig = TYPE_CONFIG[formData.type];
 
   const previewSubtitle = React.useMemo(() => {
@@ -419,6 +560,7 @@ export const Transactions: React.FC = () => {
           )}
         </CardContent>
       </Card>
+
       <Modal isOpen={isModalOpen} onClose={closeModal} title={`➕ ${t("modal.addTitle")}`} size="lg">
         <div className="space-y-3 sm:space-y-4">
           <div className="p-2.5 border rounded-lg sm:p-3 bg-primary-50 border-primary-200">
@@ -426,16 +568,7 @@ export const Transactions: React.FC = () => {
           </div>
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-            <Select
-              label={`${t("modal.type")} *`}
-              options={[
-                { value: "EXPENSE", label: `💳 ${t("expense")}` },
-                { value: "INCOME", label: `💰 ${t("income")}` },
-                { value: "TRANSFER", label: `🔄 ${t("transfer")}` },
-              ]}
-              value={formData.type}
-              onChange={(e) => handleChangeForm("type", e.target.value)}
-            />
+            <Select label={`${t("modal.type")} *`} options={allowedTypes} value={formData.type} onChange={(e) => handleChangeForm("type", e.target.value)} />
             <Input
               type="number"
               label={`${t("modal.amount")} *`}
@@ -451,7 +584,7 @@ export const Transactions: React.FC = () => {
 
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
             <Select
-              label={`${formData.type === "TRANSFER" ? t("modal.fromAccount") : t("modal.account")} *`}
+              label={`${fromAccountLabel} *`}
               options={[{ value: "", label: t("modal.selected", { type: t("modal.account") }) }, ...accountOptions]}
               value={formData.accountId}
               onChange={(e) => handleChangeForm("accountId", e.target.value)}
@@ -474,6 +607,20 @@ export const Transactions: React.FC = () => {
               />
             )}
           </div>
+
+          {contextHint && (
+            <div
+              className={`flex items-start gap-2 p-3 rounded-lg border text-xs sm:text-sm ${
+                contextHint.variant === "error"
+                  ? "bg-red-50 border-red-200 text-red-700"
+                  : contextHint.variant === "warning"
+                    ? "bg-amber-50 border-amber-200 text-amber-700"
+                    : "bg-blue-50 border-blue-200 text-blue-700"
+              }`}
+            >
+              <p>{contextHint.text}</p>
+            </div>
+          )}
 
           <Input type="date" label={`${t("modal.date")} *`} value={formData.date} onChange={(e) => handleChangeForm("date", e.target.value)} max={new Date().toISOString().split("T")[0]} required />
 
@@ -505,6 +652,7 @@ export const Transactions: React.FC = () => {
                   <Badge variant={formData.type === "INCOME" ? "success" : formData.type === "TRANSFER" ? "info" : "error"} className="text-xs">
                     {formData.type}
                   </Badge>
+                  {isSourceCreditCard && formData.type === "EXPENSE" && <p className="mt-0.5 text-xs text-red-500">+debt</p>}
                 </div>
               </div>
             </div>
@@ -514,7 +662,7 @@ export const Transactions: React.FC = () => {
             <Button type="button" variant="ghost" onClick={closeModal} disabled={isCreating} className="text-xs sm:text-sm">
               {t("modal.cancel")}
             </Button>
-            <Button onClick={handleSubmitForm} variant="primary" isLoading={isCreating} className="text-xs sm:text-sm">
+            <Button onClick={handleSubmitForm} variant="primary" isLoading={isCreating} disabled={isSourceCreditCard && formData.type === "INCOME"} className="text-xs sm:text-sm">
               {t("modal.create")}
             </Button>
           </div>

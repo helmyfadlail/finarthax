@@ -8,8 +8,9 @@ import type { ApiResponse, Account } from "@/types";
 
 interface CreateAccountData {
   name: string;
-  type: "CASH" | "BANK" | "EWALLET" | "CREDIT_CARD";
+  type: "CASH" | "BANK" | "EWALLET" | "CREDIT_CARD" | "INVESTMENT";
   balance?: number;
+  creditLimit?: number;
   color?: string;
   icon?: string;
   isDefault?: boolean;
@@ -18,13 +19,11 @@ interface CreateAccountData {
 export const useAccounts = () => {
   const queryClient = useQueryClient();
 
-  // Get all accounts
   const { data, isLoading, error } = useQuery({
     queryKey: ["accounts"],
     queryFn: () => apiClient.get<ApiResponse<Account[]>>("/accounts"),
   });
 
-  // Create account
   const createMutation = useMutation({
     mutationFn: (data: CreateAccountData) => apiClient.post<ApiResponse<Account>, CreateAccountData>("/accounts", data),
     onSuccess: () => {
@@ -32,7 +31,6 @@ export const useAccounts = () => {
     },
   });
 
-  // Update account
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CreateAccountData> }) => apiClient.put<ApiResponse<Account>, Partial<CreateAccountData>>(`/accounts/${id}`, data),
     onSuccess: () => {
@@ -40,7 +38,6 @@ export const useAccounts = () => {
     },
   });
 
-  // Delete account
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiClient.delete(`/accounts/${id}`),
     onSuccess: () => {

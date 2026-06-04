@@ -109,6 +109,10 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
   const config = TX_CONFIG[type] ?? TX_CONFIG.EXPENSE;
   const isTransfer = type === "TRANSFER";
 
+  const isCreditCardExpense = type === "EXPENSE" && transaction.account?.type === "CREDIT_CARD";
+
+  const isCreditCardPayoff = isTransfer && transaction.toAccount?.type === "CREDIT_CARD";
+
   return (
     <div className="flex items-center justify-between gap-2 p-2.5 sm:gap-3 sm:p-4 rounded-xl bg-neutral hover:bg-neutral-100 hover:shadow-sm transition-all group">
       <div className="flex items-center flex-1 min-w-0 gap-2 sm:gap-3">
@@ -119,8 +123,10 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
         </div>
         <div className="flex-1 min-w-0">
           <h4 className="text-xs font-semibold truncate sm:text-sm text-primary-900">{transaction.description || t("noDescription")}</h4>
-          <p className="text-xs truncate text-primary-500">
+          <p className="text-xs truncate text-primary-500 flex items-center gap-1">
             {isTransfer ? (transaction.toAccount ? `${transaction.account?.name} → ${transaction.toAccount.name}` : transaction.account?.name) : (transaction.category?.name ?? t("uncategorized"))}
+            {isCreditCardExpense && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-red-100 text-red-600">debt</span>}
+            {isCreditCardPayoff && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-green-100 text-green-600">payoff</span>}
           </p>
         </div>
       </div>
@@ -258,12 +264,18 @@ export const Dashboard: React.FC = () => {
   const counts = summary?.data?.currentMonth?.counts;
   const recentTxns = summary?.data?.recentTransactions ?? [];
   const accounts = summary?.data?.accounts ?? [];
-  const totalBalance = summary?.data?.totalBalance ?? 0;
   const budgetProgress = charts?.data?.budgetProgress ?? [];
   const transferSummary = charts?.data?.transferSummary;
 
   const categoryData = useMemo(() => charts?.data?.categoryData ?? [], [charts?.data?.categoryData]);
   const monthlyData = useMemo(() => charts?.data?.monthlyData ?? [], [charts?.data?.monthlyData]);
+
+  const { totalAssets, totalDebt, netWorth } = useMemo(() => {
+    if (!summary?.data?.accounts) return { totalAssets: 0, totalDebt: 0, netWorth: 0 };
+    const assets = summary?.data?.accounts.filter((a) => a.type !== "CREDIT_CARD").reduce((s, a) => s + Number(a.balance), 0);
+    const debt = summary?.data?.accounts.filter((a) => a.type === "CREDIT_CARD").reduce((s, a) => s + Math.abs(Number(a.balance)), 0);
+    return { totalAssets: assets, totalDebt: debt, netWorth: assets - debt };
+  }, [summary?.data?.accounts]);
 
   const currentMonthName = useMemo(() => new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" }), []);
 
@@ -286,24 +298,38 @@ export const Dashboard: React.FC = () => {
       </div>
 
       <div className="p-3 shadow-lg text-primary-900 rounded-2xl bg-linear-to-br from-primary-50 via-primary-100 to-primary-200 sm:p-5 lg:p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="mb-0.5 text-xs font-medium tracking-widest uppercase text-primary sm:text-sm">{t("totalBalance")}</p>
-            <p className="text-2xl font-bold lg:text-3xl xl:text-4xl tabular-nums">{format(totalBalance)}</p>
+            <p className="mb-0.5 text-xs font-medium tracking-widest uppercase text-primary sm:text-sm">{t("netWorth", { defaultValue: "Net Worth" })}</p>
+            <p className={`text-2xl font-bold lg:text-3xl xl:text-4xl tabular-nums ${netWorth >= 0 ? "text-primary-900" : "text-red-600"}`}>{format(netWorth)}</p>
             <p className="mt-0.5 text-xs text-primary sm:text-sm sm:mt-1">
               {accounts.length} {t("accountsLinked")}
             </p>
           </div>
-
-          <div className="flex flex-col gap-0.5 xl:gap-1.5 sm:items-end">
-            {accounts.slice(0, 3).map((acc) => (
-              <div key={acc.id} className="flex items-center gap-2 text-xs lg:text-sm">
-                <span className="opacity-70">{acc.icon}</span>
-                <span className="truncate text-primary max-w-24 sm:max-w-40">{acc.name}</span>
-                <span className="font-bold text-primary-900 tabular-nums">{format(acc.balance)}</span>
+          <div className="flex flex-col gap-2 sm:items-end">
+            <div className="flex gap-3 text-xs sm:text-sm">
+              <div className="flex flex-col items-start sm:items-end gap-0.5">
+                <span className="text-primary-500 opacity-70">{t("totalAssets", { defaultValue: "Assets" })}</span>
+                <span className="font-bold text-emerald-700 tabular-nums">{format(totalAssets)}</span>
               </div>
-            ))}
-            {accounts.length > 3 && <span className="text-xs text-primary">+{accounts.length - 3} more</span>}
+              <div className="w-px bg-primary-300 self-stretch opacity-40" />
+              <div className="flex flex-col items-start sm:items-end gap-0.5">
+                <span className="text-primary-500 opacity-70">{t("creditDebt", { defaultValue: "CC Debt" })}</span>
+                <span className="font-bold text-red-500 tabular-nums">{format(totalDebt)}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-0.5 xl:gap-1.5">
+              {accounts.slice(0, 3).map((acc) => (
+                <div key={acc.id} className="flex items-center gap-2 text-xs lg:text-sm">
+                  <span className="opacity-70">{acc.icon}</span>
+                  <span className="truncate text-primary max-w-24 sm:max-w-40">{acc.name}</span>
+                  <span className={`font-bold tabular-nums ${acc.type === "CREDIT_CARD" ? "text-red-500" : "text-primary-900"}`}>{format(acc.balance)}</span>
+                  {acc.type === "CREDIT_CARD" && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-red-100 text-red-600 shrink-0">debt</span>}
+                </div>
+              ))}
+              {accounts.length > 3 && <span className="text-xs text-primary">+{accounts.length - 3} more</span>}
+            </div>
           </div>
         </div>
       </div>
@@ -314,6 +340,45 @@ export const Dashboard: React.FC = () => {
         <SummaryCard title={t("transfer")} amount={currentMonth?.transfer ?? 0} change={changes?.transfer ?? 0} icon="🔄" type="transfer" count={counts?.transfer} />
         <SummaryCard title={t("netBalance")} amount={currentMonth?.balance ?? 0} change={changes?.balance ?? 0} icon="📊" type="balance" count={counts?.total} />
       </div>
+
+      {totalDebt > 0 && (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
+          {accounts
+            .filter((a) => a.type === "CREDIT_CARD")
+            .map((cc) => {
+              const debt = Math.abs(Number(cc.balance));
+              const limit = cc.creditLimit ? Number(cc.creditLimit) : null;
+              const utilisation = limit && limit > 0 ? Math.min((debt / limit) * 100, 100) : null;
+              return (
+                <Card key={cc.id} className="border border-red-200 bg-red-50">
+                  <CardContent className="pt-3 pb-3 sm:pt-4 sm:pb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="text-lg">{cc.icon || "💳"}</span>
+                      <p className="text-xs font-semibold truncate text-red-900">{cc.name}</p>
+                      <Badge variant="error" className="ml-auto text-xs shrink-0">
+                        debt
+                      </Badge>
+                    </div>
+                    <p className="text-lg font-bold text-red-600 tabular-nums">{format(debt)}</p>
+                    {limit !== null && (
+                      <div className="mt-2 space-y-1">
+                        <div className="w-full h-1.5 rounded-full bg-red-200 overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${(utilisation ?? 0) >= 90 ? "bg-red-600" : (utilisation ?? 0) >= 70 ? "bg-amber-500" : "bg-emerald-500"}`}
+                            style={{ width: `${utilisation ?? 0}%` }}
+                          />
+                        </div>
+                        <p className="text-xs text-right text-red-400">
+                          {utilisation?.toFixed(0)}% of {format(limit)}
+                        </p>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+        </div>
+      )}
 
       <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3 lg:gap-5">
         <Card className="lg:col-span-2">

@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-import { applyBalanceChange, applyBudgetChange, prisma, requireAuth, TRANSACTION_INCLUDE, validateAccount, validateCategory } from "@/lib";
+import { applyBalanceChange, applyBudgetChange, prisma, requireAuth, TRANSACTION_INCLUDE, validateAccount, validateCategory, validateCreditCardRules } from "@/lib";
 
 import { Prisma } from "prisma-client/client";
 
@@ -97,6 +97,9 @@ export async function POST(req: NextRequest) {
 
     const { error: accountError } = await validateAccount(user.id, data.accountId, "toAccountId" in data ? data.toAccountId : undefined);
     if (accountError) return errorResponse(accountError, 404);
+
+    const creditCardError = await validateCreditCardRules(data.accountId, data.type, "toAccountId" in data ? data.toAccountId : null);
+    if (creditCardError) return errorResponse(creditCardError, 422);
 
     const { error: categoryError } = await validateCategory(user.id, "categoryId" in data ? data.categoryId : undefined);
     if (categoryError) return errorResponse(categoryError, 404);

@@ -38,6 +38,9 @@
     "of": "of",
     "used": "used",
     "totalBalance": "Total Balance",
+    "netWorth": "Net Worth",
+    "totalAssets": "Assets",
+    "creditDebt": "CC Debt",
     "accountsLinked": "accounts linked",
     "transfers": "Transfers",
     "neutral": "Neutral",
@@ -158,7 +161,15 @@
       "account": "Please select an account",
       "category": "Please select a category",
       "description": "Please add a description",
-      "sameAccount": "Source and destination accounts must be different"
+      "sameAccount": "Source and destination accounts must be different",
+      "creditCardNoIncome": "Income is not allowed on a credit card. Use a Transfer from your bank account to pay it off instead."
+    },
+    "hints": {
+      "creditCardNoIncome": "⚠️ Income transactions are not allowed on a credit card. To reduce your balance, use a Transfer from your bank account to this credit card instead.",
+      "creditCardExpense": "💳 This expense will increase your credit card debt — it is money borrowed from the bank, not from your own funds.",
+      "creditCardCashAdvance": "🏧 Transferring FROM a credit card is a cash advance. This increases your debt.",
+      "creditCardPayoff": "✅ Transferring TO your credit card will reduce your debt — this is a credit card payment.",
+      "transfer": "🔄 Transfer moves money between your own accounts. The source balance decreases and the destination balance increases."
     },
     "success": {
       "created": "Transaction created successfully! 🎉",
@@ -181,15 +192,24 @@
       "cash": "Cash",
       "bank": "Bank Account",
       "ewallet": "E-Wallet",
-      "credit_card": "Credit Card"
+      "credit_card": "Credit Card",
+      "investment": "Investment"
     },
     "summary": {
       "totalBalance": "Total Balance",
+      "totalAssets": "Total Assets",
+      "totalDebt": "Credit Card Debt",
+      "netWorth": "Net Worth",
       "account": "account",
-      "accounts": "accounts",
-      "assets": "Assets",
-      "liabilities": "Liabilities",
-      "netWorth": "Net Worth"
+      "accounts": "accounts"
+    },
+    "creditCard": {
+      "debtLabel": "Debt owed",
+      "debtPlaceholder": "e.g. 500000",
+      "limitLabel": "Credit limit (optional)",
+      "limitPlaceholder": "e.g. 10000000",
+      "used": "used",
+      "balanceExplainer": "For credit cards, the balance represents your total debt owed to the bank — not your own money. Enter the current amount you owe (e.g. 500000 if you owe Rp 500,000)."
     },
     "distribution": "Account Distribution",
     "yourAccounts": "Your Accounts ({count})",
@@ -231,7 +251,7 @@
     "validation": {
       "required": "Please fill all required fields (Name and Balance)",
       "nameTooLong": "Account name is too long (max 50 characters)",
-      "invalidBalance": "Please enter a valid balance",
+      "invalidBalance": "Please enter a valid balance (must be 0 or more)",
       "duplicate": "An account with this name already exists"
     },
     "success": {

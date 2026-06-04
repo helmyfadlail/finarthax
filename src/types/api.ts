@@ -78,8 +78,9 @@ export interface Account {
   id: string;
   userId: string;
   name: string;
-  type: "CASH" | "BANK" | "EWALLET" | "CREDIT_CARD";
+  type: "CASH" | "BANK" | "EWALLET" | "CREDIT_CARD" | "INVESTMENT";
   balance: number;
+  creditLimit?: number;
   color?: string;
   icon?: string;
   isDefault: boolean;

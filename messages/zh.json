@@ -38,6 +38,9 @@
     "of": "的",
     "used": "已使用",
     "totalBalance": "总余额",
+    "netWorth": "净资产",
+    "totalAssets": "资产",
+    "creditDebt": "信用卡债务",
     "accountsLinked": "已关联账户",
     "transfers": "转账",
     "neutral": "中性",
@@ -136,7 +139,7 @@
       "account": "账户",
       "category": "类别",
       "fromAccount": "来源账户",
-      "toAccount": "目标账户 (可选)",
+      "toAccount": "目标账户（可选）",
       "toAccountOptional": "选择目标账户",
       "categoryLabel": "类别",
       "date": "日期",
@@ -158,7 +161,15 @@
       "account": "请选择账户",
       "category": "请选择类别",
       "description": "请添加描述",
-      "sameAccount": "来源账户和目标账户必须不同"
+      "sameAccount": "来源账户和目标账户必须不同",
+      "creditCardNoIncome": "信用卡不允许收入交易。请使用从银行账户到信用卡的转账来还款。"
+    },
+    "hints": {
+      "creditCardNoIncome": "⚠️ 信用卡不允许收入交易。如需减少余额，请使用从银行账户转账到此信用卡的方式。",
+      "creditCardExpense": "💳 此支出将增加您的信用卡债务——这是向银行借的钱，不是您自己的资金。",
+      "creditCardCashAdvance": "🏧 从信用卡转出是预借现金操作，这将增加您的债务。",
+      "creditCardPayoff": "✅ 转账到信用卡将减少您的债务——这是信用卡还款操作。",
+      "transfer": "🔄 转账在您自己的账户之间移动资金。来源账户余额减少，目标账户余额增加。"
     },
     "success": {
       "created": "交易创建成功！🎉",
@@ -181,18 +192,27 @@
       "cash": "现金",
       "bank": "银行账户",
       "ewallet": "电子钱包",
-      "credit_card": "信用卡"
+      "credit_card": "信用卡",
+      "investment": "投资"
     },
     "summary": {
       "totalBalance": "总余额",
+      "totalAssets": "总资产",
+      "totalDebt": "信用卡债务",
+      "netWorth": "净资产",
       "account": "账户",
-      "accounts": "账户",
-      "assets": "资产",
-      "liabilities": "负债",
-      "netWorth": "净资产"
+      "accounts": "账户"
+    },
+    "creditCard": {
+      "debtLabel": "当前欠款",
+      "debtPlaceholder": "例如：500000",
+      "limitLabel": "信用额度（可选）",
+      "limitPlaceholder": "例如：10000000",
+      "used": "已使用",
+      "balanceExplainer": "对于信用卡，余额代表您欠银行的总债务——不是您自己的钱。请输入您当前欠款金额（例如：如欠500,000元，输入500000）。"
     },
     "distribution": "账户分布",
-    "yourAccounts": "您的账户 ({count})",
+    "yourAccounts": "您的账户（{count}）",
     "empty": {
       "title": "还没有账户",
       "description": "通过创建第一个账户开始管理您的财务",
@@ -231,7 +251,7 @@
     "validation": {
       "required": "请填写所有必填字段（名称和余额）",
       "nameTooLong": "账户名称太长（最多50个字符）",
-      "invalidBalance": "请输入有效的余额",
+      "invalidBalance": "请输入有效的余额（必须为0或更多）",
       "duplicate": "此名称的账户已存在"
     },
     "success": {

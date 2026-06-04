@@ -38,6 +38,9 @@
     "of": "dari",
     "used": "terpakai",
     "totalBalance": "Total Saldo",
+    "netWorth": "Kekayaan Bersih",
+    "totalAssets": "Aset",
+    "creditDebt": "Utang KK",
     "accountsLinked": "akun terhubung",
     "transfers": "Transfer",
     "neutral": "Netral",
@@ -158,7 +161,15 @@
       "account": "Pilih akun",
       "category": "Pilih kategori",
       "description": "Tambahkan deskripsi",
-      "sameAccount": "Akun sumber dan tujuan harus berbeda"
+      "sameAccount": "Akun sumber dan tujuan harus berbeda",
+      "creditCardNoIncome": "Pemasukan tidak diizinkan pada kartu kredit. Gunakan Transfer dari rekening bank untuk membayar tagihan."
+    },
+    "hints": {
+      "creditCardNoIncome": "⚠️ Transaksi pemasukan tidak diizinkan pada kartu kredit. Untuk mengurangi saldo, gunakan Transfer dari rekening bank ke kartu kredit ini.",
+      "creditCardExpense": "💳 Pengeluaran ini akan menambah utang kartu kredit Anda — ini adalah uang yang dipinjam dari bank, bukan uang Anda sendiri.",
+      "creditCardCashAdvance": "🏧 Transfer DARI kartu kredit adalah penarikan tunai. Ini akan menambah utang Anda.",
+      "creditCardPayoff": "✅ Transfer KE kartu kredit akan mengurangi utang Anda — ini adalah pembayaran tagihan kartu kredit.",
+      "transfer": "🔄 Transfer memindahkan uang antar akun Anda. Saldo akun sumber berkurang dan saldo akun tujuan bertambah."
     },
     "success": {
       "created": "Transaksi berhasil dibuat! 🎉",
@@ -181,15 +192,24 @@
       "cash": "Tunai",
       "bank": "Akun Bank",
       "ewallet": "E-Wallet",
-      "credit_card": "Kartu Kredit"
+      "credit_card": "Kartu Kredit",
+      "investment": "Investasi"
     },
     "summary": {
       "totalBalance": "Total Saldo",
+      "totalAssets": "Total Aset",
+      "totalDebt": "Utang Kartu Kredit",
+      "netWorth": "Kekayaan Bersih",
       "account": "akun",
-      "accounts": "akun",
-      "assets": "Aset",
-      "liabilities": "Kewajiban",
-      "netWorth": "Kekayaan Bersih"
+      "accounts": "akun"
+    },
+    "creditCard": {
+      "debtLabel": "Utang saat ini",
+      "debtPlaceholder": "contoh: 500000",
+      "limitLabel": "Limit kartu kredit (opsional)",
+      "limitPlaceholder": "contoh: 10000000",
+      "used": "terpakai",
+      "balanceExplainer": "Untuk kartu kredit, saldo mewakili total utang kepada bank — bukan uang Anda sendiri. Masukkan jumlah yang saat ini Anda hutang (contoh: 500000 jika Anda berhutang Rp 500.000)."
     },
     "distribution": "Distribusi Akun",
     "yourAccounts": "Akun Anda ({count})",
@@ -231,7 +251,7 @@
     "validation": {
       "required": "Harap isi semua kolom yang diperlukan (Nama dan Saldo)",
       "nameTooLong": "Nama akun terlalu panjang (maks 50 karakter)",
-      "invalidBalance": "Masukkan saldo yang valid",
+      "invalidBalance": "Masukkan saldo yang valid (harus 0 atau lebih)",
       "duplicate": "Akun dengan nama ini sudah ada"
     },
     "success": {

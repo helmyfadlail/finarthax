@@ -42,7 +42,9 @@ export async function POST(req: NextRequest) {
       await prisma.account.updateMany({ where: { userId: user.id, isDefault: true }, data: { isDefault: false } });
     }
 
-    const account = await prisma.account.create({ data: { userId: user.id, ...data } });
+    const accountData = data.type !== "CREDIT_CARD" ? { ...data, creditLimit: undefined } : data;
+
+    const account = await prisma.account.create({ data: { userId: user.id, ...accountData } });
 
     return successResponse(account, "Account created successfully");
   } catch (error) {
