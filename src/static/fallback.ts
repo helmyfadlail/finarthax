@@ -145,4 +145,23 @@ export const CURRENCY_LOCALE_MAP = {
   TZS: "sw-TZ",
 };
 
-export const ZERO_DECIMAL_CURRENCIES = ["BIF", "CLP", "DJF", "GNF", "IDR", "JPY", "KMF", "KRW", "MGA", "PYG", "RWF", "UGX", "UYI", "VND", "VUV", "XAF", "XOF", "XPF"];
+export const ZERO_DECIMAL_CURRENCIES: Record<string, string> = {
+  BIF: "rn-BI",
+  CLP: "es-CL",
+  DJF: "fr-DJ",
+  GNF: "fr-GN",
+  IDR: "id-ID",
+  JPY: "ja-JP",
+  KMF: "ar-KM",
+  KRW: "ko-KR",
+  MGA: "mg-MG",
+  PYG: "es-PY",
+  RWF: "rw-RW",
+  UGX: "en-UG",
+  UYI: "es-UY",
+  VND: "vi-VN",
+  VUV: "bi-VU",
+  XAF: "fr-CM",
+  XOF: "fr-SN",
+  XPF: "fr-PF",
+};

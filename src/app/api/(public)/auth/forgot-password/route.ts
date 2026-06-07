@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 
-import { prisma } from "@/lib";
+import { prisma, withMaintenanceGuard } from "@/lib";
 
 import nodemailer from "nodemailer";
 
@@ -238,41 +238,43 @@ const sendEmail = async ({ to, subject, html }: { to: string; subject: string; h
 };
 
 export async function POST(req: NextRequest) {
-  try {
-    const body = await req.json();
-    const validation = forgotPasswordSchema.safeParse(body);
+  return withMaintenanceGuard(req, async () => {
+    try {
+      const body = await req.json();
+      const validation = forgotPasswordSchema.safeParse(body);
 
-    if (!validation.success) {
-      const { fieldErrors } = z.flattenError(validation.error);
-      return validationErrorResponse(fieldErrors);
+      if (!validation.success) {
+        const { fieldErrors } = z.flattenError(validation.error);
+        return validationErrorResponse(fieldErrors);
+      }
+
+      const { email } = validation.data;
+
+      const user = await prisma.user.findUnique({ where: { email } });
+
+      if (!user) return successResponse(null, "If the email exists, a reset link has been sent");
+
+      if (!user.password) return errorResponse("This account is registered via Google. Please sign in with Google.", 400);
+
+      const resetToken = crypto.randomBytes(32).toString("hex");
+      const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+      const expires = new Date(Date.now() + 3600000);
+
+      await prisma.verificationToken.create({ data: { identifier: email, token: hashedToken, expires } });
+
+      const resetUrl = `${url}/reset-password?token=${resetToken}`;
+
+      await sendEmail({
+        to: email,
+        subject: "Reset Your Password - Finance Manager",
+        html: generatePasswordResetEmail(resetUrl),
+      });
+
+      return successResponse(null, "If the email exists, a reset link has been sent");
+    } catch (error) {
+      console.error(error);
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+      return errorResponse(errorMessage, 500);
     }
-
-    const { email } = validation.data;
-
-    const user = await prisma.user.findUnique({ where: { email } });
-
-    if (!user) return successResponse(null, "If the email exists, a reset link has been sent");
-
-    if (!user.password) return errorResponse("This account is registered via Google. Please sign in with Google.", 400);
-
-    const resetToken = crypto.randomBytes(32).toString("hex");
-    const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
-    const expires = new Date(Date.now() + 3600000);
-
-    await prisma.verificationToken.create({ data: { identifier: email, token: hashedToken, expires } });
-
-    const resetUrl = `${url}/reset-password?token=${resetToken}`;
-
-    await sendEmail({
-      to: email,
-      subject: "Reset Your Password - Finance Manager",
-      html: generatePasswordResetEmail(resetUrl),
-    });
-
-    return successResponse(null, "If the email exists, a reset link has been sent");
-  } catch (error) {
-    console.error(error);
-    const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
-    return errorResponse(errorMessage, 500);
-  }
+  });
 }

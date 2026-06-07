@@ -20,7 +20,6 @@ interface CreateTransactionData {
 export const useTransactions = (filters?: TransactionFilter) => {
   const queryClient = useQueryClient();
 
-  // Get transactions with additional params
   const { data, isLoading, error } = useQuery({
     queryKey: ["transactions", filters],
     queryFn: () =>
@@ -29,7 +28,6 @@ export const useTransactions = (filters?: TransactionFilter) => {
       }),
   });
 
-  // Create transaction
   const createMutation = useMutation({
     mutationFn: (data: CreateTransactionData) => apiClient.post<ApiResponse<Transaction>, CreateTransactionData>("/transactions", data),
     onSuccess: () => {
@@ -40,7 +38,6 @@ export const useTransactions = (filters?: TransactionFilter) => {
     },
   });
 
-  // Update transaction
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CreateTransactionData> }) => apiClient.put<ApiResponse<Transaction>, Partial<CreateTransactionData>>(`/transactions/${id}`, data),
     onSuccess: () => {
@@ -51,7 +48,6 @@ export const useTransactions = (filters?: TransactionFilter) => {
     },
   });
 
-  // Delete transaction
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiClient.delete(`/transactions/${id}`),
     onSuccess: () => {

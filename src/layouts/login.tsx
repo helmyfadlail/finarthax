@@ -6,9 +6,9 @@ import { signIn } from "next-auth/react";
 
 import Link from "next/link";
 
-import { Button, Input } from "@/components";
+import { Button, Input, Skeleton } from "@/components";
 
-import { useAuth } from "@/hooks";
+import { useAuth, useSettings } from "@/hooks";
 
 export const Login = () => {
   const [email, setEmail] = React.useState<string>("");
@@ -17,6 +17,7 @@ export const Login = () => {
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
 
   const { loginWithGoogle } = useAuth();
+  const { getAppSetting, isLoadingAppSettings } = useSettings();
 
   const handleLogin = async (e: React.SubmitEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
@@ -44,6 +45,49 @@ export const Login = () => {
       setIsLoading(false);
     }
   };
+
+  if (isLoadingAppSettings) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-4 bg-linear-to-br from-primary via-secondary to-accent">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute rounded-full top-20 left-10 w-72 h-72 bg-accent opacity-20 blur-3xl" />
+          <div className="absolute rounded-full bottom-20 right-10 w-96 h-96 bg-secondary opacity-20 blur-3xl" />
+        </div>
+        <div className="relative w-full max-w-md">
+          <div className="p-8 shadow-2xl bg-white/95 backdrop-blur-sm rounded-2xl">
+            <div className="mb-6 space-y-2">
+              <Skeleton className="h-8 w-40" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-10 w-full rounded-lg" />
+              </div>
+              <div className="space-y-1">
+                <Skeleton className="h-4 w-20" />
+                <Skeleton className="h-10 w-full rounded-lg" />
+              </div>
+              <div className="flex">
+                <Skeleton className="h-4 w-32" />
+              </div>
+              <Skeleton className="h-11 w-full rounded-lg" />
+            </div>
+            <div className="my-6">
+              <Skeleton className="h-4 w-full" />
+            </div>
+            <Skeleton className="h-11 w-full rounded-lg" />
+            <div className="flex justify-center mt-6">
+              <Skeleton className="h-4 w-48" />
+            </div>
+          </div>
+          <div className="flex justify-center mt-8">
+            <Skeleton className="h-4 w-40 opacity-60" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen p-4 bg-linear-to-br from-primary via-secondary to-accent">
@@ -144,7 +188,7 @@ export const Login = () => {
           </p>
         </div>
 
-        <p className="mt-8 text-sm text-center text-white/80">© 2026 Finarthax. All rights reserved.</p>
+        <p className="mt-8 text-sm text-center text-white/80">{getAppSetting("footer_copyright")?.value}</p>
       </div>
     </div>
   );

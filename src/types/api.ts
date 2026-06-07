@@ -26,6 +26,7 @@ export interface User {
   email: string;
   name: string | null;
   avatar: string | null;
+  avatarFileId: string | null;
   currency: string;
   createdAt: string;
   updatedAt: string;

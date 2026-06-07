@@ -16,20 +16,17 @@ export const useSettings = () => {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
 
-  // Get all user settings
+  const { data: appSettingsData, isLoading: isLoadingAppSettings } = useQuery({
+    queryKey: ["app-settings"],
+    queryFn: () => apiClient.get<ApiResponse<AppSetting[]>>("/settings"),
+  });
+
   const { data: userSettingsData, isLoading: isLoadingUserSettings } = useQuery({
     queryKey: ["user-settings"],
     queryFn: () => apiClient.get<ApiResponse<UserSetting[]>>("/users/settings"),
     enabled: !!session?.user,
   });
 
-  const { data: appSettingsData, isLoading: isLoadingAppSettings } = useQuery({
-    queryKey: ["app-settings"],
-    queryFn: () => apiClient.get<ApiResponse<AppSetting[]>>("/settings"),
-    enabled: !!session?.user,
-  });
-
-  // Update setting preferences or alert
   const updateNotificationMutation = useMutation({
     mutationFn: ({ key, value }: { key: string; value: boolean | string }) => apiClient.patch<ApiResponse<UserSetting>, { value: string }>(`/users/settings/${key}`, { value: String(value) }),
     onSuccess: () => {
@@ -37,7 +34,6 @@ export const useSettings = () => {
     },
   });
 
-  // Fetch exchange rates
   const { data: ratesData, isLoading: isLoadingRates } = useQuery({
     queryKey: ["exchange-rates", BASE_CURRENCY],
     queryFn: async () => {
@@ -57,7 +53,6 @@ export const useSettings = () => {
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   });
 
-  // Export all summary transaction in pdf
   const exportDataMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch("/api/users/export");
@@ -77,7 +72,6 @@ export const useSettings = () => {
     },
   });
 
-  // Delete user account
   const deleteAccountMutation = useMutation({
     mutationFn: () => apiClient.delete<ApiResponse<null>>("/users/delete"),
     onSuccess: () => {

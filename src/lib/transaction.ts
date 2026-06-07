@@ -1,32 +1,48 @@
 import { prisma } from "@/lib";
 
+export const TRANSACTION_INCLUDE = {
+  category: true,
+  account: true,
+  toAccount: true,
+} as const;
+
 type TxClient = Parameters<Parameters<typeof prisma.$transaction>[0]>[0];
 
-// ---------------------------------------------------------------------------
-// Balance helpers
-// ---------------------------------------------------------------------------
+export const validateAccount = async (userId: string, accountId: string, toAccountId?: string) => {
+  const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
+  if (!account) return { error: "Source account not found", account: null };
 
-/**
- * Applies or reverses the balance impact of a transaction.
- *
- * All accounts use the same arithmetic direction:
- *   INCOME            → balance += amount
- *   EXPENSE           → balance -= amount
- *   TRANSFER (source) → balance -= amount  (money leaves)
- *   TRANSFER (dest)   → balance += amount  (money arrives)
- *
- * Credit card accounts store balance as a NEGATIVE number (liability convention):
- *   - Starts at 0 (fully paid off)
- *   - EXPENSE makes it more negative (more debt)
- *   - TRANSFER as destination (payment) makes it less negative (less debt)
- *   - TRANSFER as source (cash advance) makes it more negative (more debt)
- *
- * Because the arithmetic is the same for all accounts, no branching is needed
- * on account type — the negative convention handles it automatically.
- *
- * The `direction` parameter allows the same function to be used for both
- * applying a new transaction and reversing an existing one (for edit/delete).
- */
+  if (toAccountId) {
+    const toAccount = await prisma.account.findFirst({ where: { id: toAccountId, userId } });
+    if (!toAccount) return { error: "Destination account not found", account: null };
+  }
+
+  return { error: null, account };
+};
+
+export const validateCategory = async (userId: string, categoryId?: string) => {
+  if (!categoryId) return { error: null };
+  const category = await prisma.category.findFirst({ where: { id: categoryId, OR: [{ userId }, { isDefault: true }] } });
+  if (!category) return { error: "Category not found" };
+  return { error: null };
+};
+
+export const validateCreditCardRules = async (accountId: string, type: string, toAccountId?: string | null): Promise<string | null> => {
+  const account = await prisma.account.findUnique({ where: { id: accountId }, select: { type: true } });
+
+  if (account?.type !== "CREDIT_CARD") return null;
+
+  if (type === "INCOME") {
+    return "Income transactions are not allowed on a credit card account. " + "To reduce your credit card balance, transfer money from a bank account to the credit card.";
+  }
+
+  if (type === "TRANSFER" && !toAccountId) {
+    return "A transfer from a credit card requires a destination account.";
+  }
+
+  return null;
+};
+
 export const applyBalanceChange = async (
   tx: TxClient,
   transaction: {

@@ -93,22 +93,14 @@ export const Settings: React.FC = () => {
   const pathname = usePathname();
   const { appSettingsData, getAppSetting, userSettingsData, isLoadingUserSettings, updateNotification, isUpdatingNotification, exportData, isExporting, deleteAccount, isDeleting } = useSettings();
 
-  const currencyOptions = React.useMemo(() => {
-    const setting = getAppSetting("currency_options");
-    if (!setting || !Array.isArray(setting.value)) return [];
-    return setting.value as unknown as PreferenceItemProps["options"];
-  }, [getAppSetting]);
+  const [currencyOptions, themeOptions, languageOptions] = React.useMemo(() => {
+    const resolve = (key: string) => {
+      const setting = getAppSetting(key);
+      if (!setting || !Array.isArray(setting.value)) return [];
+      return setting.value as unknown as PreferenceItemProps["options"];
+    };
 
-  const themeOptions = React.useMemo(() => {
-    const setting = getAppSetting("theme_options");
-    if (!setting || !Array.isArray(setting.value)) return [];
-    return setting.value as unknown as PreferenceItemProps["options"];
-  }, [getAppSetting]);
-
-  const languageOptions = React.useMemo(() => {
-    const setting = getAppSetting("language_options");
-    if (!setting || !Array.isArray(setting.value)) return [];
-    return setting.value as unknown as PreferenceItemProps["options"];
+    return [resolve("currency_options"), resolve("theme_options"), resolve("language_options")];
   }, [getAppSetting]);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState<boolean>(false);
@@ -379,7 +371,7 @@ export const Settings: React.FC = () => {
         <CardContent>
           <div className="space-y-3">
             {appSettingsData
-              ?.filter((s) => s.type === "string")
+              ?.filter((s) => s.category === "app_information")
               .map((setting, key) => (
                 <div key={setting.label + key} className="flex items-center justify-between py-2 border-b">
                   <span className="text-sm text-primary-600">{setting.label}</span>

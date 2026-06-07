@@ -16,7 +16,6 @@ interface CreateCategoryData {
 export const useCategories = (type?: "INCOME" | "EXPENSE") => {
   const queryClient = useQueryClient();
 
-  // Get all categories with additional params
   const { data, isLoading, error } = useQuery({
     queryKey: ["categories", type],
     queryFn: () =>
@@ -25,7 +24,6 @@ export const useCategories = (type?: "INCOME" | "EXPENSE") => {
       }),
   });
 
-  // Create category
   const createMutation = useMutation({
     mutationFn: (data: CreateCategoryData) => apiClient.post<ApiResponse<Category>, CreateCategoryData>("/categories", data),
     onSuccess: () => {
@@ -33,7 +31,6 @@ export const useCategories = (type?: "INCOME" | "EXPENSE") => {
     },
   });
 
-  // Update category
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CreateCategoryData> }) => apiClient.put<ApiResponse<Category>, Partial<CreateCategoryData>>(`/categories/${id}`, data),
     onSuccess: () => {
@@ -41,7 +38,6 @@ export const useCategories = (type?: "INCOME" | "EXPENSE") => {
     },
   });
 
-  // Delete category
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiClient.delete(`/categories/${id}`),
     onSuccess: () => {

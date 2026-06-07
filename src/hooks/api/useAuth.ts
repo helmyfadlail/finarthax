@@ -25,7 +25,6 @@ export const useAuth = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  // Registration to financial management app
   const registerMutation = useMutation({
     mutationFn: (data: RegisterData) => apiClient.post<ApiResponse<User>, RegisterData>("/auth/register", data),
     onSuccess: async (_, variables) => {
@@ -39,12 +38,10 @@ export const useAuth = () => {
     },
   });
 
-  // Login to financial management app with Google
   const loginWithGoogle = async () => {
     await signIn("google", { callbackUrl: "/admin/dashboard" });
   };
 
-  // Logout to financial management app
   const logoutMutation = useMutation({
     mutationFn: async () => {
       await signOut({ redirect: false });

@@ -17,7 +17,6 @@ interface CreateGoalData {
 export const useGoals = (status?: "ACTIVE" | "COMPLETED" | "CANCELLED") => {
   const queryClient = useQueryClient();
 
-  // Get all goals with additional params called status
   const { data, isLoading, error } = useQuery({
     queryKey: ["goals", status],
     queryFn: () =>
@@ -26,7 +25,6 @@ export const useGoals = (status?: "ACTIVE" | "COMPLETED" | "CANCELLED") => {
       }),
   });
 
-  // Create goal
   const createMutation = useMutation({
     mutationFn: (data: CreateGoalData) => apiClient.post<ApiResponse<Goal>, CreateGoalData>("/goals", data),
     onSuccess: () => {
@@ -34,7 +32,6 @@ export const useGoals = (status?: "ACTIVE" | "COMPLETED" | "CANCELLED") => {
     },
   });
 
-  // Update goal
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<CreateGoalData> }) => apiClient.put<ApiResponse<Goal>, Partial<CreateGoalData>>(`/goals/${id}`, data),
     onSuccess: () => {
@@ -42,7 +39,6 @@ export const useGoals = (status?: "ACTIVE" | "COMPLETED" | "CANCELLED") => {
     },
   });
 
-  // Update goal progress
   const updateProgressMutation = useMutation({
     mutationFn: ({ id, currentAmount }: { id: string; currentAmount: number }) => apiClient.patch<ApiResponse<Goal>, { currentAmount: number }>(`/goals/${id}/progress`, { currentAmount }),
     onSuccess: () => {
@@ -50,7 +46,6 @@ export const useGoals = (status?: "ACTIVE" | "COMPLETED" | "CANCELLED") => {
     },
   });
 
-  // Delete goal
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiClient.delete(`/goals/${id}`),
     onSuccess: () => {

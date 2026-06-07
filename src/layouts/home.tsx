@@ -4,9 +4,9 @@ import * as React from "react";
 
 import { useRouter } from "next/navigation";
 
-import { useQuickTransactions } from "@/hooks";
+import { useQuickTransactions, useSettings } from "@/hooks";
 
-import { Card, CardContent, Button, Input, Select, Badge, useToast } from "@/components";
+import { Card, CardContent, Button, Input, Select, Badge, useToast, Skeleton, Img } from "@/components";
 
 import type { Account, Category, TransactionType } from "@/types";
 
@@ -68,6 +68,19 @@ export const Home: React.FC = () => {
   const router = useRouter();
 
   const { createTransaction, searchEmail, isCreating, isSearchingEmail } = useQuickTransactions();
+  const { getAppSetting, isLoadingAppSettings } = useSettings();
+
+  const [homeTitle, homeSubtitle, howItWorksTitle, readyForMoreTitle, readyForMoreDescription] = React.useMemo(() => {
+    const resolve = (key: string) => {
+      const setting = getAppSetting(key);
+      if (!setting) return "";
+      return setting.value;
+    };
+
+    return [resolve("home_title"), resolve("home_subtitle"), resolve("how_it_works_title"), resolve("ready_for_more_title"), resolve("ready_for_more_description")];
+  }, [getAppSetting]);
+
+  const howItWorksContent = (getAppSetting("how_it_works_content")?.value as string[]) || [];
 
   const [email, setEmail] = React.useState("");
   const [emailVerified, setEmailVerified] = React.useState(false);
@@ -196,13 +209,40 @@ export const Home: React.FC = () => {
 
   const showPreview = !!formData.amount && !!formData.description;
 
+  if (isLoadingAppSettings) {
+    return (
+      <div className="min-h-screen px-3 py-6 sm:px-4 sm:py-8 md:py-12 bg-linear-to-br from-primary-50 to-neutral">
+        <div className="max-w-lg mx-auto space-y-3 sm:max-w-xl md:max-w-2xl sm:space-y-4 md:space-y-6">
+          <div className="flex flex-col items-center justify-center gap-2 my-6">
+            <Skeleton className="w-12 h-12" />
+            <Skeleton className="h-12 w-60" />
+            <Skeleton className="h-6 w-120" />
+          </div>
+          <div className="p-8 shadow-2xl bg-white/95 backdrop-blur-sm rounded-2xl">
+            <Skeleton className="w-full h-40" />
+          </div>
+          <div className="p-8 shadow-2xl bg-white/95 backdrop-blur-sm rounded-2xl">
+            <div className="mb-2 space-y-1">
+              <Skeleton className="w-24 h-4" />
+              <Skeleton className="w-full h-10 rounded-lg" />
+            </div>
+            <Skeleton className="w-full h-10" />
+          </div>
+          <div className="p-8 shadow-2xl bg-white/95 backdrop-blur-sm rounded-2xl">
+            <Skeleton className="w-full h-40" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen px-3 py-6 sm:px-4 sm:py-8 md:py-12 bg-linear-to-br from-primary-50 to-neutral">
       <div className="max-w-lg mx-auto space-y-3 sm:max-w-xl md:max-w-2xl sm:space-y-4 md:space-y-6">
-        <div className="py-2 text-center sm:py-4">
-          <div className="mb-2 text-4xl sm:mb-3 sm:text-5xl md:text-6xl">⚡</div>
-          <h1 className="text-2xl font-bold sm:text-3xl md:text-4xl text-primary-900">Finarthax</h1>
-          <p className="px-4 mt-1 text-sm sm:mt-2 sm:text-base md:text-lg text-primary-600">Record your transactions instantly, no login required</p>
+        <div className="flex flex-col items-center justify-center py-2 text-center">
+          <Img src="/finarthax.png" alt="finarthax logo" width={64} height={64} objectFit="cover" priority />
+          <h1 className="mt-1 text-2xl font-bold sm:mt-2 sm:text-3xl md:text-4xl text-primary-900">{homeTitle}</h1>
+          <p className="px-4 mt-1 text-sm sm:mt-2 sm:text-base md:text-lg text-primary-600">{homeSubtitle}</p>
         </div>
 
         <Card>
@@ -210,12 +250,9 @@ export const Home: React.FC = () => {
             <div className="flex items-start gap-2 p-3 border rounded-lg sm:gap-3 sm:p-4 bg-primary-50 border-primary-200">
               <span className="text-lg sm:text-xl md:text-2xl shrink-0">💡</span>
               <div className="flex-1 min-w-0">
-                <p className="mb-1.5 sm:mb-2 text-xs sm:text-sm md:text-base font-medium text-primary-900">How it works:</p>
+                <p className="mb-1.5 sm:mb-2 text-xs sm:text-sm md:text-base font-medium text-primary-900">{howItWorksTitle}</p>
                 <ul className="space-y-0.5 sm:space-y-1 text-sm sm:text-base text-primary-700">
-                  <li>✓ Record transactions without creating an account</li>
-                  <li>✓ Transactions saved locally on your device</li>
-                  <li>✓ Perfect for quick expense tracking on the go</li>
-                  <li>✓ Sign up later to sync and access advanced features</li>
+                  {howItWorksContent.length > 0 && howItWorksContent.map((point, index) => <li key={index + point}>✓ {point}</li>)}
                 </ul>
               </div>
             </div>
@@ -348,8 +385,8 @@ export const Home: React.FC = () => {
           <CardContent className="pt-4 sm:pt-6">
             <div className="p-4 text-center border-2 border-dashed sm:p-6 rounded-xl border-primary-300 bg-primary-50">
               <div className="mb-2 text-3xl sm:mb-3 sm:text-4xl">🚀</div>
-              <h3 className="mb-1.5 sm:mb-2 text-xl sm:text-2xl font-bold text-primary-900">Ready for More?</h3>
-              <p className="max-w-xs mx-auto mb-3 text-sm sm:mb-4 md:text-base text-primary-600">Create a free account to sync your data, set budgets, and access powerful analytics</p>
+              <h3 className="mb-1.5 sm:mb-2 text-xl sm:text-2xl font-bold text-primary-900">{readyForMoreTitle}</h3>
+              <p className="max-w-xs mx-auto mb-3 text-sm sm:mb-4 md:text-base text-primary-600">{readyForMoreDescription}</p>
               <div className="flex flex-col justify-center gap-2 sm:flex-row sm:gap-3">
                 <Button variant="primary" size="lg" onClick={() => router.push("/register")} className="w-full sm:w-auto">
                   Sign Up Free

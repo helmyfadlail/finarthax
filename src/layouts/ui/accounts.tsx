@@ -188,7 +188,7 @@ const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, title, onSubmit,
         <Select label={`${t("modal.type")} *`} options={accountTypeOptions} value={formData.type} onChange={(e) => onFormChange("type", e.target.value)} />
 
         {isCreditCard && (
-          <div className="flex items-start gap-2 p-3 rounded-lg border border-red-200 bg-red-50">
+          <div className="flex items-start gap-2 p-3 border border-red-200 rounded-lg bg-red-50">
             <span className="text-lg shrink-0">💳</span>
             <p className="text-xs text-red-700">
               {t("creditCard.balanceExplainer", {
@@ -368,7 +368,6 @@ export const Accounts: React.FC = () => {
     });
     setIsUpdateModalOpen(true);
   }, []);
-
   const closeUpdateModal = React.useCallback((): void => {
     setIsUpdateModalOpen(false);
     setSelectedAccount(null);
@@ -515,21 +514,21 @@ export const Accounts: React.FC = () => {
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
         <Card variant="default" className="bg-linear-to-br from-primary-50 via-primary-100 to-primary-200">
-          <CardContent className="pt-4 pb-4 sm:pt-5 sm:pb-5 text-center text-primary-900">
+          <CardContent className="pt-4 pb-4 text-center sm:pt-5 sm:pb-5 text-primary-900">
             <p className="mb-1 text-xs opacity-80 sm:text-sm">💰 {t("summary.totalAssets", { defaultValue: "Total Assets" })}</p>
             <p className="text-xl font-bold sm:text-2xl tabular-nums">{format(summary.totalAssets)}</p>
           </CardContent>
         </Card>
 
         <Card variant="default" className="bg-linear-to-br from-red-50 via-red-100 to-red-200">
-          <CardContent className="pt-4 pb-4 sm:pt-5 sm:pb-5 text-center text-red-900">
+          <CardContent className="pt-4 pb-4 text-center text-red-900 sm:pt-5 sm:pb-5">
             <p className="mb-1 text-xs opacity-80 sm:text-sm">💳 {t("summary.totalDebt", { defaultValue: "Credit Card Debt" })}</p>
-            <p className="text-xl font-bold sm:text-2xl tabular-nums text-red-600">{format(summary.totalDebt)}</p>
+            <p className="text-xl font-bold text-red-600 sm:text-2xl tabular-nums">{format(summary.totalDebt)}</p>
           </CardContent>
         </Card>
 
         <Card variant="default" className={`bg-linear-to-br ${summary.netWorth >= 0 ? "from-emerald-50 via-emerald-100 to-emerald-200" : "from-red-50 via-red-100 to-red-200"}`}>
-          <CardContent className="pt-4 pb-4 sm:pt-5 sm:pb-5 text-center">
+          <CardContent className="pt-4 pb-4 text-center sm:pt-5 sm:pb-5">
             <p className={`mb-1 text-xs opacity-80 sm:text-sm ${summary.netWorth >= 0 ? "text-emerald-900" : "text-red-900"}`}>📊 {t("summary.netWorth", { defaultValue: "Net Worth" })}</p>
             <p className={`text-xl font-bold sm:text-2xl tabular-nums ${summary.netWorth >= 0 ? "text-emerald-700" : "text-red-600"}`}>{format(summary.netWorth)}</p>
           </CardContent>

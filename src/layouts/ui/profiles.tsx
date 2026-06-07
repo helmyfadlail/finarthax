@@ -16,6 +16,7 @@ interface ProfileData {
   name: string;
   email: string;
   avatar: string | null;
+  avatarFileId: string | null;
 }
 
 interface PasswordData {
@@ -64,7 +65,7 @@ const LoadingSkeleton: React.FC = () => (
 
 interface ProfileFormProps {
   profile: NonNullable<ReturnType<typeof useProfiles>["profile"]>;
-  sessionUser: { name?: string | null; email?: string | null; avatar?: string | null } | undefined;
+  sessionUser: { name?: string | null; email?: string | null; avatar?: string | null; avatarFileId?: string | null } | undefined;
   updateProfile: ReturnType<typeof useProfiles>["updateProfile"];
   changePassword: ReturnType<typeof useProfiles>["changePassword"];
   uploadAvatar: ReturnType<typeof useProfiles>["uploadAvatar"];
@@ -96,9 +97,11 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
     name: profile.name || sessionUser?.name || "",
     email: profile.email || sessionUser?.email || "",
     avatar: profile.avatar || sessionUser?.avatar || null,
+    avatarFileId: profile.avatarFileId || sessionUser?.avatarFileId || null,
   }));
 
   const [avatarPreview, setAvatarPreview] = React.useState<string | null>(() => profile.avatar || sessionUser?.avatar || null);
+
   const [avatarFile, setAvatarFile] = React.useState<File | null>(null);
 
   const [passwordData, setPasswordData] = React.useState<PasswordData>({
@@ -111,11 +114,14 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
   const [showNewPassword, setShowNewPassword] = React.useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = React.useState(false);
 
-  const hasProfileChanges = React.useMemo(() => profileData.name !== (profile.name || "") || avatarFile !== null || profileData.avatar !== profile.avatar, [profileData, profile, avatarFile]);
+  const hasProfileChanges = React.useMemo(
+    () => profileData.name !== (profile.name || "") || avatarFile !== null || profileData.avatar !== (profile.avatar || null),
+    [profileData.name, profileData.avatar, profile.name, profile.avatar, avatarFile],
+  );
 
   const isProcessing = isUpdatingProfile || isUploadingAvatar || isDeletingAvatar;
 
-  const handleProfileChange = React.useCallback((field: keyof ProfileData, value: string) => setProfileData((prev) => ({ ...prev, [field]: value })), []);
+  const handleProfileChange = React.useCallback((field: keyof Pick<ProfileData, "name" | "email">, value: string) => setProfileData((prev) => ({ ...prev, [field]: value })), []);
 
   const handlePasswordChange = React.useCallback((field: keyof PasswordData, value: string) => setPasswordData((prev) => ({ ...prev, [field]: value })), []);
 
@@ -137,6 +143,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
         return;
       }
 
+      // Show a local preview immediately — no upload yet.
       const reader = new FileReader();
       reader.onloadend = () => {
         setAvatarPreview(reader.result as string);
@@ -148,26 +155,38 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
   );
 
   const handleRemoveAvatar = React.useCallback(async () => {
-    if (profileData.avatar) {
-      await deleteAvatar(profileData.avatar);
+    if (avatarFile && !profileData.avatar) {
+      setAvatarPreview(profile.avatar || null);
+      setAvatarFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
     }
 
-    updateProfile(
-      { name: profileData.name.trim(), avatar: null },
-      {
-        onSuccess: () => {
-          addToast({ message: t("avatar.success.removed"), type: "success" });
-          setAvatarPreview(null);
-          setAvatarFile(null);
-          setProfileData((prev) => ({ ...prev, avatar: null }));
-          if (fileInputRef.current) fileInputRef.current.value = "";
+    try {
+      if (profileData.avatarFileId) await deleteAvatar(profileData.avatarFileId);
+
+      updateProfile(
+        { name: profileData.name.trim(), avatar: null, avatarFileId: null },
+        {
+          onSuccess: () => {
+            addToast({ message: t("avatar.success.removed"), type: "success" });
+            setAvatarPreview(null);
+            setAvatarFile(null);
+            setProfileData((prev) => ({ ...prev, avatar: null, avatarFileId: null }));
+            if (fileInputRef.current) fileInputRef.current.value = "";
+          },
+          onError: (error: Error) => {
+            addToast({ message: error.message || t("avatar.error.remove"), type: "error" });
+          },
         },
-        onError: (error: Error) => {
-          addToast({ message: error.message || t("avatar.error.remove"), type: "error" });
-        },
-      },
-    );
-  }, [profileData, deleteAvatar, updateProfile, addToast, t]);
+      );
+    } catch (error) {
+      addToast({
+        message: error instanceof Error ? error.message : t("avatar.error.remove"),
+        type: "error",
+      });
+    }
+  }, [avatarFile, profileData, profile.avatar, deleteAvatar, updateProfile, addToast, t]);
 
   const handleProfileUpdate = React.useCallback(
     async (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -177,23 +196,38 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
         addToast({ message: t("profile.validation.nameRequired"), type: "error" });
         return;
       }
-      if (profileData.name.length < 2) {
+      if (profileData.name.trim().length < 2) {
         addToast({ message: t("profile.validation.nameMinLength"), type: "error" });
         return;
       }
 
       let avatarUrl = profileData.avatar;
+      let avatarFileId = profileData.avatarFileId;
 
       if (avatarFile) {
-        if (profileData.avatar) await deleteAvatar(profileData.avatar);
-        avatarUrl = await uploadAvatar(avatarFile);
+        try {
+          if (profileData.avatarFileId) {
+            await deleteAvatar(profileData.avatarFileId);
+          }
+
+          const uploaded = await uploadAvatar(avatarFile);
+          avatarUrl = uploaded.url;
+          avatarFileId = uploaded.fileId;
+        } catch (error) {
+          addToast({
+            message: error instanceof Error ? error.message : t("profile.error.update"),
+            type: "error",
+          });
+          return;
+        }
       }
 
       updateProfile(
-        { name: profileData.name.trim(), avatar: avatarUrl || null },
+        { name: profileData.name.trim(), avatar: avatarUrl, avatarFileId },
         {
           onSuccess: () => {
             addToast({ message: t("profile.success.updated"), type: "success" });
+            setProfileData((prev) => ({ ...prev, avatar: avatarUrl, avatarFileId }));
             setAvatarFile(null);
           },
           onError: (error: Error) => {
@@ -261,11 +295,14 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
       name: profile.name || "",
       email: profile.email || "",
       avatar: profile.avatar || null,
+      avatarFileId: profile.avatarFileId || null,
     });
     setAvatarPreview(profile.avatar || null);
     setAvatarFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }, [profile]);
+
+  const canRemoveAvatar = Boolean(avatarPreview || avatarFile);
 
   return (
     <>
@@ -304,7 +341,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
                 <Button type="button" variant="outline" onClick={handleAvatarClick} disabled={isProcessing}>
                   📷 {t("avatar.upload")}
                 </Button>
-                {(avatarPreview || avatarFile) && (
+                {canRemoveAvatar && (
                   <Button type="button" variant="ghost" onClick={handleRemoveAvatar} disabled={isProcessing} isLoading={isDeletingAvatar}>
                     🗑️ {t("avatar.remove")}
                   </Button>

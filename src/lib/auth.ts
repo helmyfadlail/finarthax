@@ -39,6 +39,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           email: user.email,
           image: user.avatar,
+          avatarFileId: user.avatarFileId,
         };
       },
     }),
@@ -55,7 +56,8 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
-        token.picture = user.image;
+        token.avatar = user.avatar;
+        token.avatarFileId = user.avatarFileId;
       }
       return token;
     },
@@ -71,6 +73,7 @@ export const authOptions: NextAuthOptions = {
           session.user.name = user.name;
           session.user.email = user.email;
           session.user.avatar = user.avatar;
+          session.user.avatarFileId = user.avatarFileId;
         }
       }
       return session;
@@ -95,15 +98,13 @@ export const authOptions: NextAuthOptions = {
             },
           });
 
-          // Create default categories using existingUser.id (not user.id)
           await prisma.category.createMany({
             data: [
-              // Income
               { userId: existingUser.id, name: "Salary", type: "INCOME", icon: "💰", color: "#10B981", isDefault: true },
               { userId: existingUser.id, name: "Bonus", type: "INCOME", icon: "🎁", color: "#3B82F6", isDefault: true },
               { userId: existingUser.id, name: "Freelance", type: "INCOME", icon: "💼", color: "#F59E0B", isDefault: true },
               { userId: existingUser.id, name: "Others", type: "INCOME", icon: "💵", color: "#6B7280", isDefault: true },
-              // Expense
+
               { userId: existingUser.id, name: "Food & Drinks", type: "EXPENSE", icon: "🍔", color: "#EF4444", isDefault: true },
               { userId: existingUser.id, name: "Transportation", type: "EXPENSE", icon: "🚗", color: "#F59E0B", isDefault: true },
               { userId: existingUser.id, name: "Shopping", type: "EXPENSE", icon: "🛒", color: "#8B5CF6", isDefault: true },
@@ -113,7 +114,6 @@ export const authOptions: NextAuthOptions = {
             ],
           });
 
-          // Create default account using existingUser.id
           await prisma.account.create({
             data: {
               userId: existingUser.id,

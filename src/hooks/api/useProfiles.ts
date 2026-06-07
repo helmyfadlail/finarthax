@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { useSession } from "next-auth/react";
 
+import { upload } from "@imagekit/next";
+
 import { apiClient } from "@/utils";
 
 import type { ApiResponse, User } from "@/types";
@@ -11,6 +13,7 @@ import type { ApiResponse, User } from "@/types";
 interface ProfileData {
   name: string;
   avatar: string | null;
+  avatarFileId: string | null;
 }
 
 interface PasswordData {
@@ -18,18 +21,30 @@ interface PasswordData {
   newPassword: string;
 }
 
+interface UploadAuthParams {
+  token: string;
+  expire: number;
+  signature: string;
+  publicKey: string;
+}
+
+async function fetchUploadAuth(): Promise<{ data: UploadAuthParams }> {
+  const res = await fetch("/api/imagekit/upload-auth");
+  if (!res.ok) throw new Error(`Failed to get upload auth (${res.status})`);
+
+  return res.json();
+}
+
 export const useProfiles = () => {
   const queryClient = useQueryClient();
   const { data: session, update: updateSession } = useSession();
 
-  // Get user profile
   const { data, isLoading, error } = useQuery({
     queryKey: ["user-profile"],
     queryFn: () => apiClient.get<ApiResponse<User>>("/users/profile"),
     enabled: !!session?.user,
   });
 
-  // Update name or avatar user
   const updateProfileMutation = useMutation({
     mutationFn: (data: ProfileData) => apiClient.put<ApiResponse<User>, ProfileData>("/users/profile", data),
     onSuccess: async (response) => {
@@ -41,35 +56,41 @@ export const useProfiles = () => {
     },
   });
 
-  // Update or change password user
   const changePasswordMutation = useMutation({
     mutationFn: (data: PasswordData) => apiClient.post<ApiResponse<null>, PasswordData>("/users/change-password", data),
   });
 
-  // Upload avatar file
   const uploadAvatarMutation = useMutation({
-    mutationFn: async (file: File): Promise<string> => {
-      const formData = new FormData();
-      formData.append("file", file);
+    mutationFn: async (file: File): Promise<{ url: string; fileId: string }> => {
+      const { data } = await fetchUploadAuth();
 
-      const response = await fetch("/api/uploads/images", { method: "POST", body: formData });
+      const response = await upload({
+        file,
+        fileName: `avatar-${Date.now()}-${file.name}`,
+        signature: data.signature,
+        expire: data.expire,
+        token: data.token,
+        publicKey: data.publicKey,
+        folder: "/avatars",
+      });
 
-      if (!response.ok) throw new Error("Failed to upload avatar");
+      const { url, fileId } = response as { url: string; fileId: string };
 
-      const data = await response.json();
-      return data.data.url;
+      if (!url || !fileId) throw new Error("ImageKit upload response missing url or fileId");
+
+      return { url, fileId };
     },
   });
 
-  // Delete avatar file
   const deleteAvatarMutation = useMutation({
-    mutationFn: async (avatarUrl: string): Promise<void> => {
-      if (!avatarUrl) return;
+    mutationFn: async (fileId: string): Promise<void> => {
+      if (!fileId) return;
 
-      const fileName = avatarUrl.split("/").pop();
-      const response = await fetch(`/api/uploads/images?file=${fileName}`, { method: "DELETE" });
+      const res = await fetch(`/api/imagekit/delete/${encodeURIComponent(fileId)}`, { method: "DELETE" });
+      if (res.status === 200) return;
 
-      if (!response.ok) throw new Error("Failed to delete avatar");
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error ?? `Failed to delete avatar (${res.status})`);
     },
   });
 

@@ -14,12 +14,10 @@ interface QuickTransactionResources {
 }
 
 export const useQuickTransactions = () => {
-  // Search email and get all account and categories
   const searchEmailMutation = useMutation({
     mutationFn: (email: string) => apiClient.get<ApiResponse<QuickTransactionResources>>(`/quick-transactions?email=${email}`),
   });
 
-  // Create quick transaction with email credentials
   const createMutation = useMutation({
     mutationFn: (data: QuickTransactionData) => apiClient.post<ApiResponse<Transaction>, QuickTransactionData>("/quick-transactions", data),
   });

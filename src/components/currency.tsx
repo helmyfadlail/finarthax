@@ -21,59 +21,83 @@ export interface CurrencyContextType {
   convert: (amount: number, from: string, to: string) => number;
 }
 
+const resolveLocaleMap = (dbValue: unknown): Record<string, string> => {
+  if (dbValue && typeof dbValue === "object" && !Array.isArray(dbValue)) return dbValue as Record<string, string>;
+  return CURRENCY_LOCALE_MAP;
+};
+
+const resolveZeroDecimalSet = (dbValue: unknown): Set<string> => {
+  if (Array.isArray(dbValue) && dbValue.length > 0) return new Set(dbValue as string[]);
+  if (dbValue && typeof dbValue === "object" && !Array.isArray(dbValue)) {
+    return new Set(Object.keys(dbValue as Record<string, string>));
+  }
+  return new Set(Object.keys(ZERO_DECIMAL_CURRENCIES));
+};
+
+const resolveCurrencyOptions = (dbValue: unknown): CurrencyOption[] => {
+  if (Array.isArray(dbValue)) return dbValue as CurrencyOption[];
+  return [];
+};
+
+const convertAmount = (amount: number, from: string, to: string, rates: Record<string, number>): number => {
+  if (from === to) return amount;
+
+  if (from === BASE_CURRENCY) return rates[to] ? amount * rates[to] : amount;
+
+  if (to === BASE_CURRENCY) return rates[from] ? amount / rates[from] : amount;
+
+  const fromRate = rates[from];
+  const toRate = rates[to];
+  if (fromRate && toRate) return (amount / fromRate) * toRate;
+
+  return amount;
+};
+
+const formatAmount = (converted: number, symbol: string, locale: string, isZeroDecimal: boolean): string => {
+  const decimals = isZeroDecimal ? 0 : 2;
+
+  const formatted = new Intl.NumberFormat(locale, { minimumFractionDigits: decimals, maximumFractionDigits: decimals }).format(converted);
+
+  return `${symbol} ${formatted}`;
+};
+
 const CurrencyContext = React.createContext<CurrencyContextType | undefined>(undefined);
 
 export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { getUserSetting, getAppSetting, isLoadingUserSettings, isLoadingAppSettings, exchangeRates, isLoadingRates } = useSettings();
 
   const currency = React.useMemo<string>(() => {
-    const setting = getUserSetting("currency");
-    if (!setting) return BASE_CURRENCY;
-    return setting.value;
+    return getUserSetting("currency")?.value ?? BASE_CURRENCY;
   }, [getUserSetting]);
 
   const currencyOptions = React.useMemo<CurrencyOption[]>(() => {
-    const setting = getAppSetting("currency_options");
-    if (!setting || !Array.isArray(setting.value)) return [];
-    return setting.value as unknown as CurrencyOption[];
+    return resolveCurrencyOptions(getAppSetting("currency_options")?.value);
   }, [getAppSetting]);
 
   const localeMap = React.useMemo<Record<string, string>>(() => {
-    const setting = getAppSetting("currency_locale_map");
-    if (!setting || typeof setting.value !== "object" || Array.isArray(setting.value) || setting.value === null) return CURRENCY_LOCALE_MAP;
-    return setting.value as Record<string, string>;
+    return resolveLocaleMap(getAppSetting("currency_locale_map")?.value);
   }, [getAppSetting]);
 
   const zeroDecimalSet = React.useMemo<Set<string>>(() => {
-    const setting = getAppSetting("zero_decimal_currencies");
-    if (!setting || !Array.isArray(setting.value)) return new Set(ZERO_DECIMAL_CURRENCIES);
-    return new Set(setting.value as string[]);
+    return resolveZeroDecimalSet(getAppSetting("zero_decimal_currencies")?.value);
   }, [getAppSetting]);
 
   const symbol = React.useMemo<string>(() => {
-    if (currencyOptions.length === 0) return currency;
-    return currencyOptions.find((o) => o.value === currency)?.symbol || BASE_CURRENCY_SYMBOL;
+    return currencyOptions.find((o) => o.value === currency)?.symbol ?? BASE_CURRENCY_SYMBOL;
   }, [currency, currencyOptions]);
+
+  const locale = React.useMemo<string>(() => {
+    return localeMap[currency] ?? "en-US";
+  }, [currency, localeMap]);
+
+  const isZeroDecimal = React.useMemo<boolean>(() => {
+    return zeroDecimalSet.has(currency);
+  }, [currency, zeroDecimalSet]);
 
   const convert = React.useCallback(
     (amount: number, from: string, to: string): number => {
-      if (from === to || !exchangeRates) return amount;
-
-      if (from === BASE_CURRENCY) {
-        const rate = exchangeRates[to];
-        return rate ? amount * rate : amount;
-      }
-
-      if (to === BASE_CURRENCY) {
-        const rate = exchangeRates[from];
-        return rate ? amount / rate : amount;
-      }
-
-      const fromRate = exchangeRates[from];
-      const toRate = exchangeRates[to];
-      if (fromRate && toRate) return (amount / fromRate) * toRate;
-
-      return amount;
+      if (!exchangeRates) return amount;
+      return convertAmount(amount, from, to, exchangeRates);
     },
     [exchangeRates],
   );
@@ -84,24 +108,16 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       if (Number.isNaN(num)) return `${symbol} 0`;
 
       const converted = convert(num, fromCurrency, currency);
-      const decimals = zeroDecimalSet.has(currency) ? 0 : 2;
-      const locale = localeMap[currency] ?? "en-US";
-
-      const formatted = new Intl.NumberFormat(locale, {
-        minimumFractionDigits: decimals,
-        maximumFractionDigits: decimals,
-      }).format(converted);
-
-      return `${symbol} ${formatted}`;
+      return formatAmount(converted, symbol, locale, isZeroDecimal);
     },
-    [currency, symbol, convert, zeroDecimalSet, localeMap],
+    [currency, symbol, convert, locale, isZeroDecimal],
   );
 
   const value = React.useMemo<CurrencyContextType>(
     () => ({
       currency,
       symbol,
-      rates: exchangeRates ?? null,
+      rates: exchangeRates,
       isLoading: isLoadingUserSettings || isLoadingAppSettings || isLoadingRates,
       format,
       convert,

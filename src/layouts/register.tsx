@@ -4,23 +4,30 @@ import * as React from "react";
 
 import Link from "next/link";
 
-import { Button, Input } from "@/components";
+import { Button, Input, Skeleton } from "@/components";
 
-import { useAuth } from "@/hooks";
+import { useAuth, useSettings } from "@/hooks";
 
 export const Register = () => {
   const [name, setName] = React.useState<string>("");
   const [email, setEmail] = React.useState<string>("");
   const [password, setPassword] = React.useState<string>("");
   const [confirmPassword, setConfirmPassword] = React.useState<string>("");
+  const [isAgreeToTerms, setIsAgreeToTerms] = React.useState<boolean>(false);
   const [localError, setLocalError] = React.useState<string>("");
 
   const { register, isRegistering, registerError, loginWithGoogle } = useAuth();
+  const { getAppSetting, isLoadingAppSettings } = useSettings();
 
   const handleRegister = async (e: React.SubmitEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
 
     setLocalError("");
+
+    if (isAgreeToTerms === false) {
+      setLocalError("You must agree to the terms to register");
+      return;
+    }
 
     if (!name.trim()) {
       setLocalError("Name is required");
@@ -63,6 +70,58 @@ export const Register = () => {
   };
 
   const error = localError || registerError?.message;
+
+  if (isLoadingAppSettings) {
+    return (
+      <div className="flex items-center justify-center min-h-screen p-4 bg-linear-to-br from-primary via-secondary to-accent">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute rounded-full top-20 left-10 w-72 h-72 bg-accent opacity-20 blur-3xl" />
+          <div className="absolute rounded-full bottom-20 right-10 w-96 h-96 bg-secondary opacity-20 blur-3xl" />
+        </div>
+        <div className="relative w-full max-w-md">
+          <div className="p-8 shadow-2xl bg-white/95 backdrop-blur-sm rounded-2xl">
+            <div className="mb-6 space-y-2">
+              <Skeleton className="w-40 h-8" />
+              <Skeleton className="w-64 h-4" />
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-1">
+                <Skeleton className="w-24 h-4" />
+                <Skeleton className="w-full h-10 rounded-lg" />
+              </div>
+              <div className="space-y-1">
+                <Skeleton className="w-24 h-4" />
+                <Skeleton className="w-full h-10 rounded-lg" />
+              </div>
+              <div className="space-y-1">
+                <Skeleton className="w-20 h-4" />
+                <Skeleton className="w-full h-10 rounded-lg" />
+              </div>
+              <div className="space-y-1">
+                <Skeleton className="w-20 h-4" />
+                <Skeleton className="w-full h-10 rounded-lg" />
+              </div>
+              <Skeleton className="w-full h-32" />
+              <div className="flex">
+                <Skeleton className="w-40 h-4" />
+              </div>
+              <Skeleton className="w-full rounded-lg h-11" />
+            </div>
+            <div className="my-6">
+              <Skeleton className="w-full h-4" />
+            </div>
+            <Skeleton className="w-full rounded-lg h-11" />
+            <div className="flex justify-center mt-6">
+              <Skeleton className="w-48 h-4" />
+            </div>
+          </div>
+          <div className="flex justify-center mt-8">
+            <Skeleton className="w-40 h-4 opacity-60" />
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex items-center justify-center min-h-screen p-4 bg-linear-to-br from-primary via-secondary to-accent">
@@ -164,16 +223,15 @@ export const Register = () => {
             </div>
 
             <div className="flex items-start gap-2 text-sm">
-              <input type="checkbox" id="terms" required className="w-4 h-4 mt-0.5 rounded border-primary-300 text-primary-600 focus:ring-primary-500" />
+              <input
+                type="checkbox"
+                id="terms"
+                checked={isAgreeToTerms}
+                onChange={(e) => setIsAgreeToTerms(e.target.checked)}
+                className="w-4 h-4 mt-0.5 rounded border-primary-300 text-primary-400 accent-primary-400 focus:ring-primary-500"
+              />
               <label htmlFor="terms" className="text-primary-600">
-                I agree to the{" "}
-                <Link href="/terms" className="font-medium underline text-primary-700 hover:text-primary-900">
-                  Terms of Service
-                </Link>{" "}
-                and{" "}
-                <Link href="/privacy" className="font-medium underline text-primary-700 hover:text-primary-900">
-                  Privacy Policy
-                </Link>
+                I confirm that the information provided is accurate.
               </label>
             </div>
 
@@ -209,7 +267,7 @@ export const Register = () => {
           </p>
         </div>
 
-        <p className="mt-8 text-sm text-center text-white/80">© 2026 Finarthax. All rights reserved.</p>
+        <p className="mt-8 text-sm text-center text-white/80">{getAppSetting("footer_copyright")?.value}</p>
       </div>
     </div>
   );

@@ -35,7 +35,6 @@ export const useBudgets = (params?: BudgetsParams) => {
   const limit = params?.limit || 10;
   const categoryId = params?.categoryId || "";
 
-  // Get all budgets with additional params
   const { data, isLoading, error } = useQuery({
     queryKey: ["budgets", currentMonth, currentYear, page, limit, categoryId],
     queryFn: () =>
@@ -50,7 +49,6 @@ export const useBudgets = (params?: BudgetsParams) => {
       }),
   });
 
-  // Create budget
   const createMutation = useMutation({
     mutationFn: (data: CreateBudgetData) => apiClient.post<ApiResponse<Budget>, CreateBudgetData>("/budgets", data),
     onSuccess: () => {
@@ -59,7 +57,6 @@ export const useBudgets = (params?: BudgetsParams) => {
     },
   });
 
-  // Update budget
   const updateMutation = useMutation({
     mutationFn: ({ id, data }: { id: string; data: UpdateBudgetData }) => apiClient.put<ApiResponse<Budget>, UpdateBudgetData>(`/budgets/${id}`, data),
     onSuccess: () => {
@@ -68,7 +65,6 @@ export const useBudgets = (params?: BudgetsParams) => {
     },
   });
 
-  // Delete budget
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiClient.delete(`/budgets/${id}`),
     onSuccess: () => {
