@@ -19,20 +19,20 @@ function Error-Exit {
     param ([string]$Message)
 
     Write-Host ""
-    Write-Host "❌ $Message" -ForegroundColor Red
+    Write-Host "$Message" -ForegroundColor Red
     exit 1
 }
 
 function Success {
     param ([string]$Message)
 
-    Write-Host "✅ $Message" -ForegroundColor Green
+    Write-Host "$Message" -ForegroundColor Green
 }
 
 function Info {
     param ([string]$Message)
 
-    Write-Host "➡️ $Message" -ForegroundColor Cyan
+    Write-Host "$Message" -ForegroundColor Cyan
 }
 
 # =========================
@@ -63,7 +63,7 @@ if (-not (Test-Path ".git")) {
 
 Write-Host ""
 Write-Host "================================================="
-Write-Host "       🚀 Auto Docker + Git Release"
+Write-Host "       Auto Docker + Git Release"
 Write-Host "================================================="
 Write-Host ""
 
@@ -151,7 +151,7 @@ Success "Git add completed."
 $staged = git diff --cached --name-only
 
 if ([string]::IsNullOrWhiteSpace($staged)) {
-    Write-Host "⚠️ No staged changes to commit." -ForegroundColor Yellow
+    Write-Host "No staged changes to commit." -ForegroundColor Yellow
 } else {
     Info "Creating git commit..."
 
@@ -187,7 +187,7 @@ Success "Git pushed successfully."
 
 Write-Host ""
 Write-Host "================================================="
-Write-Host "🎉 RELEASE SUCCESSFUL" -ForegroundColor Green
+Write-Host "RELEASE SUCCESSFUL" -ForegroundColor Green
 Write-Host "================================================="
 Write-Host ""
 
