@@ -1,15 +1,11 @@
 "use client";
 
 import * as React from "react";
-
 import { useTranslations } from "next-intl";
-
 import { useGoals } from "@/hooks";
-
-import { Card, CardContent, Button, Input, Modal, Badge, useToast, useCurrency } from "@/components";
-
+import { useCurrency } from "@/providers";
+import { Card, CardContent, Button, Input, Modal, Badge, useToast } from "@/components";
 import { calculateGoalStatus } from "@/utils";
-
 import type { Goal } from "@/types";
 
 interface FormData {
@@ -18,7 +14,6 @@ interface FormData {
   currentAmount: string;
   deadline: string;
 }
-
 interface GoalCardProps {
   goal: Goal;
   onUpdateProgress: (goal: Goal) => void;
@@ -28,14 +23,13 @@ interface GoalCardProps {
 const GoalCard: React.FC<GoalCardProps> = ({ goal, onUpdateProgress, onDelete }) => {
   const t = useTranslations("goalsPage");
   const { format } = useCurrency();
-
   const status = React.useMemo(() => calculateGoalStatus(goal), [goal]);
 
   const progressColor = React.useMemo(() => {
-    if (status.isCompleted) return "bg-green-500";
-    if (status.percentage >= 75) return "bg-blue-500";
-    if (status.percentage >= 50) return "bg-yellow-500";
-    return "bg-primary";
+    if (status.isCompleted) return "bg-secondary-400 dark:bg-secondary-400";
+    if (status.percentage >= 75) return "bg-primary-500 dark:bg-primary-500";
+    if (status.percentage >= 50) return "bg-amber-500 dark:bg-amber-400";
+    return "bg-primary-400 dark:bg-primary-400";
   }, [status]);
 
   const deadlineBadgeVariant = React.useMemo(() => {
@@ -55,11 +49,11 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onUpdateProgress, onDelete })
   const remainingAmount = React.useMemo(() => Math.max(0, Number(goal.targetAmount) - Number(goal.currentAmount)), [goal.targetAmount, goal.currentAmount]);
 
   return (
-    <Card variant="elevated" className="transition-all duration-300 hover:shadow-xl">
+    <Card variant="elevated" className="transition-all duration-300 hover:shadow-xl dark:bg-primary-200 dark:border-primary-400">
       <CardContent className="pt-4 sm:pt-6">
         <div className="flex items-start justify-between gap-3 mb-3 sm:mb-4">
           <div className="flex-1 min-w-0">
-            <h3 className="mb-1.5 text-base sm:text-xl font-bold truncate text-primary-900 sm:mb-2" title={goal.name}>
+            <h3 className="mb-1.5 text-base sm:text-xl font-bold truncate text-primary-900 dark:text-primary-900 sm:mb-2" title={goal.name}>
               {goal.name}
             </h3>
             <div className="flex flex-wrap gap-1.5 sm:gap-2">
@@ -77,16 +71,21 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onUpdateProgress, onDelete })
 
         <div className="mb-3 space-y-2 sm:mb-4 sm:space-y-3">
           <div>
-            <p className="text-xl font-bold sm:text-3xl text-primary-900 tabular-nums">{format(Number(goal.currentAmount))}</p>
-            <p className="mt-0.5 text-xs sm:mt-1 sm:text-sm text-primary-600">{t("ofTarget", { amount: format(Number(goal.targetAmount)) })}</p>
+            <p className="text-xl font-bold sm:text-3xl text-primary-900 dark:text-primary-900 tabular-nums">{format(Number(goal.currentAmount))}</p>
+            <p className="mt-0.5 text-xs sm:mt-1 sm:text-sm text-primary-500 dark:text-primary-700">{t("ofTarget", { amount: format(Number(goal.targetAmount)) })}</p>
           </div>
 
           <div className="space-y-1.5 sm:space-y-2">
-            <div className="w-full h-3 overflow-hidden rounded-full shadow-inner sm:h-4 bg-primary-100" role="progressbar" aria-valuenow={status.percentage} aria-valuemin={0} aria-valuemax={100}>
+            <div
+              className="w-full h-3 overflow-hidden rounded-full sm:h-4 bg-primary-100 dark:bg-primary-400"
+              role="progressbar"
+              aria-valuenow={status.percentage}
+              aria-valuemin={0}
+              aria-valuemax={100}
+            >
               <div className={`h-full rounded-full transition-all duration-500 ${progressColor}`} style={{ width: `${Math.min(status.percentage, 100)}%` }} />
             </div>
-
-            <div className="flex justify-between text-xs text-primary-600">
+            <div className="flex justify-between text-xs text-primary-500 dark:text-primary-700">
               <span className="font-medium">{t("achieved", { percentage: status.percentage.toFixed(1) })}</span>
               {!status.isCompleted && <span>{t("toGo", { amount: format(remainingAmount) })}</span>}
             </div>
@@ -94,14 +93,13 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onUpdateProgress, onDelete })
         </div>
 
         {status.isCompleted && (
-          <div className="p-2.5 mb-3 border border-green-200 rounded-lg sm:p-3 sm:mb-4 bg-green-50">
-            <p className="flex items-center gap-2 text-xs font-medium text-green-700 sm:text-sm">🎉 {t("congratulations")}</p>
+          <div className="p-2.5 mb-3 border border-secondary-200 dark:border-secondary-800/30 rounded-lg sm:p-3 sm:mb-4 bg-secondary-50 dark:bg-secondary-900/10">
+            <p className="flex items-center gap-2 text-xs font-medium text-secondary-600 dark:text-secondary-400 sm:text-sm">🎉 {t("congratulations")}</p>
           </div>
         )}
-
         {status.isOverdue && !status.isCompleted && (
-          <div className="p-2.5 mb-3 border border-red-200 rounded-lg sm:p-3 sm:mb-4 bg-red-50">
-            <p className="flex items-center gap-2 text-xs font-medium text-red-700 sm:text-sm">⚠️ {t("overdueWarning")}</p>
+          <div className="p-2.5 mb-3 border border-rose-200 dark:border-rose-900/30 rounded-lg sm:p-3 sm:mb-4 bg-rose-50 dark:bg-rose-950/20">
+            <p className="flex items-center gap-2 text-xs font-medium text-rose-700 dark:text-rose-400 sm:text-sm">⚠️ {t("overdueWarning")}</p>
           </div>
         )}
 
@@ -121,12 +119,12 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onUpdateProgress, onDelete })
 const EmptyState: React.FC<{ onCreateClick: () => void }> = ({ onCreateClick }) => {
   const t = useTranslations("goalsPage");
   return (
-    <Card className="col-span-full">
+    <Card className="col-span-full dark:bg-primary-200 dark:border-primary-400">
       <CardContent className="pt-4 sm:pt-6">
         <div className="py-10 text-center sm:py-16">
           <div className="mb-3 text-4xl sm:mb-4 sm:text-6xl">🎯</div>
-          <h3 className="mb-1.5 text-lg font-bold sm:mb-2 sm:text-xl text-primary-900">{t("empty.title")}</h3>
-          <p className="max-w-xs mx-auto mb-5 text-sm sm:max-w-md sm:mb-6 text-primary-600">{t("empty.description")}</p>
+          <h3 className="mb-1.5 text-lg font-bold sm:mb-2 sm:text-xl text-primary-900 dark:text-primary-900">{t("empty.title")}</h3>
+          <p className="max-w-xs mx-auto mb-5 text-sm sm:max-w-md sm:mb-6 text-primary-500 dark:text-primary-700">{t("empty.description")}</p>
           <Button variant="primary" onClick={onCreateClick} size="md" className="w-full sm:w-auto">
             + {t("empty.action")}
           </Button>
@@ -142,18 +140,13 @@ export const Goals: React.FC = () => {
   const { format } = useCurrency();
   const { addToast } = useToast();
 
-  const [isModalOpen, setIsModalOpen] = React.useState<boolean>(false);
-  const [isProgressModalOpen, setIsProgressModalOpen] = React.useState<boolean>(false);
+  const [isModalOpen, setIsModalOpen] = React.useState(false);
+  const [isProgressModalOpen, setIsProgressModalOpen] = React.useState(false);
   const [selectedGoal, setSelectedGoal] = React.useState<Goal | null>(null);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
-  const [progressAmount, setProgressAmount] = React.useState<string>("");
+  const [progressAmount, setProgressAmount] = React.useState("");
 
-  const [formData, setFormData] = React.useState<FormData>({
-    name: "",
-    targetAmount: "",
-    currentAmount: "",
-    deadline: "",
-  });
+  const [formData, setFormData] = React.useState<FormData>({ name: "", targetAmount: "", currentAmount: "", deadline: "" });
 
   const summary = React.useMemo(() => {
     const totalGoals = goals.length;
@@ -194,6 +187,7 @@ export const Goals: React.FC = () => {
       if (currentAmount > targetAmount) {
         addToast({ message: t("validation.currentExceedsTarget"), type: "warning" });
       }
+
       createGoal(
         { ...formData, targetAmount, currentAmount, deadline: formData.deadline ? new Date(formData.deadline).toISOString() : undefined },
         {
@@ -234,6 +228,7 @@ export const Goals: React.FC = () => {
     if (amount > Number(selectedGoal.targetAmount)) {
       addToast({ message: t("validation.amountExceedsTarget"), type: "warning" });
     }
+
     updateProgress(
       { id: selectedGoal.id, currentAmount: amount },
       {
@@ -262,16 +257,14 @@ export const Goals: React.FC = () => {
     });
   }, [deleteId, deleteGoal, addToast, t]);
 
-  const handleFormChange = React.useCallback((field: keyof FormData, value: string): void => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  }, []);
+  const handleFormChange = React.useCallback((field: keyof FormData, value: string): void => setFormData((prev) => ({ ...prev, [field]: value })), []);
 
   return (
     <div className="space-y-3 sm:space-y-5 lg:space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div>
-          <h1 className="text-xl font-bold sm:text-2xl lg:text-3xl text-primary-900">{t("title")}</h1>
-          <p className="mt-0.5 text-xs sm:text-sm text-primary-600">{t("subtitle")}</p>
+          <h1 className="text-xl font-bold sm:text-2xl lg:text-3xl text-primary-900 dark:text-primary-900">{t("title")}</h1>
+          <p className="mt-0.5 text-xs sm:text-sm text-primary-500 dark:text-primary-700">{t("subtitle")}</p>
         </div>
         <Button variant="primary" size="lg" onClick={openModal} className="w-full sm:w-auto">
           + {t("addButton")}
@@ -279,25 +272,20 @@ export const Goals: React.FC = () => {
       </div>
 
       {goals.length > 0 && (
-        <Card>
+        <Card className="dark:bg-primary-200 dark:border-primary-400">
           <CardContent className="pt-4 sm:pt-6">
             <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-              <div className="text-center">
-                <p className="text-xl font-bold sm:text-2xl tabular-nums text-primary-900">{summary.totalGoals}</p>
-                <p className="mt-0.5 text-xs sm:mt-1 sm:text-sm text-primary-600">{t("summary.totalGoals")}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xl font-bold text-green-600 sm:text-2xl tabular-nums">{summary.completedGoals}</p>
-                <p className="mt-0.5 text-xs sm:mt-1 sm:text-sm text-primary-600">{t("summary.completed")}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-xl font-bold sm:text-2xl tabular-nums text-primary-900">{summary.overallProgress.toFixed(0)}%</p>
-                <p className="mt-0.5 text-xs sm:mt-1 sm:text-sm text-primary-600">{t("summary.overallProgress")}</p>
-              </div>
-              <div className="text-center">
-                <p className="text-sm font-bold sm:text-lg tabular-nums text-primary-900">{format(summary.totalSaved)}</p>
-                <p className="mt-0.5 text-xs sm:mt-1 sm:text-sm text-primary-600">{t("summary.ofTotal", { amount: format(summary.totalTarget) })}</p>
-              </div>
+              {[
+                { value: summary.totalGoals, label: t("summary.totalGoals"), color: "text-primary-900 dark:text-primary-900" },
+                { value: summary.completedGoals, label: t("summary.completed"), color: "text-secondary-400 dark:text-secondary-400" },
+                { value: `${summary.overallProgress.toFixed(0)}%`, label: t("summary.overallProgress"), color: "text-primary-900 dark:text-primary-900" },
+                { value: format(summary.totalSaved), label: t("summary.ofTotal", { amount: format(summary.totalTarget) }), color: "text-primary-900 dark:text-primary-900" },
+              ].map(({ value, label, color }) => (
+                <div key={label} className="text-center">
+                  <p className={`text-xl font-bold sm:text-2xl tabular-nums ${color}`}>{value}</p>
+                  <p className="mt-0.5 text-xs sm:mt-1 sm:text-sm text-primary-500 dark:text-primary-700">{label}</p>
+                </div>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -313,8 +301,8 @@ export const Goals: React.FC = () => {
 
       <Modal isOpen={isModalOpen} onClose={closeModal} title={t("modal.createTitle")} size="md">
         <div className="space-y-3 sm:space-y-4">
-          <div className="p-2.5 border rounded-lg sm:p-3 bg-primary-50 border-primary-200">
-            <p className="text-xs font-medium sm:text-sm text-primary-700">💡 {t("modal.hint")}</p>
+          <div className="p-2.5 border rounded-lg sm:p-3 bg-primary-50 dark:bg-primary-300 border-primary-100 dark:border-primary-400">
+            <p className="text-xs font-medium sm:text-sm text-primary-700 dark:text-primary-800">💡 {t("modal.hint")}</p>
           </div>
 
           <Input
@@ -326,30 +314,27 @@ export const Goals: React.FC = () => {
             required
             maxLength={100}
           />
-
           <Input
             type="number"
             label={`${t("modal.targetAmount")} *`}
             placeholder={t("modal.targetAmountPlaceholder")}
             value={formData.targetAmount}
             onChange={(e) => handleFormChange("targetAmount", e.target.value)}
-            icon={<span className="text-primary-600">Rp</span>}
+            icon={<span className="text-primary-500 dark:text-primary-700">Rp</span>}
             min="1"
             step="10000"
             required
           />
-
           <Input
             type="number"
             label={`${t("modal.currentAmount")} (${t("modal.optional")})`}
             placeholder={t("modal.currentAmountPlaceholder")}
             value={formData.currentAmount}
             onChange={(e) => handleFormChange("currentAmount", e.target.value)}
-            icon={<span className="text-primary-600">Rp</span>}
+            icon={<span className="text-primary-500 dark:text-primary-700">Rp</span>}
             min="0"
             step="10000"
           />
-
           <Input
             type="date"
             label={`${t("modal.deadline")} (${t("modal.optional")})`}
@@ -358,7 +343,7 @@ export const Goals: React.FC = () => {
             min={new Date().toISOString().split("T")[0]}
           />
 
-          <div className="flex justify-end gap-2 pt-3 border-t sm:gap-3 sm:pt-4">
+          <div className="flex justify-end gap-2 pt-3 border-t border-primary-100 dark:border-primary-400 sm:gap-3 sm:pt-4">
             <Button type="button" variant="ghost" onClick={closeModal} disabled={isCreating} className="text-xs sm:text-sm">
               {t("modal.cancel")}
             </Button>
@@ -371,10 +356,10 @@ export const Goals: React.FC = () => {
 
       <Modal isOpen={isProgressModalOpen} onClose={handleCloseProgressModal} title={t("progressModal.title")} size="md">
         <div className="space-y-3 sm:space-y-4">
-          <div className="p-3 border rounded-lg sm:p-4 bg-primary-50 border-primary-200">
-            <p className="mb-1 text-xs text-primary-600 sm:text-sm">{t("progressModal.updatingFor")}:</p>
-            <p className="text-sm font-bold sm:text-base text-primary-900">{selectedGoal?.name}</p>
-            <p className="mt-1.5 text-xs text-primary-600 sm:mt-2">
+          <div className="p-3 border rounded-lg sm:p-4 bg-primary-50 dark:bg-primary-300 border-primary-100 dark:border-primary-400">
+            <p className="mb-1 text-xs text-primary-500 dark:text-primary-700 sm:text-sm">{t("progressModal.updatingFor")}:</p>
+            <p className="text-sm font-bold sm:text-base text-primary-900 dark:text-primary-900">{selectedGoal?.name}</p>
+            <p className="mt-1.5 text-xs text-primary-500 dark:text-primary-700 sm:mt-2">
               {t("progressModal.currentInfo", {
                 current: format(Number(selectedGoal?.currentAmount || 0)),
                 target: format(Number(selectedGoal?.targetAmount || 0)),
@@ -388,7 +373,7 @@ export const Goals: React.FC = () => {
             placeholder={t("progressModal.newAmountPlaceholder")}
             value={progressAmount}
             onChange={(e) => setProgressAmount(e.target.value)}
-            icon={<span className="text-primary-600">Rp</span>}
+            icon={<span className="text-primary-500 dark:text-primary-700">Rp</span>}
             min="0"
             step="10000"
             required
@@ -396,18 +381,16 @@ export const Goals: React.FC = () => {
           />
 
           {selectedGoal && progressAmount && (
-            <div className="p-2.5 border border-blue-200 rounded-lg sm:p-3 bg-blue-50">
-              <p className="text-xs text-blue-700 sm:text-sm">
+            <div className="p-2.5 border border-secondary-200 dark:border-secondary-800/30 rounded-lg sm:p-3 bg-secondary-50 dark:bg-secondary-900/10">
+              <p className="text-xs text-secondary-600 dark:text-secondary-400 sm:text-sm">
                 {parseFloat(progressAmount) >= Number(selectedGoal.targetAmount)
                   ? `🎉 ${t("progressModal.willComplete")}`
-                  : t("progressModal.progressInfo", {
-                      percentage: ((parseFloat(progressAmount) / Number(selectedGoal.targetAmount)) * 100).toFixed(1),
-                    })}
+                  : t("progressModal.progressInfo", { percentage: ((parseFloat(progressAmount) / Number(selectedGoal.targetAmount)) * 100).toFixed(1) })}
               </p>
             </div>
           )}
 
-          <div className="flex justify-end gap-2 pt-3 border-t sm:gap-3 sm:pt-4">
+          <div className="flex justify-end gap-2 pt-3 border-t border-primary-100 dark:border-primary-400 sm:gap-3 sm:pt-4">
             <Button variant="ghost" onClick={handleCloseProgressModal} className="text-xs sm:text-sm">
               {t("progressModal.cancel")}
             </Button>
@@ -420,11 +403,11 @@ export const Goals: React.FC = () => {
 
       <Modal isOpen={!!deleteId} onClose={() => setDeleteId(null)} title={t("deleteModal.title")} size="sm">
         <div className="space-y-3 sm:space-y-4">
-          <div className="flex items-start gap-2.5 p-3 border border-red-200 rounded-lg sm:gap-3 sm:p-4 bg-red-50">
+          <div className="flex items-start gap-2.5 p-3 border border-rose-200 dark:border-rose-900/30 rounded-lg sm:gap-3 sm:p-4 bg-rose-50 dark:bg-rose-950/20">
             <span className="text-xl sm:text-2xl shrink-0">⚠️</span>
             <div>
-              <p className="mb-0.5 text-sm font-medium sm:mb-1 text-red-900">{t("deleteModal.confirm")}</p>
-              <p className="text-xs text-red-700 sm:text-sm">{t("deleteModal.warning")}</p>
+              <p className="mb-0.5 text-sm font-medium sm:mb-1 text-rose-900 dark:text-rose-300">{t("deleteModal.confirm")}</p>
+              <p className="text-xs text-rose-700 dark:text-rose-400 sm:text-sm">{t("deleteModal.warning")}</p>
             </div>
           </div>
           <div className="flex justify-end gap-2 sm:gap-3">

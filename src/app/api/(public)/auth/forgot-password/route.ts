@@ -1,15 +1,9 @@
 import { NextRequest } from "next/server";
-
 import { prisma, withMaintenanceGuard } from "@/lib";
-
 import nodemailer from "nodemailer";
-
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
-
 import z from "zod";
-
 import { forgotPasswordSchema } from "@/types";
-
 import crypto from "crypto";
 
 const url = process.env.NODE_ENV === "development" ? "http://localhost:3000" : process.env.NEXTAUTH_URL;
@@ -252,7 +246,7 @@ export async function POST(req: NextRequest) {
 
       const user = await prisma.user.findUnique({ where: { email } });
 
-      if (!user) return successResponse(null, "If the email exists, a reset link has been sent");
+      if (!user) return errorResponse("No account found for this email. Please sign up first.", 404);
 
       if (!user.password) return errorResponse("This account is registered via Google. Please sign in with Google.", 400);
 

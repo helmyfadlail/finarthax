@@ -1,13 +1,8 @@
 import { NextRequest } from "next/server";
-
 import { applyBalanceChange, applyBudgetChange, prisma, requireAuth, TRANSACTION_INCLUDE, validateAccount, validateCategory, validateCreditCardRules, withMaintenanceGuard } from "@/lib";
-
 import { Prisma } from "prisma-client/client";
-
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
-
 import z from "zod";
-
 import { transactionFilterSchema, transactionSchema } from "@/types";
 
 export async function GET(req: NextRequest) {
@@ -37,8 +32,7 @@ export async function GET(req: NextRequest) {
 
       const where: Prisma.TransactionWhereInput = {
         userId: user.id,
-        ...(startDate && { date: { gte: new Date(startDate) } }),
-        ...(endDate && { date: { lte: new Date(endDate) } }),
+        ...(startDate || endDate ? { date: { ...(startDate && { gte: new Date(startDate) }), ...(endDate && { lte: new Date(endDate) }) } } : {}),
         ...(categoryId && { categoryId }),
         ...(type && { type }),
         ...(accountId && { accountId }),

@@ -1,9 +1,6 @@
 import { NextRequest } from "next/server";
-
 import { getUploadAuthParams } from "@imagekit/next/server";
-
 import { requireAuth, withMaintenanceGuard } from "@/lib";
-
 import { errorResponse, successResponse } from "@/utils";
 
 export async function GET(req: NextRequest) {

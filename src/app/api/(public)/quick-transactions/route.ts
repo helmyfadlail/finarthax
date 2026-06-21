@@ -1,11 +1,7 @@
 import { NextRequest } from "next/server";
-
 import { applyBalanceChange, applyBudgetChange, prisma, TRANSACTION_INCLUDE, validateAccount, validateCategory, withMaintenanceGuard } from "@/lib";
-
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
-
 import z from "zod";
-
 import { quickTransactionSchema } from "@/types";
 
 export async function GET(req: NextRequest) {
@@ -14,7 +10,7 @@ export async function GET(req: NextRequest) {
       const { searchParams } = new URL(req.url);
       const email = searchParams.get("email");
 
-      const quickTransactions = await prisma.user.findUnique({
+      const userData = await prisma.user.findUnique({
         where: { email: email as string },
         select: {
           email: true,
@@ -40,9 +36,9 @@ export async function GET(req: NextRequest) {
         },
       });
 
-      if (!quickTransactions) return errorResponse("Email not found. Please enter correct email!", 404);
+      if (!userData) return errorResponse("Email not found. Please enter correct email!", 404);
 
-      return successResponse(quickTransactions);
+      return successResponse(userData);
     } catch (error) {
       console.error(error);
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";

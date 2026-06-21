@@ -1,19 +1,13 @@
 "use client";
 
 import { useMemo } from "react";
-
 import { useQuery } from "@tanstack/react-query";
-
 import { useTranslations } from "next-intl";
-
 import { useRouter } from "@/i18n/navigation";
-
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Tooltip as ReTooltip, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
-
 import { apiClient } from "@/utils";
-
-import { Card, CardHeader, CardTitle, CardContent, Badge, Button, Skeleton, useCurrency } from "@/components";
-
+import { useCurrency } from "@/providers";
+import { Card, CardHeader, CardTitle, CardContent, Badge, Button, Skeleton } from "@/components";
 import type { ApiResponse, DashboardCharts, DashboardSummary, Transaction, TransactionType } from "@/types";
 
 interface SummaryCardProps {
@@ -24,58 +18,52 @@ interface SummaryCardProps {
   type: "income" | "expense" | "transfer" | "balance";
   count?: number;
 }
-
 interface TransactionItemProps {
   transaction: Transaction;
 }
-
 interface BudgetProgressProps {
-  budget: {
-    category: string;
-    spent: number;
-    budget: number;
-    percentage: number;
-    icon?: string;
-  };
+  budget: { category: string; spent: number; budget: number; percentage: number; icon?: string };
 }
 
-const TX_CONFIG: Record<TransactionType, { color: string; bg: string; iconBg: string; icon: string; badge: "success" | "error" | "info"; prefix: string }> = {
-  INCOME: { color: "text-emerald-600", bg: "bg-emerald-50", iconBg: "bg-emerald-100", icon: "💰", badge: "success", prefix: "+" },
-  EXPENSE: { color: "text-rose-600", bg: "bg-rose-50", iconBg: "bg-rose-100", icon: "💳", badge: "error", prefix: "-" },
-  TRANSFER: { color: "text-sky-600", bg: "bg-sky-50", iconBg: "bg-sky-100", icon: "🔄", badge: "info", prefix: "⇄" },
+const TX_CONFIG: Record<TransactionType, { color: string; iconBg: string; icon: string; badge: "success" | "error" | "info"; prefix: string }> = {
+  INCOME: { color: "text-emerald-600 dark:text-emerald-400", iconBg: "bg-emerald-100 dark:bg-emerald-900/30", icon: "💰", badge: "success", prefix: "+" },
+  EXPENSE: { color: "text-rose-600 dark:text-rose-400", iconBg: "bg-rose-100 dark:bg-rose-900/30", icon: "💳", badge: "error", prefix: "-" },
+  TRANSFER: { color: "text-secondary-400 dark:text-secondary-400", iconBg: "bg-secondary-100 dark:bg-secondary-900/30", icon: "🔄", badge: "info", prefix: "⇄" },
 };
 
-const CHART_COLORS = {
-  income: "#10b981",
-  expense: "#f43f5e",
-  transfer: "#0ea5e9",
-  grid: "#f1f5f9",
-  text: "#94a3b8",
-};
-
-const PIE_PALETTE = ["#f43f5e", "#fb923c", "#facc15", "#4ade80", "#34d399", "#22d3ee", "#818cf8", "#e879f9"];
+const CHART_COLORS = { income: "#5F9598", expense: "#1D546D", transfer: "#061E29", text: "#74a6bc" };
+const PIE_PALETTE = ["#5F9598", "#1D546D", "#061E29", "#9dc0cf", "#4d7e81", "#c6e0e1", "#144a5e", "#8abfc0"];
 
 const SummaryCard: React.FC<SummaryCardProps> = ({ title, amount, change, icon, type, count }) => {
   const t = useTranslations("dashboardPage");
   const { format } = useCurrency();
-
   const isPositive = type === "expense" ? change <= 0 : type === "transfer" ? true : change >= 0;
-  const colorClass = type === "income" ? "text-emerald-600" : type === "expense" ? "text-rose-600" : type === "transfer" ? "text-sky-600" : "text-primary-900";
+
+  const colorClass =
+    type === "income"
+      ? "text-emerald-600 dark:text-emerald-400"
+      : type === "expense"
+        ? "text-rose-600 dark:text-rose-400"
+        : type === "transfer"
+          ? "text-secondary-400 dark:text-secondary-400"
+          : "text-primary-900 dark:text-primary-900";
+
   const cardBg =
     type === "income"
-      ? "from-emerald-50 to-white border-emerald-100"
+      ? "from-emerald-50 to-white border-emerald-100 dark:from-emerald-950/20 dark:to-primary-200 dark:border-emerald-900/20"
       : type === "expense"
-        ? "from-rose-50 to-white border-rose-100"
+        ? "from-rose-50 to-white border-rose-100 dark:from-rose-950/20 dark:to-primary-200 dark:border-rose-900/20"
         : type === "transfer"
-          ? "from-sky-50 to-white border-sky-100"
-          : "from-primary-50 to-white border-primary-100";
-  const changeColor = type === "transfer" ? "text-sky-500" : isPositive ? "text-emerald-600" : "text-rose-600";
+          ? "from-secondary-50 to-white border-secondary-100 dark:from-secondary-900/20 dark:to-primary-200 dark:border-secondary-800/20"
+          : "from-primary-50 to-white border-primary-100 dark:from-primary-100/20 dark:to-primary-200 dark:border-primary-300";
+
+  const changeColor = type === "transfer" ? "text-secondary-400 dark:text-secondary-400" : isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400";
 
   return (
     <Card variant="elevated" className={`bg-linear-to-br ${cardBg} hover:shadow-xl transition-all duration-300 border`}>
       <CardHeader>
         <CardTitle className="flex items-center justify-between text-sm font-medium">
-          <span className="pr-1 text-xs tracking-wide uppercase truncate text-primary-500">{title}</span>
+          <span className="pr-1 text-xs tracking-wide uppercase truncate text-primary-500 dark:text-primary-700">{title}</span>
           <span className="text-lg lg:text-xl shrink-0">{icon}</span>
         </CardTitle>
       </CardHeader>
@@ -88,13 +76,13 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ title, amount, change, icon, 
                 <span className={`text-xs font-medium ${changeColor}`}>
                   {change >= 0 ? "↗" : "↘"} {Math.abs(change).toFixed(1)}%
                 </span>
-                <span className="hidden text-xs md:inline text-primary-400">{t("vsLastMonth")}</span>
+                <span className="hidden text-xs md:inline text-primary-400 dark:text-primary-600">{t("vsLastMonth")}</span>
               </>
             ) : (
-              <span className="text-xs font-medium text-sky-500">⇄ {t("neutral")}</span>
+              <span className="text-xs font-medium text-secondary-400">⇄ {t("neutral")}</span>
             )}
           </div>
-          {count !== undefined && <span className="text-xs text-primary-400 tabular-nums shrink-0">{count} txn</span>}
+          {count !== undefined && <span className="text-xs text-primary-400 dark:text-primary-600 tabular-nums shrink-0">{count} txn</span>}
         </div>
       </CardContent>
     </Card>
@@ -104,35 +92,29 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ title, amount, change, icon, 
 const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
   const t = useTranslations("dashboardPage");
   const { format } = useCurrency();
-
   const type = transaction.type as TransactionType;
   const config = TX_CONFIG[type] ?? TX_CONFIG.EXPENSE;
   const isTransfer = type === "TRANSFER";
-
-  const isCreditCardExpense = type === "EXPENSE" && transaction.account?.type === "CREDIT_CARD";
-
-  const isCreditCardPayoff = isTransfer && transaction.toAccount?.type === "CREDIT_CARD";
+  const isCCExp = type === "EXPENSE" && transaction.account?.type === "CREDIT_CARD";
+  const isCCPayoff = isTransfer && transaction.toAccount?.type === "CREDIT_CARD";
 
   return (
-    <div className="flex items-center justify-between gap-2 p-2.5 sm:gap-3 sm:p-4 rounded-xl bg-neutral hover:bg-neutral-100 hover:shadow-sm transition-all group">
+    <div className="flex items-center justify-between gap-2 p-2.5 rounded-xl transition-all group bg-primary-50 hover:bg-primary-100 dark:bg-primary-200 dark:hover:bg-primary-300 sm:gap-3 sm:p-4">
       <div className="flex items-center flex-1 min-w-0 gap-2 sm:gap-3">
-        <div
-          className={`flex items-center justify-center shrink-0 w-8 h-8 sm:w-10 sm:h-10 md:w-11 md:h-11 text-base sm:text-xl rounded-full ${config.iconBg} transition-transform group-hover:scale-110`}
-        >
+        <div className={`flex items-center justify-center shrink-0 w-8 h-8 sm:w-10 sm:h-10 text-base sm:text-xl rounded-full transition-transform group-hover:scale-110 ${config.iconBg}`}>
           {isTransfer ? "🔄" : (transaction.category?.icon ?? "💰")}
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="text-xs font-semibold truncate sm:text-sm text-primary-900">{transaction.description || t("noDescription")}</h4>
-          <p className="text-xs truncate text-primary-500 flex items-center gap-1">
+          <h4 className="text-xs font-semibold truncate sm:text-sm text-primary-900 dark:text-primary-900">{transaction.description || t("noDescription")}</h4>
+          <p className="text-xs truncate text-primary-500 dark:text-primary-700 flex items-center gap-1">
             {isTransfer ? (transaction.toAccount ? `${transaction.account?.name} → ${transaction.toAccount.name}` : transaction.account?.name) : (transaction.category?.name ?? t("uncategorized"))}
-            {isCreditCardExpense && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-red-100 text-red-600">debt</span>}
-            {isCreditCardPayoff && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-green-100 text-green-600">payoff</span>}
+            {isCCExp && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">debt</span>}
+            {isCCPayoff && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">payoff</span>}
           </p>
         </div>
       </div>
-
       <div className="text-right shrink-0">
-        <p className={`text-sm sm:text-base md:text-lg font-bold ${config.color} tabular-nums`}>
+        <p className={`text-sm sm:text-base md:text-lg font-bold tabular-nums ${config.color}`}>
           {config.prefix}
           {format(transaction.amount)}
         </p>
@@ -147,33 +129,32 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
 const BudgetProgress: React.FC<BudgetProgressProps> = ({ budget }) => {
   const t = useTranslations("dashboardPage");
   const { format } = useCurrency();
-
   const status = useMemo(() => {
-    if (budget.percentage >= 100) return { bar: "from-rose-400 to-rose-600", text: "text-rose-600", label: t("budgetStatus.overBudget") };
-    if (budget.percentage >= 80) return { bar: "from-amber-400 to-amber-500", text: "text-amber-600", label: t("budgetStatus.nearLimit") };
-    return { bar: "from-emerald-400 to-emerald-500", text: "text-emerald-600", label: t("budgetStatus.onTrack") };
+    if (budget.percentage >= 100) return { bar: "from-rose-400 to-rose-600", text: "text-rose-600 dark:text-rose-400", label: t("budgetStatus.overBudget") };
+    if (budget.percentage >= 80) return { bar: "from-amber-400 to-amber-500", text: "text-amber-600 dark:text-amber-400", label: t("budgetStatus.nearLimit") };
+    return { bar: "from-secondary-400 to-secondary-500", text: "text-secondary-400 dark:text-secondary-400", label: t("budgetStatus.onTrack") };
   }, [budget.percentage, t]);
 
   return (
-    <div className="p-2.5 sm:p-4 rounded-xl bg-neutral hover:bg-neutral-50 hover:border-primary-100 border border-transparent transition-colors">
+    <div className="p-2.5 sm:p-4 rounded-xl border transition-colors bg-primary-50 hover:bg-primary-100 border-transparent hover:border-primary-200 dark:bg-primary-200 dark:hover:bg-primary-300 dark:hover:border-primary-400">
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center min-w-0 gap-1.5 sm:gap-2">
           <span className="text-base sm:text-xl shrink-0">{budget.icon ?? "📊"}</span>
-          <span className="text-xs font-semibold truncate sm:text-sm text-primary-900">{budget.category}</span>
+          <span className="text-xs font-semibold truncate sm:text-sm text-primary-900 dark:text-primary-900">{budget.category}</span>
         </div>
         <div className="ml-2 text-right shrink-0">
-          <p className="text-xs font-medium sm:text-sm text-primary-900 tabular-nums">{format(budget.spent)}</p>
-          <p className="text-xs text-primary-400 tabular-nums">
+          <p className="text-xs font-medium sm:text-sm text-primary-900 dark:text-primary-900 tabular-nums">{format(budget.spent)}</p>
+          <p className="text-xs text-primary-400 dark:text-primary-600 tabular-nums">
             {t("of")} {format(budget.budget)}
           </p>
         </div>
       </div>
-      <div className="relative w-full h-2 sm:h-2.5 overflow-hidden rounded-full bg-primary-100">
+      <div className="relative w-full h-2 sm:h-2.5 overflow-hidden rounded-full bg-primary-100 dark:bg-primary-400">
         <div className={`h-full rounded-full bg-linear-to-r ${status.bar} transition-all duration-700`} style={{ width: `${Math.min(budget.percentage, 100)}%` }} />
       </div>
       <div className="flex items-center justify-between mt-1.5">
         <span className={`text-xs font-medium ${status.text}`}>{status.label}</span>
-        <span className="text-xs text-primary-400 tabular-nums">
+        <span className="text-xs text-primary-400 dark:text-primary-600 tabular-nums">
           {budget.percentage?.toFixed(1)}% {t("used")}
         </span>
       </div>
@@ -181,25 +162,17 @@ const BudgetProgress: React.FC<BudgetProgressProps> = ({ budget }) => {
   );
 };
 
-const EmptyState: React.FC<{
-  icon: string;
-  title: string;
-  description: string;
-  actionLabel?: string;
-  actionHref?: string;
-}> = ({ icon, title, description, actionLabel, actionHref }) => {
+const EmptyState: React.FC<{ icon: string; title: string; description: string; actionLabel?: string; actionHref?: string }> = ({ icon, title, description, actionLabel, actionHref }) => {
   const router = useRouter();
   return (
     <div className="px-3 py-8 text-center sm:py-12 sm:px-4">
       <div className="mb-2 text-3xl sm:text-5xl sm:mb-3">{icon}</div>
-      <h3 className="mb-1.5 text-sm sm:text-lg font-bold text-primary-900">{title}</h3>
-      <p className="max-w-xs mx-auto mb-4 text-xs sm:text-sm text-primary-500 sm:mb-5">{description}</p>
+      <h3 className="mb-1.5 text-sm sm:text-lg font-bold text-primary-900 dark:text-primary-900">{title}</h3>
+      <p className="max-w-xs mx-auto mb-4 text-xs sm:text-sm text-primary-500 dark:text-primary-700 sm:mb-5">{description}</p>
       {actionLabel && actionHref && (
-        <button onClick={() => router.push(actionHref)}>
-          <Button variant="primary" size="md" className="w-full sm:w-auto">
-            {actionLabel}
-          </Button>
-        </button>
+        <Button variant="primary" size="md" className="w-full sm:w-auto" onClick={() => router.push(actionHref)}>
+          {actionLabel}
+        </Button>
       )}
     </div>
   );
@@ -221,21 +194,21 @@ const LoadingSkeleton: React.FC = () => (
   </div>
 );
 
-const ChartTooltip: React.FC<{
-  active?: boolean;
-  payload?: Array<{ name: string; value: number; color: string }>;
-  label?: string;
-  formatter?: (v: number) => string;
-}> = ({ active, payload, label, formatter }) => {
+const ChartTooltip: React.FC<{ active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string; formatter?: (v: number) => string }> = ({
+  active,
+  payload,
+  label,
+  formatter,
+}) => {
   if (!active || !payload?.length) return null;
   return (
-    <div className="p-2.5 sm:p-3 text-xs bg-white border shadow-xl border-primary-100 rounded-xl">
-      <p className="mb-1.5 font-semibold text-primary-700">{label}</p>
+    <div className="p-2.5 sm:p-3 text-xs rounded-xl shadow-xl border bg-white dark:bg-primary-200 border-primary-100 dark:border-primary-400">
+      <p className="mb-1.5 font-semibold text-primary-700 dark:text-primary-800">{label}</p>
       {payload.map((p) => (
         <div key={p.name} className="flex items-center gap-1.5 mb-1">
           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
-          <span className="capitalize text-primary-500">{p.name}:</span>
-          <span className="font-semibold text-primary-900 tabular-nums">{formatter ? formatter(p.value) : p.value.toLocaleString()}</span>
+          <span className="capitalize text-primary-500 dark:text-primary-700">{p.name}:</span>
+          <span className="font-semibold text-primary-900 dark:text-primary-900 tabular-nums">{formatter ? formatter(p.value) : p.value.toLocaleString()}</span>
         </div>
       ))}
     </div>
@@ -247,16 +220,8 @@ export const Dashboard: React.FC = () => {
   const { format } = useCurrency();
   const router = useRouter();
 
-  const { data: summary, isLoading: summaryLoading } = useQuery<ApiResponse<DashboardSummary>>({
-    queryKey: ["dashboard", "summary"],
-    queryFn: () => apiClient.get("/dashboard/summary"),
-  });
-
-  const { data: charts, isLoading: chartsLoading } = useQuery<ApiResponse<DashboardCharts>>({
-    queryKey: ["dashboard", "charts"],
-    queryFn: () => apiClient.get("/dashboard/charts"),
-  });
-
+  const { data: summary, isLoading: summaryLoading } = useQuery<ApiResponse<DashboardSummary>>({ queryKey: ["dashboard", "summary"], queryFn: () => apiClient.get("/dashboard/summary") });
+  const { data: charts, isLoading: chartsLoading } = useQuery<ApiResponse<DashboardCharts>>({ queryKey: ["dashboard", "charts"], queryFn: () => apiClient.get("/dashboard/charts") });
   const isLoading = summaryLoading || chartsLoading;
 
   const currentMonth = summary?.data?.currentMonth;
@@ -275,7 +240,7 @@ export const Dashboard: React.FC = () => {
     const assets = summary?.data?.accounts.filter((a) => a.type !== "CREDIT_CARD").reduce((s, a) => s + Number(a.balance), 0);
     const debt = summary?.data?.accounts.filter((a) => a.type === "CREDIT_CARD").reduce((s, a) => s + Math.abs(Number(a.balance)), 0);
     return { totalAssets: assets, totalDebt: debt, netWorth: assets - debt };
-  }, [summary?.data?.accounts]);
+  }, [summary]);
 
   const currentMonthName = useMemo(() => new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" }), []);
 
@@ -289,46 +254,45 @@ export const Dashboard: React.FC = () => {
     <div className="space-y-3 sm:space-y-5 lg:space-y-6">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
         <div>
-          <h1 className="text-xl font-bold sm:text-2xl lg:text-3xl text-primary-900">{t("title")}</h1>
-          <p className="mt-0.5 text-xs sm:text-sm text-primary-500">{t("welcome", { month: currentMonthName })}</p>
+          <h1 className="text-xl font-bold sm:text-2xl lg:text-3xl text-primary-900 dark:text-primary-900">{t("title")}</h1>
+          <p className="mt-0.5 text-xs sm:text-sm text-primary-500 dark:text-primary-700">{t("welcome", { month: currentMonthName })}</p>
         </div>
         <Button variant="primary" size="lg" className="w-full sm:w-auto" onClick={() => router.push("/admin/dashboard/transactions")}>
           + {t("addTransaction")}
         </Button>
       </div>
 
-      <div className="p-3 shadow-lg text-primary-900 rounded-2xl bg-linear-to-br from-primary-50 via-primary-100 to-primary-200 sm:p-5 lg:p-6">
+      <div className="p-3 shadow-lg rounded-2xl sm:p-5 lg:p-6 bg-linear-to-br from-primary-500 via-primary-600 to-primary-700 dark:from-primary-300 dark:via-primary-400 dark:to-primary-500">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="mb-0.5 text-xs font-medium tracking-widest uppercase text-primary sm:text-sm">{t("netWorth", { defaultValue: "Net Worth" })}</p>
-            <p className={`text-2xl font-bold lg:text-3xl xl:text-4xl tabular-nums ${netWorth >= 0 ? "text-primary-900" : "text-red-600"}`}>{format(netWorth)}</p>
-            <p className="mt-0.5 text-xs text-primary sm:text-sm sm:mt-1">
+            <p className="mb-0.5 text-xs font-medium tracking-widest uppercase text-primary-200 dark:text-primary-700 sm:text-sm">{t("netWorth", { defaultValue: "Net Worth" })}</p>
+            <p className={`text-2xl font-bold lg:text-3xl xl:text-4xl tabular-nums ${netWorth >= 0 ? "text-white dark:text-primary-900" : "text-rose-300 dark:text-rose-400"}`}>{format(netWorth)}</p>
+            <p className="mt-0.5 text-xs text-primary-200 dark:text-primary-700 sm:text-sm sm:mt-1">
               {accounts.length} {t("accountsLinked")}
             </p>
           </div>
           <div className="flex flex-col gap-2 sm:items-end">
             <div className="flex gap-3 text-xs sm:text-sm">
               <div className="flex flex-col items-start sm:items-end gap-0.5">
-                <span className="text-primary-500 opacity-70">{t("totalAssets", { defaultValue: "Assets" })}</span>
-                <span className="font-bold text-emerald-700 tabular-nums">{format(totalAssets)}</span>
+                <span className="text-primary-200 dark:text-primary-700 opacity-80">{t("totalAssets", { defaultValue: "Assets" })}</span>
+                <span className="font-bold text-emerald-300 dark:text-emerald-400 tabular-nums">{format(totalAssets)}</span>
               </div>
-              <div className="w-px bg-primary-300 self-stretch opacity-40" />
+              <div className="w-px bg-primary-400 dark:bg-primary-600 self-stretch opacity-40" />
               <div className="flex flex-col items-start sm:items-end gap-0.5">
-                <span className="text-primary-500 opacity-70">{t("creditDebt", { defaultValue: "CC Debt" })}</span>
-                <span className="font-bold text-red-500 tabular-nums">{format(totalDebt)}</span>
+                <span className="text-primary-200 dark:text-primary-700 opacity-80">{t("creditDebt", { defaultValue: "CC Debt" })}</span>
+                <span className="font-bold text-rose-300 dark:text-rose-400 tabular-nums">{format(totalDebt)}</span>
               </div>
             </div>
-
             <div className="flex flex-col gap-0.5 xl:gap-1.5">
               {accounts.slice(0, 3).map((acc) => (
                 <div key={acc.id} className="flex items-center gap-2 text-xs lg:text-sm">
                   <span className="opacity-70">{acc.icon}</span>
-                  <span className="truncate text-primary max-w-24 sm:max-w-40">{acc.name}</span>
-                  <span className={`font-bold tabular-nums ${acc.type === "CREDIT_CARD" ? "text-red-500" : "text-primary-900"}`}>{format(acc.balance)}</span>
-                  {acc.type === "CREDIT_CARD" && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-red-100 text-red-600 shrink-0">debt</span>}
+                  <span className="truncate text-primary-100 dark:text-primary-800 max-w-24 sm:max-w-40">{acc.name}</span>
+                  <span className={`font-bold tabular-nums ${acc.type === "CREDIT_CARD" ? "text-rose-300 dark:text-rose-400" : "text-white dark:text-primary-900"}`}>{format(acc.balance)}</span>
+                  {acc.type === "CREDIT_CARD" && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-rose-900/40 text-rose-300 shrink-0">debt</span>}
                 </div>
               ))}
-              {accounts.length > 3 && <span className="text-xs text-primary">+{accounts.length - 3} more</span>}
+              {accounts.length > 3 && <span className="text-xs text-primary-200 dark:text-primary-700">+{accounts.length - 3} more</span>}
             </div>
           </div>
         </div>
@@ -350,25 +314,25 @@ export const Dashboard: React.FC = () => {
               const limit = cc.creditLimit ? Number(cc.creditLimit) : null;
               const utilisation = limit && limit > 0 ? Math.min((debt / limit) * 100, 100) : null;
               return (
-                <Card key={cc.id} className="border border-red-200 bg-red-50">
+                <Card key={cc.id} className="border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-950/20">
                   <CardContent className="pt-3 pb-3 sm:pt-4 sm:pb-4">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-lg">{cc.icon || "💳"}</span>
-                      <p className="text-xs font-semibold truncate text-red-900">{cc.name}</p>
+                      <p className="text-xs font-semibold truncate text-rose-900 dark:text-rose-300">{cc.name}</p>
                       <Badge variant="error" className="ml-auto text-xs shrink-0">
                         debt
                       </Badge>
                     </div>
-                    <p className="text-lg font-bold text-red-600 tabular-nums">{format(debt)}</p>
+                    <p className="text-lg font-bold text-rose-600 dark:text-rose-400 tabular-nums">{format(debt)}</p>
                     {limit !== null && (
                       <div className="mt-2 space-y-1">
-                        <div className="w-full h-1.5 rounded-full bg-red-200 overflow-hidden">
+                        <div className="w-full h-1.5 rounded-full bg-rose-200 dark:bg-rose-900/40 overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all duration-500 ${(utilisation ?? 0) >= 90 ? "bg-red-600" : (utilisation ?? 0) >= 70 ? "bg-amber-500" : "bg-emerald-500"}`}
+                            className={`h-full rounded-full transition-all duration-500 ${(utilisation ?? 0) >= 90 ? "bg-rose-600" : (utilisation ?? 0) >= 70 ? "bg-amber-500" : "bg-secondary-400"}`}
                             style={{ width: `${utilisation ?? 0}%` }}
                           />
                         </div>
-                        <p className="text-xs text-right text-red-400">
+                        <p className="text-xs text-right text-rose-400 dark:text-rose-500">
                           {utilisation?.toFixed(0)}% of {format(limit)}
                         </p>
                       </div>
@@ -381,9 +345,9 @@ export const Dashboard: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-3 lg:gap-5">
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-2 dark:bg-primary-200 dark:border-primary-400">
           <CardHeader className="pb-2 sm:pb-3">
-            <CardTitle className="flex items-center gap-2 text-xs sm:text-sm lg:text-base">📈 {t("monthlyOverview")}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-xs sm:text-sm lg:text-base dark:text-primary-900">📈 {t("monthlyOverview")}</CardTitle>
           </CardHeader>
           <CardContent>
             {safeMonthlyData.length === 0 ? (
@@ -393,11 +357,11 @@ export const Dashboard: React.FC = () => {
                 <AreaChart data={safeMonthlyData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
                   <defs>
                     <linearGradient id="gradIncome" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={CHART_COLORS.income} stopOpacity={0.25} />
+                      <stop offset="5%" stopColor={CHART_COLORS.income} stopOpacity={0.3} />
                       <stop offset="95%" stopColor={CHART_COLORS.income} stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="gradExpense" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={CHART_COLORS.expense} stopOpacity={0.25} />
+                      <stop offset="5%" stopColor={CHART_COLORS.expense} stopOpacity={0.3} />
                       <stop offset="95%" stopColor={CHART_COLORS.expense} stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="gradTransfer" x1="0" y1="0" x2="0" y2="1">
@@ -405,11 +369,11 @@ export const Dashboard: React.FC = () => {
                       <stop offset="95%" stopColor={CHART_COLORS.transfer} stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.text} strokeOpacity={0.2} vertical={false} />
                   <XAxis dataKey="month" tick={{ fontSize: 10, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} />
                   <YAxis tick={{ fontSize: 10, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}M`} />
                   <ReTooltip content={<ChartTooltip formatter={(v) => format(v)} />} />
-                  <Legend wrapperStyle={{ fontSize: 10, paddingTop: 6 }} formatter={(value) => <span className="capitalize text-primary-600">{value}</span>} />
+                  <Legend wrapperStyle={{ fontSize: 10, paddingTop: 6 }} formatter={(value) => <span className="capitalize text-primary-500 dark:text-primary-700">{value}</span>} />
                   <Area type="monotone" dataKey="income" stroke={CHART_COLORS.income} strokeWidth={2} fill="url(#gradIncome)" dot={false} activeDot={{ r: 3 }} />
                   <Area type="monotone" dataKey="expense" stroke={CHART_COLORS.expense} strokeWidth={2} fill="url(#gradExpense)" dot={false} activeDot={{ r: 3 }} />
                   <Area type="monotone" dataKey="transfer" stroke={CHART_COLORS.transfer} strokeWidth={2} fill="url(#gradTransfer)" dot={false} activeDot={{ r: 3 }} strokeDasharray="4 2" />
@@ -419,9 +383,9 @@ export const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-1">
+        <Card className="lg:col-span-1 dark:bg-primary-200 dark:border-primary-400">
           <CardHeader className="pb-2 sm:pb-3">
-            <CardTitle className="flex items-center gap-2 text-xs sm:text-sm lg:text-base">🥧 {t("expenseBreakdown")}</CardTitle>
+            <CardTitle className="flex items-center gap-2 text-xs sm:text-sm lg:text-base dark:text-primary-900">🥧 {t("expenseBreakdown")}</CardTitle>
           </CardHeader>
           <CardContent>
             {safeCategoryData.length === 0 ? (
@@ -436,20 +400,20 @@ export const Dashboard: React.FC = () => {
                 </ResponsiveContainer>
                 <div className="w-full space-y-1">
                   {safeCategoryData.slice(0, 5).map((entry, index) => {
-                    const color = entry.color && entry.color !== "#6b7280" ? entry.color : PIE_PALETTE[index % PIE_PALETTE.length];
+                    const color = PIE_PALETTE[index % PIE_PALETTE.length];
                     const total = safeCategoryData.reduce((s, d) => s + d.value, 0);
                     const pct = total > 0 ? ((entry.value / total) * 100).toFixed(0) : "0";
                     return (
                       <div key={entry.name} className="flex items-center justify-between text-xs">
                         <div className="flex items-center min-w-0 gap-1.5">
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-                          <span className="truncate text-primary-600">{entry.name}</span>
+                          <span className="truncate text-primary-600 dark:text-primary-700">{entry.name}</span>
                         </div>
-                        <span className="ml-2 font-medium text-primary-900 tabular-nums">{pct}%</span>
+                        <span className="ml-2 font-medium text-primary-900 dark:text-primary-900 tabular-nums">{pct}%</span>
                       </div>
                     );
                   })}
-                  {safeCategoryData.length > 5 && <p className="text-xs text-right text-primary-400">+{safeCategoryData.length - 5} more</p>}
+                  {safeCategoryData.length > 5 && <p className="text-xs text-right text-primary-400 dark:text-primary-600">+{safeCategoryData.length - 5} more</p>}
                 </div>
               </div>
             )}
@@ -457,9 +421,9 @@ export const Dashboard: React.FC = () => {
         </Card>
       </div>
 
-      <Card>
+      <Card className="dark:bg-primary-200 dark:border-primary-400">
         <CardHeader className="pb-2 sm:pb-3">
-          <CardTitle className="flex items-center gap-2 text-xs sm:text-sm lg:text-base">📊 {t("monthlyComparison")}</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-xs sm:text-sm lg:text-base dark:text-primary-900">📊 {t("monthlyComparison")}</CardTitle>
         </CardHeader>
         <CardContent>
           {safeMonthlyData.length === 0 ? (
@@ -467,11 +431,11 @@ export const Dashboard: React.FC = () => {
           ) : (
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={safeMonthlyData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }} barCategoryGap="30%">
-                <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.text} strokeOpacity={0.2} vertical={false} />
                 <XAxis dataKey="month" tick={{ fontSize: 10, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 10, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}M`} />
                 <ReTooltip content={<ChartTooltip formatter={(v) => format(v)} />} />
-                <Legend wrapperStyle={{ fontSize: 10, paddingTop: 6 }} formatter={(value) => <span className="capitalize text-primary-600">{value}</span>} />
+                <Legend wrapperStyle={{ fontSize: 10, paddingTop: 6 }} formatter={(value) => <span className="capitalize text-primary-500 dark:text-primary-700">{value}</span>} />
                 <Bar dataKey="income" fill={CHART_COLORS.income} radius={[3, 3, 0, 0]} />
                 <Bar dataKey="expense" fill={CHART_COLORS.expense} radius={[3, 3, 0, 0]} />
                 <Bar dataKey="transfer" fill={CHART_COLORS.transfer} radius={[3, 3, 0, 0]} />
@@ -484,15 +448,15 @@ export const Dashboard: React.FC = () => {
       {transferSummary && transferSummary.totalMoved > 0 && (
         <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
           {[
-            { label: t("transferFlow.totalMoved"), value: transferSummary.totalMoved, icon: "🔄", color: "text-sky-600" },
-            { label: t("transferFlow.totalReceived"), value: transferSummary.totalReceived, icon: "📥", color: "text-emerald-600" },
-            { label: t("transferFlow.withdrawals"), value: transferSummary.withdrawals, icon: "🏧", color: "text-amber-600" },
+            { label: t("transferFlow.totalMoved"), value: transferSummary.totalMoved, icon: "🔄", color: "text-secondary-400 dark:text-secondary-400" },
+            { label: t("transferFlow.totalReceived"), value: transferSummary.totalReceived, icon: "📥", color: "text-emerald-600 dark:text-emerald-400" },
+            { label: t("transferFlow.withdrawals"), value: transferSummary.withdrawals, icon: "🏧", color: "text-amber-600 dark:text-amber-400" },
           ].map(({ label, value, icon, color }) => (
-            <Card key={label} className="border bg-sky-50 border-sky-100">
+            <Card key={label} className="border bg-secondary-50 dark:bg-secondary-900/10 border-secondary-100 dark:border-secondary-800/20">
               <CardContent className="pt-2.5 pb-2.5 sm:pt-4 sm:pb-4">
                 <div className="flex items-center gap-1.5 mb-1 sm:gap-2">
                   <span className="text-base sm:text-lg">{icon}</span>
-                  <span className="text-xs font-medium tracking-wide uppercase truncate text-sky-600">{label}</span>
+                  <span className="text-xs font-medium tracking-wide uppercase truncate text-secondary-500 dark:text-secondary-400">{label}</span>
                 </div>
                 <p className={`text-sm sm:text-lg lg:text-2xl font-bold tabular-nums ${color}`}>{format(value)}</p>
               </CardContent>
@@ -502,10 +466,10 @@ export const Dashboard: React.FC = () => {
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2 lg:gap-5">
-        <Card>
+        <Card className="dark:bg-primary-200 dark:border-primary-400">
           <CardHeader className="pb-2 sm:pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-xs sm:text-sm lg:text-base">📝 {t("recentTransactions")}</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-xs sm:text-sm lg:text-base dark:text-primary-900">📝 {t("recentTransactions")}</CardTitle>
               <Button variant="ghost" size="sm" className="text-xs" onClick={() => router.push("/admin/dashboard/transactions")}>
                 {t("viewAll")} →
               </Button>
@@ -530,10 +494,10 @@ export const Dashboard: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="dark:bg-primary-200 dark:border-primary-400">
           <CardHeader className="pb-2 sm:pb-3">
             <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2 text-xs sm:text-sm lg:text-base">🎯 {t("budgetProgress")}</CardTitle>
+              <CardTitle className="flex items-center gap-2 text-xs sm:text-sm lg:text-base dark:text-primary-900">🎯 {t("budgetProgress")}</CardTitle>
               <Button variant="ghost" size="sm" className="text-xs" onClick={() => router.push("/admin/dashboard/budgets")}>
                 {t("manage")} →
               </Button>
@@ -559,9 +523,9 @@ export const Dashboard: React.FC = () => {
         </Card>
       </div>
 
-      <Card>
+      <Card className="dark:bg-primary-200 dark:border-primary-400">
         <CardHeader className="pb-2 sm:pb-3">
-          <CardTitle className="flex items-center gap-2 text-xs sm:text-sm lg:text-base">⚡ {t("quickAction")}</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-xs sm:text-sm lg:text-base dark:text-primary-900">⚡ {t("quickAction")}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4 lg:gap-4">
@@ -569,47 +533,47 @@ export const Dashboard: React.FC = () => {
               {
                 href: "/admin/dashboard/transactions",
                 icon: "💳",
-                bg: "bg-primary-50 hover:bg-primary-100 border-primary-200",
+                bg: "bg-primary-100 hover:bg-primary-200 border-primary-200 dark:bg-primary-300 dark:hover:bg-primary-400 dark:border-primary-400",
+                text: "text-primary-900 dark:text-primary-900",
+                sub: "text-primary-600 dark:text-primary-700",
                 title: t("quickActions.transactions.title"),
                 subtitle: t("quickActions.transactions.subtitle"),
-                text: "text-primary-900",
-                sub: "text-primary-600",
               },
               {
                 href: "/admin/dashboard/budgets",
                 icon: "🎯",
-                bg: "bg-emerald-50 hover:bg-emerald-100 border-emerald-200",
+                bg: "bg-primary-100 hover:bg-primary-200 border-primary-200 dark:bg-primary-300 dark:hover:bg-primary-400 dark:border-primary-400",
+                text: "text-secondary-600 dark:text-secondary-400",
+                sub: "text-secondary-500 dark:text-secondary-500",
                 title: t("quickActions.budgets.title"),
                 subtitle: t("quickActions.budgets.subtitle"),
-                text: "text-emerald-900",
-                sub: "text-emerald-600",
               },
               {
                 href: "/admin/dashboard/goals",
                 icon: "🏆",
-                bg: "bg-sky-50 hover:bg-sky-100 border-sky-200",
+                bg: "bg-primary-100 hover:bg-primary-200 border-primary-200 dark:bg-primary-300 dark:hover:bg-primary-400 dark:border-primary-400",
+                text: "text-primary-800 dark:text-primary-900",
+                sub: "text-primary-500 dark:text-primary-700",
                 title: t("quickActions.goals.title"),
                 subtitle: t("quickActions.goals.subtitle"),
-                text: "text-sky-900",
-                sub: "text-sky-600",
               },
               {
                 href: "/admin/dashboard/reports",
                 icon: "📊",
-                bg: "bg-violet-50 hover:bg-violet-100 border-violet-200",
+                bg: "bg-primary-100 hover:bg-primary-200 border-primary-200 dark:bg-primary-300 dark:hover:bg-primary-400 dark:border-primary-400",
+                text: "text-secondary-600 dark:text-secondary-400",
+                sub: "text-secondary-500 dark:text-secondary-500",
                 title: t("quickActions.reports.title"),
                 subtitle: t("quickActions.reports.subtitle"),
-                text: "text-violet-900",
-                sub: "text-violet-600",
               },
-            ].map(({ href, icon, bg, title, subtitle, text, sub }) => (
+            ].map(({ href, icon, bg, text, sub, title, subtitle }) => (
               <button key={href} onClick={() => router.push(href)} className="block text-left">
-                <div className={`p-2.5 sm:p-3 lg:p-4 rounded-xl ${bg} transition-colors border cursor-pointer group`}>
+                <div className={`p-2.5 sm:p-3 lg:p-4 rounded-xl transition-colors border cursor-pointer group ${bg}`}>
                   <div className="flex items-center gap-2 sm:gap-3">
                     <span className="text-xl transition-transform sm:text-2xl lg:text-3xl group-hover:scale-110 shrink-0">{icon}</span>
                     <div className="min-w-0">
-                      <p className={`font-semibold text-xs sm:text-sm ${text} truncate`}>{title}</p>
-                      <p className={`text-xs ${sub} hidden sm:block truncate`}>{subtitle}</p>
+                      <p className={`font-semibold text-xs sm:text-sm truncate ${text}`}>{title}</p>
+                      <p className={`text-xs hidden sm:block truncate ${sub}`}>{subtitle}</p>
                     </div>
                   </div>
                 </div>

@@ -1,7 +1,5 @@
 import { NextRequest } from "next/server";
-
 import { prisma, withMaintenanceGuard } from "@/lib";
-
 import { errorResponse, successResponse } from "@/utils";
 
 export async function GET(req: NextRequest) {
@@ -9,7 +7,7 @@ export async function GET(req: NextRequest) {
     try {
       const settings = await prisma.appSetting.findMany({
         where: { isPublic: true },
-        orderBy: [{ category: "asc" }, { key: "asc" }],
+        orderBy: [{ category: "asc" }, { key: "asc" }, { sortOrder: "asc" }],
         select: {
           key: true,
           value: true,

@@ -1,13 +1,9 @@
 "use client";
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-
 import { useSession } from "next-auth/react";
-
 import { upload } from "@imagekit/next";
-
 import { apiClient } from "@/utils";
-
 import type { ApiResponse, User } from "@/types";
 
 interface ProfileData {
@@ -26,13 +22,6 @@ interface UploadAuthParams {
   expire: number;
   signature: string;
   publicKey: string;
-}
-
-async function fetchUploadAuth(): Promise<{ data: UploadAuthParams }> {
-  const res = await fetch("/api/imagekit/upload-auth");
-  if (!res.ok) throw new Error(`Failed to get upload auth (${res.status})`);
-
-  return res.json();
 }
 
 export const useProfiles = () => {
@@ -62,7 +51,7 @@ export const useProfiles = () => {
 
   const uploadAvatarMutation = useMutation({
     mutationFn: async (file: File): Promise<{ url: string; fileId: string }> => {
-      const { data } = await fetchUploadAuth();
+      const { data } = await apiClient.get<ApiResponse<UploadAuthParams>>("/imagekit/upload-auth");
 
       const response = await upload({
         file,
@@ -86,11 +75,7 @@ export const useProfiles = () => {
     mutationFn: async (fileId: string): Promise<void> => {
       if (!fileId) return;
 
-      const res = await fetch(`/api/imagekit/delete/${encodeURIComponent(fileId)}`, { method: "DELETE" });
-      if (res.status === 200) return;
-
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error ?? `Failed to delete avatar (${res.status})`);
+      await apiClient.delete<ApiResponse<null>>(`/imagekit/delete/${encodeURIComponent(fileId)}`);
     },
   });
 

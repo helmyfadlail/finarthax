@@ -12,7 +12,6 @@ class ApiClient {
   private async request<TResponse, TBody = unknown>(endpoint: string, options: Omit<FetchOptions, "body"> & { body?: TBody | null } = {}): Promise<TResponse> {
     const { params, body, ...fetchOptions } = options;
 
-    // Build URL with query params
     let url = `${this.baseURL}${endpoint}`;
     if (params) {
       const searchParams = new URLSearchParams();
@@ -44,6 +43,56 @@ class ApiClient {
     }
 
     return data;
+  }
+
+  async getExternal<TResponse>(url: string, options?: FetchOptions): Promise<TResponse> {
+    const { params, ...fetchOptions } = options ?? {};
+
+    let fullUrl = url;
+    if (params) {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.append(key, String(value));
+        }
+      });
+      const queryString = searchParams.toString();
+      if (queryString) fullUrl += `?${queryString}`;
+    }
+
+    const response = await fetch(fullUrl, { ...fetchOptions });
+    const data: TResponse = await response.json();
+
+    if (!response.ok) {
+      const message = (data as { message?: string }).message || "An error occurred";
+      throw new Error(message);
+    }
+
+    return data;
+  }
+
+  async getBlob(endpoint: string, options?: FetchOptions): Promise<Blob> {
+    const { params, ...fetchOptions } = options ?? {};
+
+    let url = `${this.baseURL}${endpoint}`;
+    if (params) {
+      const searchParams = new URLSearchParams();
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          searchParams.append(key, String(value));
+        }
+      });
+      const queryString = searchParams.toString();
+      if (queryString) url += `?${queryString}`;
+    }
+
+    const response = await fetch(url, { ...fetchOptions });
+
+    if (!response.ok) {
+      throw new Error(`Request failed: ${response.status} ${response.statusText}`);
+    }
+
+    return response.blob();
   }
 
   async get<TResponse>(endpoint: string, options?: FetchOptions): Promise<TResponse> {

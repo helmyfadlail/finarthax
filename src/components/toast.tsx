@@ -1,9 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, ReactNode } from "react";
-
 import { createId } from "@paralleldrive/cuid2";
-
 import { cn } from "@/utils";
 
 interface Toast {
@@ -12,7 +10,6 @@ interface Toast {
   type: "success" | "error" | "warning" | "info";
   duration?: number;
 }
-
 interface ToastContextType {
   toasts: Toast[];
   addToast: (toast: Omit<Toast, "id">) => void;
@@ -26,17 +23,11 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
 
   const addToast = (toast: Omit<Toast, "id">) => {
     const id = createId();
-    const newToast = { ...toast, id };
-    setToasts((prev) => [...prev, newToast]);
-
-    setTimeout(() => {
-      removeToast(id);
-    }, toast.duration || 3000);
+    setToasts((prev) => [...prev, { ...toast, id }]);
+    setTimeout(() => removeToast(id), toast.duration || 3000);
   };
 
-  const removeToast = (id: string) => {
-    setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  };
+  const removeToast = (id: string) => setToasts((prev) => prev.filter((t) => t.id !== id));
 
   return (
     <ToastContext.Provider value={{ toasts, addToast, removeToast }}>
@@ -46,22 +37,20 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
   );
 };
 
-const ToastContainer = ({ toasts, removeToast }: { toasts: Toast[]; removeToast: (id: string) => void }) => {
-  return (
-    <div className={cn("fixed flex flex-col z-100", "bottom-0 left-0 right-0 gap-2 p-3", "md:bottom-4 md:left-auto md:right-4 md:p-0 md:max-w-sm", "lg:max-w-md")}>
-      {toasts.map((toast) => (
-        <ToastItem key={toast.id} toast={toast} onClose={() => removeToast(toast.id)} />
-      ))}
-    </div>
-  );
-};
+const ToastContainer = ({ toasts, removeToast }: { toasts: Toast[]; removeToast: (id: string) => void }) => (
+  <div className={cn("fixed flex flex-col z-100", "bottom-0 left-0 right-0 gap-2 p-3", "md:bottom-4 md:left-auto md:right-4 md:p-0 md:max-w-sm", "lg:max-w-md")}>
+    {toasts.map((toast) => (
+      <ToastItem key={toast.id} toast={toast} onClose={() => removeToast(toast.id)} />
+    ))}
+  </div>
+);
 
 const ToastItem = ({ toast, onClose }: { toast: Toast; onClose: () => void }) => {
   const styles = {
-    success: "bg-green-500 text-white",
-    error: "bg-red-500 text-white",
-    warning: "bg-yellow-500 text-white",
-    info: "bg-blue-500 text-white",
+    success: "bg-secondary-400 dark:bg-secondary-500 text-white",
+    error: "bg-rose-500 dark:bg-rose-600 text-white",
+    warning: "bg-amber-500 dark:bg-amber-600 text-white",
+    info: "bg-primary-500 dark:bg-primary-400 text-white dark:text-primary-900",
   };
 
   const icons = {
@@ -98,10 +87,7 @@ const ToastItem = ({ toast, onClose }: { toast: Toast; onClose: () => void }) =>
   return (
     <div
       className={cn(
-        "flex items-center rounded-lg shadow-lg animate-in slide-in-from-bottom",
-        "md:animate-in md:slide-in-from-right",
-        "gap-2 px-3 py-2.5 text-xs",
-        "md:gap-3 md:px-4 md:py-3 md:text-sm",
+        "flex items-center rounded-lg shadow-lg animate-in slide-in-from-bottom md:animate-in md:slide-in-from-right gap-2 px-3 py-2.5 text-xs md:gap-3 md:px-4 md:py-3 md:text-sm",
         styles[toast.type],
       )}
     >
@@ -122,8 +108,6 @@ const ToastItem = ({ toast, onClose }: { toast: Toast; onClose: () => void }) =>
 
 export const useToast = () => {
   const context = useContext(ToastContext);
-  if (!context) {
-    throw new Error("useToast must be used within ToastProvider");
-  }
+  if (!context) throw new Error("useToast must be used within ToastProvider");
   return context;
 };

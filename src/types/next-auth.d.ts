@@ -9,10 +9,12 @@ declare module "next-auth" {
     user: {
       id: string;
       email: string;
-      name?: string | null;
+      name: string | null;
       avatar?: string | null;
       avatarFileId?: string | null;
       email_verified?: string | null;
+      passwordChangedAt?: Date | null;
+      passwordExpiresAt?: Date | null;
     };
   }
 
@@ -22,10 +24,12 @@ declare module "next-auth" {
   interface User {
     id: string;
     email: string;
-    name?: string | null;
+    name: string | null;
     avatar?: string | null;
     avatarFileId?: string | null;
     email_verified?: string | null;
+    passwordChangedAt?: Date | null;
+    passwordExpiresAt?: Date | null;
   }
 }
 
@@ -36,9 +40,11 @@ declare module "next-auth/jwt" {
   interface JWT {
     id: string;
     email: string;
-    name?: string | null;
+    name: string | null;
     avatar?: string | null;
     avatarFileId?: string | null;
     email_verified?: string | null;
+    passwordChangedAt?: Date | null;
+    passwordExpiresAt?: Date | null;
   }
 }

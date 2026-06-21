@@ -1,7 +1,5 @@
 import { NextRequest } from "next/server";
-
 import { withMaintenanceGuard } from "@/lib";
-
 import { errorResponse, successResponse } from "@/utils";
 
 export async function DELETE(req: NextRequest, { params }: { params: Promise<{ fileId: string }> }) {

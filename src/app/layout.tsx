@@ -1,8 +1,11 @@
-import { AuthProvider, QueryProvider } from "@/providers";
+import { AuthProvider, CurrencyProvider, QueryProvider } from "@/providers";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
-import { ToastProvider, CurrencyProvider } from "@/components";
+import { ToastProvider } from "@/components";
+import { getDatabaseHealth } from "@/lib";
+
+export const dynamic = "force-dynamic";
 
 const spaceGrotesk = localFont({
   src: [
@@ -23,17 +26,27 @@ export const metadata: Metadata = {
     "Stay on top of your income, expenses, and budgets with a simple financial management app. " + "Easily monitor transactions, organize your finances, and export data for better money control.",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const isHealthy = (await getDatabaseHealth()) === "up";
+
   return (
     <html lang="en">
       <body className={`${spaceGrotesk.className} antialiased`}>
-        <QueryProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <CurrencyProvider>{children}</CurrencyProvider>
-            </ToastProvider>
-          </AuthProvider>
-        </QueryProvider>
+        {isHealthy ? (
+          <QueryProvider>
+            <AuthProvider>
+              <ToastProvider>
+                <CurrencyProvider>{children}</CurrencyProvider>
+              </ToastProvider>
+            </AuthProvider>
+          </QueryProvider>
+        ) : (
+          <main className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
+            <span className="text-5xl">🛠️</span>
+            <h1 className="text-2xl font-semibold">We&apos;ll be right back</h1>
+            <p className="max-w-md text-sm text-gray-500">Finarthax is currently undergoing maintenance. We&apos;re working to restore service as quickly as possible — please check back shortly.</p>
+          </main>
+        )}
       </body>
     </html>
   );

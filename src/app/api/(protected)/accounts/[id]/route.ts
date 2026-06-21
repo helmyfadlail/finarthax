@@ -1,11 +1,7 @@
 import { NextRequest } from "next/server";
-
 import { prisma, requireAuth, withMaintenanceGuard } from "@/lib";
-
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
-
 import z from "zod";
-
 import { updateAccountSchema } from "@/types";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

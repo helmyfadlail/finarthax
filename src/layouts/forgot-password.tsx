@@ -1,12 +1,11 @@
 "use client";
 
 import * as React from "react";
-
 import Link from "next/link";
+import { useAuth, useSettings } from "@/hooks";
+import { Button, Input, Skeleton, useToast } from "@/components";
 
-import { useAuth } from "@/hooks";
-
-import { Button, Input, useToast } from "@/components";
+const FORGOT_PASSWORD = "forgot_password";
 
 export const ForgotPassword = () => {
   const [email, setEmail] = React.useState<string>("");
@@ -15,6 +14,24 @@ export const ForgotPassword = () => {
   const { addToast } = useToast();
 
   const { forgotPassword, isSendingForgotPassword, forgotPasswordError } = useAuth();
+  const { getAppSetting, isLoadingAppSettings } = useSettings();
+
+  const forgotPasswordData = React.useMemo(() => {
+    const resolve = (key: string) => {
+      const setting = getAppSetting(key);
+      if (!setting) return "";
+      return setting.value;
+    };
+
+    return {
+      title: resolve(`${FORGOT_PASSWORD}_title`),
+      description: resolve(`${FORGOT_PASSWORD}_description`),
+      notice: resolve(`${FORGOT_PASSWORD}_notice`),
+      button: resolve(`${FORGOT_PASSWORD}_button_text`),
+      promptText: resolve(`${FORGOT_PASSWORD}_prompt_text`),
+      footerCopyright: resolve("footer_copyright"),
+    };
+  }, [getAppSetting]);
 
   const handleForgotPassword = async (e: React.SubmitEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
@@ -32,28 +49,57 @@ export const ForgotPassword = () => {
         onSuccess: () => {
           addToast({ message: "Password reset link sent successfully.", type: "success" });
         },
-        onError: (error: Error) => {
-          addToast({ message: error.message || "Failed to send password reset link.", type: "error" });
-        },
       },
     );
   };
 
   const error = localError || forgotPasswordError?.message;
 
+  if (isLoadingAppSettings) {
+    return (
+      <div className="relative flex items-center justify-center min-h-screen px-4 py-6 overflow-hidden bg-linear-to-br from-primary via-secondary to-primary sm:px-6 md:px-8">
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute w-40 h-40 rounded-full -left-16 top-10 bg-secondary opacity-20 blur-3xl sm:left-10 sm:top-20 sm:h-72 sm:w-72" />
+          <div className="absolute w-56 h-56 rounded-full bottom-10 -right-16 bg-secondary opacity-20 blur-3xl sm:bottom-20 sm:right-10 sm:h-96 sm:w-96" />
+        </div>
+        <div className="relative w-full max-w-sm sm:max-w-md">
+          <div className="p-5 space-y-6 shadow-2xl rounded-2xl bg-white/95 backdrop-blur-sm sm:p-6 md:p-8">
+            <div className="space-y-1">
+              <Skeleton className="w-32 h-6 sm:h-8 sm:w-40 md:w-80" />
+              <Skeleton className="w-40 h-12 sm:w-64 md:w-90" />
+            </div>
+            <div className="space-y-1">
+              <Skeleton className="w-20 h-4 sm:w-24" />
+              <Skeleton className="w-full h-10 rounded-lg sm:h-11 md:h-12" />
+            </div>
+            <div className="space-y-1">
+              <Skeleton className="w-24 h-10 sm:w-32 md:w-90" />
+              <Skeleton className="w-full h-10 rounded-lg sm:h-11 md:h-12" />
+            </div>
+            <div className="flex justify-center mt-2 sm:mt-8">
+              <Skeleton className="h-4 w-28 opacity-60 sm:w-40" />
+            </div>
+          </div>
+          <div className="flex justify-center mt-6 sm:mt-8">
+            <Skeleton className="h-4 w-28 opacity-60 sm:w-40" />
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex items-center justify-center min-h-screen p-4 bg-linear-to-br from-primary via-secondary to-accent">
+    <div className="flex items-center justify-center min-h-screen p-4 bg-linear-to-br from-primary via-secondary to-primary">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute rounded-full top-20 left-10 w-72 h-72 bg-accent opacity-20 blur-3xl" />
+        <div className="absolute rounded-full top-20 left-10 w-72 h-72 bg-secondary opacity-20 blur-3xl" />
         <div className="absolute rounded-full bottom-20 right-10 w-96 h-96 bg-secondary opacity-20 blur-3xl" />
       </div>
 
       <div className="relative w-full max-w-md">
-        {/* Forgot Password Card */}
         <div className="p-8 shadow-2xl bg-white/95 backdrop-blur-sm rounded-2xl">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-primary-900">Forgot your password?</h2>
-            <p className="mt-1 text-primary-500">No worries! Enter your email address and we&apos;ll send you a link to reset your password.</p>
+            <h2 className="text-2xl font-bold text-primary-900">{forgotPasswordData.title}</h2>
+            <p className="mt-1 text-primary-500">{forgotPasswordData.description}</p>
           </div>
 
           {error && (
@@ -90,11 +136,11 @@ export const ForgotPassword = () => {
             />
 
             <div className="pt-2 text-sm text-primary-600">
-              <p>We&apos;ll send you an email with instructions to reset your password. The link will be valid for 1 hour.</p>
+              <p>{forgotPasswordData.notice}</p>
             </div>
 
             <Button type="submit" variant="primary" size="lg" className="w-full" isLoading={isSendingForgotPassword}>
-              Send Reset Link
+              {forgotPasswordData.button}
             </Button>
           </form>
 
@@ -103,12 +149,12 @@ export const ForgotPassword = () => {
               <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
               </svg>
-              Back to Sign In
+              {forgotPasswordData.promptText}
             </Link>
           </div>
         </div>
 
-        <p className="mt-8 text-sm text-center text-white/80">© 2025 Finance Manager. All rights reserved.</p>
+        <p className="mt-8 text-sm text-center text-white/80">{forgotPasswordData.footerCopyright}</p>
       </div>
     </div>
   );

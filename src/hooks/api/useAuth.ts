@@ -1,13 +1,8 @@
 "use client";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-
 import { signIn, signOut } from "next-auth/react";
-
-import { useRouter } from "next/navigation";
-
 import { apiClient } from "@/utils";
-
 import type { ApiResponse, User } from "@/types";
 
 interface RegisterData {
@@ -22,25 +17,37 @@ interface ResetPasswordData {
 }
 
 export const useAuth = () => {
-  const router = useRouter();
   const queryClient = useQueryClient();
 
   const registerMutation = useMutation({
     mutationFn: (data: RegisterData) => apiClient.post<ApiResponse<User>, RegisterData>("/auth/register", data),
     onSuccess: async (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["user"] });
       await signIn("credentials", {
         email: variables.email,
         password: variables.password,
-        redirect: false,
+        callbackUrl: "/admin/dashboard",
       });
-      queryClient.invalidateQueries({ queryKey: ["user"] });
-      router.push("/admin/dashboard");
     },
   });
 
   const loginWithGoogle = async () => {
     await signIn("google", { callbackUrl: "/admin/dashboard" });
   };
+
+  const loginMutation = useMutation({
+    mutationFn: async (data: { email: string; password: string }) => {
+      const response = await signIn("credentials", { redirect: false, ...data });
+      if (!response) throw new Error("No response received from server.");
+      if (response.error) throw new Error(response.error);
+      return response;
+    },
+
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["user"] });
+      window.location.href = "/admin/dashboard";
+    },
+  });
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
@@ -55,23 +62,15 @@ export const useAuth = () => {
         const name = eqPos > -1 ? cookie.substring(0, eqPos) : cookie;
         document.cookie = name + "=;expires=Thu, 01 Jan 1970 00:00:00 GMT";
       });
-      router.push("/login");
+      window.location.href = "/login";
     },
   });
 
   const resetPasswordMutation = useMutation({
-    mutationFn: (data: ResetPasswordData) => apiClient.post<ApiResponse<User>, ResetPasswordData>("/auth/reset-password", data),
-    onSuccess: async () => {
+    mutationFn: (data: ResetPasswordData) => apiClient.post<ApiResponse<{ redirectUrl: string }>, ResetPasswordData>("/auth/reset-password", data),
+    onSuccess: async ({ data }) => {
       queryClient.invalidateQueries({ queryKey: ["user"] });
-      const successParams = new URLSearchParams({
-        title: "Password Reset Successful",
-        message: "Your password has been reset successfully. You can now sign in with your new password.",
-        redirect: "/login",
-        redirectLabel: "Sign In Now",
-        autoRedirect: "true",
-      });
-
-      router.push(`/reset-password/success?${successParams.toString()}`);
+      window.location.href = data.redirectUrl;
     },
   });
 
@@ -81,18 +80,18 @@ export const useAuth = () => {
 
   return {
     register: registerMutation.mutate,
-    registerAsync: registerMutation.mutateAsync,
     isRegistering: registerMutation.isPending,
     registerError: registerMutation.error,
+    login: loginMutation.mutate,
+    isLoggingIn: loginMutation.isPending,
+    loginError: loginMutation.error,
     logout: logoutMutation.mutate,
     isLoggingOut: logoutMutation.isPending,
     loginWithGoogle,
     resetPassword: resetPasswordMutation.mutate,
-    resetPasswordAsync: resetPasswordMutation.mutateAsync,
     isResettingPassword: resetPasswordMutation.isPending,
     resetPasswordError: resetPasswordMutation.error,
     forgotPassword: forgotPasswordMutation.mutate,
-    forgotPasswordAsync: forgotPasswordMutation.mutateAsync,
     isSendingForgotPassword: forgotPasswordMutation.isPending,
     forgotPasswordError: forgotPasswordMutation.error,
   };

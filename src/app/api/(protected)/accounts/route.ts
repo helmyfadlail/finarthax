@@ -1,14 +1,8 @@
 import { NextRequest } from "next/server";
-
-import { prisma, requireAuth } from "@/lib";
-
+import { prisma, requireAuth, withMaintenanceGuard } from "@/lib";
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
-
 import z from "zod";
-
 import { accountSchema } from "@/types";
-
-import { withMaintenanceGuard } from "@/lib";
 
 export async function GET(req: NextRequest) {
   return withMaintenanceGuard(req, async () => {

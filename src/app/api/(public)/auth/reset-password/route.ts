@@ -1,16 +1,32 @@
 import { NextRequest } from "next/server";
-
-import { prisma, withMaintenanceGuard } from "@/lib";
-
+import { calculatePasswordExpiresAt, getMaxPasswordAgeDays, prisma, withMaintenanceGuard } from "@/lib";
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
-
 import z from "zod";
-
+import crypto from "crypto";
+import bcrypt from "bcryptjs";
+import { RESET_PASSWORD_SUCCESS_DEFAULTS } from "@/static";
 import { resetPasswordSchema } from "@/types";
 
-import crypto from "crypto";
+async function getResetPasswordSuccessSettings() {
+  const keys = Object.keys(RESET_PASSWORD_SUCCESS_DEFAULTS);
 
-import bcrypt from "bcryptjs";
+  const settings = await prisma.appSetting.findMany({
+    where: { key: { in: keys } },
+  });
+
+  const settingsMap = settings.reduce<Record<string, string>>((acc, setting) => {
+    acc[setting.key] = setting.value ?? "";
+    return acc;
+  }, {});
+
+  return {
+    title: settingsMap.reset_password_success_title || RESET_PASSWORD_SUCCESS_DEFAULTS.reset_password_success_title,
+    description: settingsMap.reset_password_success_description || RESET_PASSWORD_SUCCESS_DEFAULTS.reset_password_success_description,
+    redirect: settingsMap.reset_password_success_redirect_url || RESET_PASSWORD_SUCCESS_DEFAULTS.reset_password_success_redirect_url,
+    redirectLabel: settingsMap.reset_password_success_redirect_label || RESET_PASSWORD_SUCCESS_DEFAULTS.reset_password_success_redirect_label,
+    autoRedirect: settingsMap.reset_password_success_auto_redirect || RESET_PASSWORD_SUCCESS_DEFAULTS.reset_password_success_auto_redirect,
+  };
+}
 
 export async function POST(req: NextRequest) {
   return withMaintenanceGuard(req, async () => {
@@ -37,12 +53,20 @@ export async function POST(req: NextRequest) {
 
       const hashedPassword = await bcrypt.hash(password, 10);
 
+      const maxPasswordAgeDays = await getMaxPasswordAgeDays();
+      const now = new Date();
+      const passwordExpiresAt = calculatePasswordExpiresAt(now, maxPasswordAgeDays);
+
       await prisma.$transaction([
-        prisma.user.update({ where: { id: user.id }, data: { password: hashedPassword } }),
+        prisma.user.update({ where: { id: user.id }, data: { password: hashedPassword, passwordChangedAt: now, passwordExpiresAt } }),
         prisma.verificationToken.delete({ where: { identifier_token: { identifier: resetToken.identifier, token: hashedToken } } }),
       ]);
 
-      return successResponse(null, "Password reset successful");
+      const successSettings = await getResetPasswordSuccessSettings();
+      const successParams = new URLSearchParams(successSettings);
+      const redirectUrl = `/reset-password/success?${successParams.toString()}`;
+
+      return successResponse({ redirectUrl }, "Password reset successful");
     } catch (error) {
       console.error(error);
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";

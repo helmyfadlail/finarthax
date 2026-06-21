@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-
 import { prisma } from "@/lib";
 import { errorResponse } from "@/utils";
 

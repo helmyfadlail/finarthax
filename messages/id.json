@@ -113,9 +113,13 @@
       "type": "Tipe",
       "allTypes": "Semua Tipe",
       "category": "Kategori",
+      "account": "Akun",
       "allCategories": "Semua Kategori",
+      "allAccounts": "Semua Akun",
       "search": "Cari",
-      "searchPlaceholder": "Cari berdasarkan deskripsi..."
+      "searchPlaceholder": "Cari berdasarkan deskripsi...",
+      "startDate": "Tanggal Mulai",
+      "endDate": "Tanggal Selesai"
     },
     "pagination": {
       "showing": "Menampilkan {start}-{end} dari {total}",

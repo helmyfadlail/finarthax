@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useRef, RefObject } from "react";
-
 import { useMediaQuery } from "./useMediaQuery";
 
 interface UseToggleStateReturn {

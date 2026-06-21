@@ -1,12 +1,30 @@
 "use client";
 
 import * as React from "react";
-
 import Link from "next/link";
-
 import { Button, Input, Skeleton } from "@/components";
-
 import { useAuth, useSettings } from "@/hooks";
+
+const REGISTER = "register";
+
+const getRequirementClass = (requirement: string, password: string) => {
+  switch (requirement) {
+    case "At least 8 characters":
+      return password.length >= 8 ? "text-green-600" : "";
+
+    case "One uppercase letter":
+      return /[A-Z]/.test(password) ? "text-green-600" : "";
+
+    case "One lowercase letter":
+      return /[a-z]/.test(password) ? "text-green-600" : "";
+
+    case "One number":
+      return /[0-9]/.test(password) ? "text-green-600" : "";
+
+    default:
+      return "";
+  }
+};
 
 export const Register = () => {
   const [name, setName] = React.useState<string>("");
@@ -14,109 +32,121 @@ export const Register = () => {
   const [password, setPassword] = React.useState<string>("");
   const [confirmPassword, setConfirmPassword] = React.useState<string>("");
   const [isAgreeToTerms, setIsAgreeToTerms] = React.useState<boolean>(false);
-  const [localError, setLocalError] = React.useState<string>("");
+  const [error, setError] = React.useState<string>("");
 
   const { register, isRegistering, registerError, loginWithGoogle } = useAuth();
   const { getAppSetting, isLoadingAppSettings } = useSettings();
 
+  const registerData = React.useMemo(() => {
+    const resolve = (key: string) => {
+      const setting = getAppSetting(key);
+      if (!setting) return "";
+      return setting.value;
+    };
+
+    return {
+      title: resolve(`${REGISTER}_title`),
+      description: resolve(`${REGISTER}_description`),
+      passwordRequirements: resolve(`${REGISTER}_password_requirements`),
+      passwordRequirementsList: resolve(`${REGISTER}_password_requirements_list`) as string[],
+      createAccountBtn: resolve(`${REGISTER}_button_create_account_text`),
+      confirmationText: resolve(`${REGISTER}_confirmation_text`),
+      loginPromptText: resolve(`${REGISTER}_prompt_text`),
+      googleSignupBtn: resolve("google_signup_button"),
+      socialLoginSeparator: resolve("social_login_separator"),
+      footerCopyright: resolve("footer_copyright"),
+      signinText: resolve("signin_text"),
+    };
+  }, [getAppSetting]);
+
   const handleRegister = async (e: React.SubmitEvent<HTMLFormElement>): Promise<void> => {
     e.preventDefault();
 
-    setLocalError("");
+    setError("");
 
     if (isAgreeToTerms === false) {
-      setLocalError("You must agree to the terms to register");
+      setError("You must agree to the terms to register");
       return;
     }
 
     if (!name.trim()) {
-      setLocalError("Name is required");
+      setError("Name is required");
       return;
     }
 
     if (!email.trim()) {
-      setLocalError("Email is required");
+      setError("Email is required");
       return;
     }
 
     if (password.length < 8) {
-      setLocalError("Password must be at least 8 characters");
+      setError("Password must be at least 8 characters");
       return;
     }
 
     if (!/[A-Z]/.test(password)) {
-      setLocalError("Password must contain at least one uppercase letter");
+      setError("Password must contain at least one uppercase letter");
       return;
     }
 
     if (!/[a-z]/.test(password)) {
-      setLocalError("Password must contain at least one lowercase letter");
+      setError("Password must contain at least one lowercase letter");
       return;
     }
 
     if (!/[0-9]/.test(password)) {
-      setLocalError("Password must contain at least one number");
+      setError("Password must contain at least one number");
       return;
     }
 
     if (password !== confirmPassword) {
-      setLocalError("Passwords do not match");
+      setError("Passwords do not match");
       return;
     }
 
-    setLocalError("");
+    setError("");
 
     register({ name, email, password });
   };
 
-  const error = localError || registerError?.message;
+  const errorMessage = error || registerError?.message;
 
   if (isLoadingAppSettings) {
     return (
-      <div className="flex items-center justify-center min-h-screen p-4 bg-linear-to-br from-primary via-secondary to-accent">
+      <div className="relative flex items-center justify-center min-h-screen px-4 py-6 overflow-hidden bg-linear-to-br from-primary via-secondary to-primary sm:px-6 md:px-8">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute rounded-full top-20 left-10 w-72 h-72 bg-accent opacity-20 blur-3xl" />
-          <div className="absolute rounded-full bottom-20 right-10 w-96 h-96 bg-secondary opacity-20 blur-3xl" />
+          <div className="absolute w-40 h-40 rounded-full -left-16 top-10 bg-secondary opacity-20 blur-3xl sm:left-10 sm:top-20 sm:h-72 sm:w-72" />
+          <div className="absolute w-56 h-56 rounded-full bottom-10 -right-16 bg-secondary opacity-20 blur-3xl sm:bottom-20 sm:right-10 sm:h-96 sm:w-96" />
         </div>
-        <div className="relative w-full max-w-md">
-          <div className="p-8 shadow-2xl bg-white/95 backdrop-blur-sm rounded-2xl">
-            <div className="mb-6 space-y-2">
-              <Skeleton className="w-40 h-8" />
-              <Skeleton className="w-64 h-4" />
+        <div className="relative w-full max-w-sm sm:max-w-md">
+          <div className="p-5 shadow-2xl rounded-2xl bg-white/95 backdrop-blur-sm sm:p-6 md:p-8">
+            <div className="mb-5 space-y-2 sm:mb-6">
+              <Skeleton className="w-32 h-6 sm:h-8 sm:w-40" />
+              <Skeleton className="w-40 h-4 sm:w-64" />
             </div>
             <div className="space-y-4">
-              <div className="space-y-1">
-                <Skeleton className="w-24 h-4" />
-                <Skeleton className="w-full h-10 rounded-lg" />
-              </div>
-              <div className="space-y-1">
-                <Skeleton className="w-24 h-4" />
-                <Skeleton className="w-full h-10 rounded-lg" />
-              </div>
-              <div className="space-y-1">
-                <Skeleton className="w-20 h-4" />
-                <Skeleton className="w-full h-10 rounded-lg" />
-              </div>
-              <div className="space-y-1">
-                <Skeleton className="w-20 h-4" />
-                <Skeleton className="w-full h-10 rounded-lg" />
-              </div>
-              <Skeleton className="w-full h-32" />
+              {[1, 2, 3, 4].map((item) => (
+                <div key={item} className="space-y-1">
+                  <Skeleton className="w-20 h-4 sm:w-24" />
+                  <Skeleton className="w-full h-10 rounded-lg sm:h-11 md:h-12" />
+                </div>
+              ))}
+              <Skeleton className="w-full h-24 rounded-lg sm:h-32 md:h-40" />
               <div className="flex">
-                <Skeleton className="w-40 h-4" />
+                <Skeleton className="h-4 w-28 sm:w-40" />
               </div>
-              <Skeleton className="w-full rounded-lg h-11" />
+              <Skeleton className="w-full h-10 rounded-lg sm:h-11 md:h-12" />
             </div>
-            <div className="my-6">
+            <div className="my-5 sm:my-6">
               <Skeleton className="w-full h-4" />
             </div>
-            <Skeleton className="w-full rounded-lg h-11" />
-            <div className="flex justify-center mt-6">
-              <Skeleton className="w-48 h-4" />
+            <Skeleton className="w-full h-10 rounded-lg sm:h-11 md:h-12" />
+            <div className="flex justify-center mt-5 sm:mt-6">
+              <Skeleton className="h-4 w-36 sm:w-48" />
             </div>
           </div>
-          <div className="flex justify-center mt-8">
-            <Skeleton className="w-40 h-4 opacity-60" />
+          <div className="flex justify-center mt-6 sm:mt-8">
+            <Skeleton className="h-4 w-28 opacity-60 sm:w-40" />
           </div>
         </div>
       </div>
@@ -124,20 +154,20 @@ export const Register = () => {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4 bg-linear-to-br from-primary via-secondary to-accent">
+    <div className="flex items-center justify-center min-h-screen p-4 bg-linear-to-br from-primary via-secondary to-primary">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute rounded-full top-20 left-10 w-72 h-72 bg-accent opacity-20 blur-3xl" />
+        <div className="absolute rounded-full top-20 left-10 w-72 h-72 bg-secondary opacity-20 blur-3xl" />
         <div className="absolute rounded-full bottom-20 right-10 w-96 h-96 bg-secondary opacity-20 blur-3xl" />
       </div>
 
-      <div className="relative w-full max-w-md">
+      <div className="relative w-full max-w-sm sm:max-w-md">
         <div className="p-8 shadow-2xl bg-white/95 backdrop-blur-sm rounded-2xl">
           <div className="mb-6">
-            <h2 className="text-2xl font-bold text-primary-900">Create account</h2>
-            <p className="mt-1 text-primary-500">Get started with your free account</p>
+            <h2 className="text-2xl font-bold text-primary-900">{registerData.title}</h2>
+            <p className="mt-1 text-primary-500">{registerData.description}</p>
           </div>
 
-          {error && (
+          {errorMessage && (
             <div className="flex items-start gap-2 p-3 mb-6 text-sm text-red-700 border border-red-200 rounded-lg bg-red-50">
               <svg className="size-5 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                 <path
@@ -146,7 +176,7 @@ export const Register = () => {
                   clipRule="evenodd"
                 />
               </svg>
-              <span>{error}</span>
+              <span>{errorMessage}</span>
             </div>
           )}
 
@@ -157,7 +187,6 @@ export const Register = () => {
               placeholder="John Doe"
               value={name}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value)}
-              required
               icon={
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
@@ -171,7 +200,6 @@ export const Register = () => {
               placeholder="you@example.com"
               value={email}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-              required
               icon={
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -190,7 +218,6 @@ export const Register = () => {
               placeholder="••••••••"
               value={password}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)}
-              required
               icon={
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
@@ -204,7 +231,6 @@ export const Register = () => {
               placeholder="••••••••"
               value={confirmPassword}
               onChange={(e: React.ChangeEvent<HTMLInputElement>) => setConfirmPassword(e.target.value)}
-              required
               icon={
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -213,12 +239,13 @@ export const Register = () => {
             />
 
             <div className="p-3 text-xs rounded-lg bg-primary-50 text-primary-700">
-              <p className="mb-1 font-medium">Password must contain:</p>
+              <p className="mb-1 font-medium">{registerData.passwordRequirements}</p>
               <ul className="space-y-1 list-disc list-inside">
-                <li className={password.length >= 8 ? "text-green-600" : ""}>At least 8 characters</li>
-                <li className={/[A-Z]/.test(password) ? "text-green-600" : ""}>One uppercase letter</li>
-                <li className={/[a-z]/.test(password) ? "text-green-600" : ""}>One lowercase letter</li>
-                <li className={/[0-9]/.test(password) ? "text-green-600" : ""}>One number</li>
+                {registerData.passwordRequirementsList.map((requirement, index) => (
+                  <li key={`${index}-${requirement}`} className={getRequirementClass(requirement, password)}>
+                    {requirement}
+                  </li>
+                ))}
               </ul>
             </div>
 
@@ -231,12 +258,12 @@ export const Register = () => {
                 className="w-4 h-4 mt-0.5 rounded border-primary-300 text-primary-400 accent-primary-400 focus:ring-primary-500"
               />
               <label htmlFor="terms" className="text-primary-600">
-                I confirm that the information provided is accurate.
+                {registerData.confirmationText}
               </label>
             </div>
 
             <Button type="submit" variant="primary" size="lg" className="w-full" isLoading={isRegistering}>
-              Create account
+              {registerData.createAccountBtn}
             </Button>
           </form>
 
@@ -245,7 +272,7 @@ export const Register = () => {
               <div className="w-full border-t border-primary-200" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-white rounded-2xl text-primary-500">Or continue with</span>
+              <span className="px-4 bg-white rounded-2xl text-primary-500">{registerData.socialLoginSeparator}</span>
             </div>
           </div>
 
@@ -256,18 +283,18 @@ export const Register = () => {
               <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
               <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
             </svg>
-            Sign up with Google
+            {registerData.googleSignupBtn}
           </Button>
 
           <p className="mt-6 text-sm text-center text-primary-600">
-            Already have an account?{" "}
+            {registerData.loginPromptText}{" "}
             <Link href="/login" className="font-semibold text-primary-700 hover:text-primary-900">
-              Sign in
+              {registerData.signinText}
             </Link>
           </p>
         </div>
 
-        <p className="mt-8 text-sm text-center text-white/80">{getAppSetting("footer_copyright")?.value}</p>
+        <p className="mt-8 text-sm text-center text-white/80">{registerData.footerCopyright}</p>
       </div>
     </div>
   );

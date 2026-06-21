@@ -1,11 +1,7 @@
-import { prisma } from "./prisma";
-
 import { NextAuthOptions } from "next-auth";
-
 import GoogleProvider from "next-auth/providers/google";
-
 import CredentialsProvider from "next-auth/providers/credentials";
-
+import { prisma } from "@/lib";
 import bcrypt from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
@@ -34,12 +30,18 @@ export const authOptions: NextAuthOptions = {
 
         if (!isValid) throw new Error("Incorrect password.");
 
+        if (user.password && user.passwordExpiresAt && user.passwordExpiresAt < new Date()) {
+          throw new Error("Your password has expired. Please reset your password to continue.");
+        }
+
         return {
           id: user.id,
           name: user.name,
           email: user.email,
           image: user.avatar,
           avatarFileId: user.avatarFileId,
+          passwordChangedAt: user.passwordChangedAt,
+          passwordExpiresAt: user.passwordExpiresAt,
         };
       },
     }),
@@ -58,6 +60,8 @@ export const authOptions: NextAuthOptions = {
         token.email = user.email;
         token.avatar = user.avatar;
         token.avatarFileId = user.avatarFileId;
+        token.passwordChangedAt = user.passwordChangedAt;
+        token.passwordExpiresAt = user.passwordExpiresAt;
       }
       return token;
     },
@@ -68,12 +72,18 @@ export const authOptions: NextAuthOptions = {
 
         if (!user) return { ...session, user: undefined };
 
+        if (user.password && user.passwordExpiresAt && user.passwordExpiresAt < new Date()) {
+          return { ...session, user: undefined };
+        }
+
         if (session.user) {
           session.user.id = user.id;
           session.user.name = user.name;
           session.user.email = user.email;
           session.user.avatar = user.avatar;
           session.user.avatarFileId = user.avatarFileId;
+          session.user.passwordChangedAt = user.passwordChangedAt;
+          session.user.passwordExpiresAt = user.passwordExpiresAt;
         }
       }
       return session;
@@ -82,17 +92,17 @@ export const authOptions: NextAuthOptions = {
     async signIn({ user, account }) {
       if (account?.provider === "google") {
         const email = user.email;
+        const name = user.name;
 
-        if (!email) return false;
+        if (!email || !name) return false;
 
         let existingUser = await prisma.user.findUnique({ where: { email } });
 
         if (!existingUser) {
-          // Create new user
           existingUser = await prisma.user.create({
             data: {
               email,
-              name: user.name,
+              name,
               avatar: user.image,
               emailVerified: new Date(),
             },
@@ -127,7 +137,6 @@ export const authOptions: NextAuthOptions = {
           });
         }
 
-        // IMPORTANT: Set user.id to existingUser.id so JWT callback receives correct ID
         user.id = existingUser.id;
       }
       return true;

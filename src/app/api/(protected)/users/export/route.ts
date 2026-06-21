@@ -5,8 +5,6 @@ import path from "path";
 import { prisma, requireAuth, withMaintenanceGuard } from "@/lib";
 import { errorResponse, formattedCurrency } from "@/utils";
 
-// ─── Constants ───────────────────────────────────────────────────────────────
-
 const MARGIN = 50;
 const PAGE_W = 595.28;
 const PAGE_H = 841.89;

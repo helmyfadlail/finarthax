@@ -113,9 +113,13 @@
       "type": "类型",
       "allTypes": "所有类型",
       "category": "类别",
+      "account": "账户",
       "allCategories": "所有类别",
+      "allAccounts": "所有账户",
       "search": "搜索",
-      "searchPlaceholder": "按描述搜索..."
+      "searchPlaceholder": "按描述搜索...",
+      "startDate": "开始日期",
+      "endDate": "结束日期"
     },
     "pagination": {
       "showing": "显示 {start}-{end} 共 {total}",

@@ -17,9 +17,11 @@ model User {
   id                    String                    @id @default(cuid())
   email                 String                    @unique
   password              String?
-  name                  String?
+  name                  String
   avatar                String?
   avatarFileId          String?
+  passwordChangedAt     DateTime?
+  passwordExpiresAt     DateTime?
   emailVerified         DateTime?
   createdAt             DateTime                  @default(now())
   updatedAt             DateTime                  @updatedAt
@@ -63,6 +65,7 @@ model AppSetting {
   category              String                    @default("general")  
   label                 String
   description           String?
+  sortOrder             Int                       @default(0)
   isPublic              Boolean                   @default(true)       
   createdAt             DateTime                  @default(now())
   updatedAt             DateTime                  @updatedAt

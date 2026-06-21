@@ -113,9 +113,13 @@
       "type": "Type",
       "allTypes": "All Types",
       "category": "Category",
+      "account": "Account",
       "allCategories": "All Categories",
+      "allAccounts": "All Accounts",
       "search": "Search",
-      "searchPlaceholder": "Search by description..."
+      "searchPlaceholder": "Search by description...",
+      "startDate": "Start Date",
+      "endDate": "End Date"
     },
     "pagination": {
       "showing": "Showing {start}-{end} of {total}",

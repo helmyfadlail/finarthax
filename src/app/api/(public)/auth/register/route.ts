@@ -1,13 +1,8 @@
 import { NextRequest } from "next/server";
-
-import { prisma, withMaintenanceGuard } from "@/lib";
-
+import { prisma, withMaintenanceGuard, getMaxPasswordAgeDays, calculatePasswordExpiresAt } from "@/lib";
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
-
 import { registerSchema } from "@/types";
-
 import z from "zod";
-
 import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
@@ -33,15 +28,29 @@ export async function POST(req: NextRequest) {
 
       const hashedPassword = await bcrypt.hash(password, 10);
 
+      const maxPasswordAgeDays = await getMaxPasswordAgeDays();
+      const now = new Date();
+      const passwordExpiresAt = calculatePasswordExpiresAt(now, maxPasswordAgeDays);
+
       const result = await prisma.$transaction(async (tx) => {
         const user = await tx.user.create({
-          data: { email, password: hashedPassword, name, avatar: null, emailVerified: new Date() },
+          data: {
+            email,
+            password: hashedPassword,
+            name,
+            avatar: null,
+            emailVerified: null,
+            passwordChangedAt: now,
+            passwordExpiresAt,
+          },
           select: {
             id: true,
             email: true,
             name: true,
             avatar: true,
             emailVerified: true,
+            passwordChangedAt: true,
+            passwordExpiresAt: true,
             createdAt: true,
             updatedAt: true,
           },

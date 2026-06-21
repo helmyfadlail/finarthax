@@ -1,11 +1,7 @@
 import { NextRequest } from "next/server";
-
 import { applyBalanceChange, applyBudgetChange, prisma, requireAuth, TRANSACTION_INCLUDE, validateAccount, validateCategory, validateCreditCardRules, withMaintenanceGuard } from "@/lib";
-
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
-
 import z from "zod";
-
 import { updateTransactionSchema } from "@/types";
 
 export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {

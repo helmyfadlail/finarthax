@@ -1,7 +1,5 @@
 import { NextRequest } from "next/server";
-
 import { prisma, requireAuth, withMaintenanceGuard } from "@/lib";
-
 import { errorResponse, successResponse } from "@/utils";
 
 export async function GET(req: NextRequest) {

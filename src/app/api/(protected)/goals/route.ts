@@ -1,13 +1,8 @@
 import { NextRequest } from "next/server";
-
 import { prisma, requireAuth, withMaintenanceGuard } from "@/lib";
-
 import { GoalStatus } from "prisma-client/enums";
-
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
-
 import z from "zod";
-
 import { goalSchema } from "@/types";
 
 export async function GET(req: NextRequest) {

@@ -1,13 +1,8 @@
 import { NextRequest } from "next/server";
-
-import { prisma, requireAuth, withMaintenanceGuard } from "@/lib";
-
+import { calculatePasswordExpiresAt, getMaxPasswordAgeDays, prisma, requireAuth, withMaintenanceGuard } from "@/lib";
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
-
 import z from "zod";
-
 import { changePasswordSchema } from "@/types";
-
 import bcrypt from "bcryptjs";
 
 export async function POST(req: NextRequest) {
@@ -34,7 +29,11 @@ export async function POST(req: NextRequest) {
 
       const hashedPassword = await bcrypt.hash(newPassword, 10);
 
-      await prisma.user.update({ where: { id: user.id }, data: { password: hashedPassword } });
+      const maxPasswordAgeDays = await getMaxPasswordAgeDays();
+      const now = new Date();
+      const passwordExpiresAt = calculatePasswordExpiresAt(now, maxPasswordAgeDays);
+
+      await prisma.user.update({ where: { id: user.id }, data: { password: hashedPassword, passwordChangedAt: now, passwordExpiresAt } });
 
       return successResponse(null, "Password changed successfully");
     } catch (error) {

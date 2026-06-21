@@ -1,9 +1,7 @@
 "use client";
 
 import * as React from "react";
-
 import { useSettings } from "@/hooks";
-
 import { BASE_CURRENCY, BASE_CURRENCY_SYMBOL, CURRENCY_LOCALE_MAP, ZERO_DECIMAL_CURRENCIES } from "@/static";
 
 interface CurrencyOption {
@@ -12,7 +10,7 @@ interface CurrencyOption {
   symbol: string;
 }
 
-export interface CurrencyContextType {
+interface CurrencyContextType {
   currency: string;
   symbol: string;
   rates: Record<string, number> | null;

@@ -1,16 +1,15 @@
 "use client";
 
 import * as React from "react";
-
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-
 import { useSession } from "next-auth/react";
-
 import { apiClient } from "@/utils";
-
 import { BASE_CURRENCY, EXCHANGE_RATE_URL } from "@/static";
-
 import type { ApiResponse, AppSetting, UserSetting } from "@/types";
+
+interface ExchangeRateResponse {
+  rates: Record<string, number>;
+}
 
 export const useSettings = () => {
   const queryClient = useQueryClient();
@@ -37,15 +36,11 @@ export const useSettings = () => {
   const { data: ratesData, isLoading: isLoadingRates } = useQuery({
     queryKey: ["exchange-rates", BASE_CURRENCY],
     queryFn: async () => {
-      const response = await fetch(`${EXCHANGE_RATE_URL}/${BASE_CURRENCY}`);
-
-      if (!response.ok) throw new Error(`Failed to fetch rates: ${response.status} ${response.statusText}`);
-
-      const data = await response.json();
+      const data = await apiClient.getExternal<ExchangeRateResponse>(`${EXCHANGE_RATE_URL}/${BASE_CURRENCY}`);
 
       if (!data.rates || typeof data.rates !== "object") throw new Error("Invalid response format: missing rates data");
 
-      return data.rates as Record<string, number>;
+      return data.rates;
     },
     staleTime: 1000 * 60 * 60,
     gcTime: 1000 * 60 * 60 * 24,
@@ -55,10 +50,8 @@ export const useSettings = () => {
 
   const exportDataMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch("/api/users/export");
-      if (!response.ok) throw new Error("Failed to export PDF");
+      const blob = await apiClient.getBlob("/users/export");
 
-      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;

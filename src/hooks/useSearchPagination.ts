@@ -1,65 +1,61 @@
 "use client";
 
 import * as React from "react";
-
 import { useSearchParams } from "next/navigation";
-
 import { useRouter, usePathname } from "@/i18n/navigation";
 
-interface SearchPaginationOptions {
+interface SearchPaginationOptions<TFilterName extends string = string> {
   defaultPage?: number;
   searchParamName?: string;
   pageParamName?: string;
-  typeParamName?: string;
-  categoryParamName?: string;
   debounceMs?: number;
+  filterParamNames?: readonly TFilterName[];
 }
 
-interface SearchPaginationResult {
+interface SearchPaginationResult<TFilterName extends string = string> {
   searchQuery: string;
   inputValue: string;
   setInputValue: (value: string) => void;
   handleSearch: () => void;
   currentPage: number;
   handlePageChange: (newPage: number) => void;
-  selectedType: string;
-  handleTypeChange: (type: string) => void;
-  selectedCategory: string;
-  handleCategoryChange: (category: string) => void;
+  filters: Record<TFilterName, string>;
+  handleFilterChange: (paramName: TFilterName, value: string) => void;
+  handleFiltersChange: (updates: Partial<Record<TFilterName, string>>) => void;
   resetFilters: () => void;
 }
 
-export const useSearchPagination = (options?: SearchPaginationOptions): SearchPaginationResult => {
-  const { defaultPage = 1, searchParamName = "search", pageParamName = "page", typeParamName = "type", categoryParamName = "category", debounceMs = 500 } = options || {};
+export function useSearchPagination<TFilterName extends string = string>(options?: SearchPaginationOptions<TFilterName>): SearchPaginationResult<TFilterName> {
+  const { defaultPage = 1, searchParamName = "search", pageParamName = "page", debounceMs = 500, filterParamNames = [] as readonly TFilterName[] } = options || {};
 
   const searchParams = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
 
   const currentSearchQuery = searchParams.get(searchParamName) || "";
-  const currentSelectedType = searchParams.get(typeParamName) || "";
-  const currentSelectedCategory = searchParams.get(categoryParamName) || "";
-
-  const [inputValue, setInputValue] = React.useState<string>(currentSearchQuery);
   const currentPage = Number(searchParams.get(pageParamName)) || defaultPage;
 
-  // Debounce timer ref
-  const debounceTimerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const filterParamNamesKey = filterParamNames.join("|");
+
+  const currentFilters = React.useMemo(() => {
+    const result = {} as Record<TFilterName, string>;
+    filterParamNames.forEach((name) => {
+      result[name] = searchParams.get(name) || "";
+    });
+    return result;
+  }, [searchParams, filterParamNamesKey]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const [inputValue, setInputValue] = React.useState<string>(currentSearchQuery);
+  const debounceTimerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const updateSearchParams = React.useCallback(
     (updates: Record<string, string>) => {
       const newParams = new URLSearchParams(searchParams.toString());
-
       Object.entries(updates).forEach(([key, value]) => {
-        if (value) {
-          newParams.set(key, value);
-        } else {
-          newParams.delete(key);
-        }
+        if (value) newParams.set(key, value);
+        else newParams.delete(key);
       });
-
-      const newUrl = `${pathname}?${newParams.toString()}`;
-      router.push(newUrl);
+      router.push(`${pathname}?${newParams.toString()}`);
     },
     [searchParams, pathname, router],
   );
@@ -73,31 +69,29 @@ export const useSearchPagination = (options?: SearchPaginationOptions): SearchPa
 
   const handlePageChange = React.useCallback(
     (newPage: number) => {
-      updateSearchParams({
-        [pageParamName]: String(newPage),
-      });
+      updateSearchParams({ [pageParamName]: String(newPage) });
     },
     [pageParamName, updateSearchParams],
   );
 
-  const handleTypeChange = React.useCallback(
-    (type: string) => {
+  const handleFilterChange = React.useCallback(
+    (paramName: TFilterName, value: string) => {
       updateSearchParams({
-        [typeParamName]: type,
+        [paramName]: value,
         [pageParamName]: String(defaultPage),
       });
     },
-    [typeParamName, pageParamName, defaultPage, updateSearchParams],
+    [pageParamName, defaultPage, updateSearchParams],
   );
 
-  const handleCategoryChange = React.useCallback(
-    (category: string) => {
+  const handleFiltersChange = React.useCallback(
+    (updates: Partial<Record<TFilterName, string>>) => {
       updateSearchParams({
-        [categoryParamName]: category,
+        ...(updates as Record<string, string>),
         [pageParamName]: String(defaultPage),
       });
     },
-    [categoryParamName, pageParamName, defaultPage, updateSearchParams],
+    [pageParamName, defaultPage, updateSearchParams],
   );
 
   const resetFilters = React.useCallback(() => {
@@ -105,22 +99,13 @@ export const useSearchPagination = (options?: SearchPaginationOptions): SearchPa
     router.push(pathname);
   }, [pathname, router]);
 
-  // Auto-search with debounce when input changes
   React.useEffect(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     debounceTimerRef.current = setTimeout(() => {
-      if (inputValue !== currentSearchQuery) {
-        handleSearch();
-      }
+      if (inputValue !== currentSearchQuery) handleSearch();
     }, debounceMs);
-
     return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
   }, [inputValue, currentSearchQuery, debounceMs, handleSearch]);
 
@@ -131,10 +116,9 @@ export const useSearchPagination = (options?: SearchPaginationOptions): SearchPa
     handleSearch,
     currentPage,
     handlePageChange,
-    selectedType: currentSelectedType,
-    handleTypeChange,
-    selectedCategory: currentSelectedCategory,
-    handleCategoryChange,
+    filters: currentFilters,
+    handleFilterChange,
+    handleFiltersChange,
     resetFilters,
   };
-};
+}

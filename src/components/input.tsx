@@ -35,9 +35,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({ className, label, erro
 
   return (
     <div className="w-full">
-      {label && <label className="block text-sm font-medium text-primary-700 mb-0.5 md:mb-1.5">{label}</label>}
+      {label && <label className="block text-xs font-medium text-primary-700 dark:text-primary-800 mb-1 md:text-sm md:mb-1.5">{label}</label>}
       <div className="relative">
-        {icon && <div className="absolute -translate-y-1/2 left-3 top-1/2 text-primary-400">{icon}</div>}
+        {icon && <div className="absolute left-3 top-1/2 -translate-y-1/2 text-primary-400 dark:text-primary-600 pointer-events-none">{icon}</div>}
         {minusNumber && <div className="absolute -translate-y-1/2 left-9 top-1/2 text-primary-400">{minusNumber}</div>}
         <input
           type={type}
@@ -45,11 +45,16 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({ className, label, erro
           onWheel={handleWheel}
           onKeyDown={handleKeyDown}
           className={cn(
-            "w-full px-4 py-2.5 text-sm md:text-base rounded-lg border-2 border-primary-100 bg-white text-primary-900 placeholder:text-primary-300",
-            "focus:border-primary-500 focus:ring-2 focus:ring-primary-200 focus:outline-none",
-            "transition-all duration-200",
-            "disabled:bg-neutral-100 disabled:cursor-not-allowed",
-            error && "border-red-500 focus:border-red-500 focus:ring-red-200",
+            "w-full rounded-lg border-2 transition-all duration-200",
+            "bg-white dark:bg-primary-300",
+            "border-primary-100 dark:border-primary-400",
+            "text-primary-900 dark:text-primary-900",
+            "placeholder:text-primary-300 dark:placeholder:text-primary-600",
+            "focus:border-primary-500 dark:focus:border-secondary-400",
+            "focus:ring-2 focus:ring-primary-200 dark:focus:ring-secondary-400/30 focus:outline-none",
+            "disabled:bg-primary-50 dark:disabled:bg-primary-200 disabled:cursor-not-allowed",
+            "px-4 py-2.5 text-sm md:text-base lg:text-base",
+            error && "border-rose-500 focus:border-rose-500 focus:ring-rose-200",
             icon && "pl-10",
             minusNumber && "pl-11",
             type === "number" && "[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none",
@@ -58,7 +63,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({ className, label, erro
           {...props}
         />
       </div>
-      {error && <p className="mt-0.5 md:mt-1.5 text-sm text-red-500">{error}</p>}
+      {error && <p className="mt-1 text-xs text-rose-500 md:mt-1.5 md:text-sm">{error}</p>}
     </div>
   );
 });

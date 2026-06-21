@@ -1,11 +1,7 @@
 import { NextRequest } from "next/server";
-
 import { prisma, requireAuth, withMaintenanceGuard } from "@/lib";
-
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
-
 import { z } from "zod";
-
 import { updateProfileSchema } from "@/types";
 
 export async function GET(req: NextRequest) {
@@ -21,6 +17,8 @@ export async function GET(req: NextRequest) {
           name: true,
           avatar: true,
           avatarFileId: true,
+          passwordExpiresAt: true,
+          passwordChangedAt: true,
           createdAt: true,
           updatedAt: true,
         },
