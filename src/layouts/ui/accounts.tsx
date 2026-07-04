@@ -47,8 +47,9 @@ const ACCOUNT_TYPE_CONFIG: Record<Account["type"], { label: string; icon: string
   INVESTMENT: { label: "Investment", icon: "📈", color: "#061E29" },
 };
 
-const COLOR_PALETTE = ["#5F9598", "#1D546D", "#061E29", "#9dc0cf", "#4d7e81", "#c6e0e1", "#144a5e", "#8abfc0", "#0c2644", "#74a6bc"];
+const COLOR_PALETTE = ["#1E4E70", "#1E5F7A", "#3F5C8C", "#2B8FA3", "#2C9B9B", "#5B7C9C", "#3A8F8A", "#4A9B7F", "#7BA7BC", "#8FC1C9"];
 const ICON_SUGGESTIONS = ["💵", "🏦", "💳", "📱", "💰", "💸", "🏧", "💎", "🪙", "📈"];
+const INITIAL_FORM: FormData = { name: "", type: "CASH", balance: "", creditLimit: "", color: "#5F9598", icon: "💵", isDefault: false };
 
 const AccountCard: React.FC<AccountCardProps> = ({ account, onEdit, onDelete }) => {
   const { format } = useCurrency();
@@ -289,7 +290,7 @@ export const Accounts: React.FC = () => {
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [selectedAccount, setSelectedAccount] = React.useState<string | null>(null);
 
-  const [formData, setFormData] = React.useState<FormData>({ name: "", type: "CASH", balance: "", creditLimit: "", color: "#5F9598", icon: "💵", isDefault: false });
+  const [formData, setFormData] = React.useState<FormData>(INITIAL_FORM);
 
   const summary = React.useMemo(() => {
     const totalAssets = accounts.filter((a) => a.type !== "CREDIT_CARD").reduce((sum, a) => sum + Number(a.balance), 0);
@@ -306,7 +307,7 @@ export const Accounts: React.FC = () => {
   }, [accounts]);
 
   const resetForm = React.useCallback((): void => {
-    setFormData({ name: "", type: "CASH", balance: "", creditLimit: "", color: "#5F9598", icon: "💵", isDefault: false });
+    setFormData(INITIAL_FORM);
   }, []);
   const openCreateModal = React.useCallback((): void => {
     resetForm();

@@ -35,8 +35,8 @@ interface EmptyStateProps {
   onCreateClick: () => void;
 }
 
-const COLOR_PALETTE = ["#5F9598", "#1D546D", "#061E29", "#9dc0cf", "#4d7e81", "#c6e0e1", "#144a5e", "#8abfc0", "#0c2644", "#74a6bc"];
-const EMOJI_SUGGESTIONS = {
+const COLOR_PALETTE = ["#1E4E70", "#1E5F7A", "#3F5C8C", "#2B8FA3", "#2C9B9B", "#5B7C9C", "#3A8F8A", "#4A9B7F", "#7BA7BC", "#8FC1C9"];
+const ICON_SUGGESTIONS = {
   INCOME: ["💰", "💵", "💸", "💳", "🏆", "📈", "💼", "🎁"],
   EXPENSE: ["🛒", "🍔", "🏠", "🚗", "⚡", "🎮", "👕", "📱", "✈️", "🏥", "📚", "🎬"],
 };
@@ -420,7 +420,7 @@ export const Categories: React.FC = () => {
         onFormChange={handleFormChange}
         isSubmitting={isCreating}
         isEditMode={!!editingCategory}
-        emojiSuggestions={EMOJI_SUGGESTIONS[formData.type]}
+        emojiSuggestions={ICON_SUGGESTIONS[formData.type]}
         colorPalette={COLOR_PALETTE}
       />
 

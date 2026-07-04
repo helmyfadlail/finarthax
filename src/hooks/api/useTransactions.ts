@@ -18,7 +18,6 @@ interface CreateTransactionData {
 export const useTransactions = (filters?: TransactionFilter) => {
   const queryClient = useQueryClient();
 
-  console.log(filters);
   const { data, isLoading, error } = useQuery({
     queryKey: ["transactions", filters],
     queryFn: () =>

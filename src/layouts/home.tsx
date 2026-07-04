@@ -330,7 +330,7 @@ export const Home: React.FC = () => {
                     <Select label="Category *" options={categoryOptions} value={formData.categoryId} onChange={(e) => handleChangeForm("categoryId", e.target.value)} required />
                   )}
 
-                  <Input type="date" label="Date *" value={formData.date} onChange={(e) => handleChangeForm("date", e.target.value)} max={new Date().toISOString().split("T")[0]} required />
+                  <Input type="datetime-local" label="Date *" value={formData.date} onChange={(e) => handleChangeForm("date", e.target.value)} max={new Date().toISOString().split("T")[0]} required />
 
                   <Input
                     type="text"
