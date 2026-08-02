@@ -1,5 +1,19 @@
-import { NextRequest } from "next/server";
-import { applyBalanceChange, applyBudgetChange, prisma, TRANSACTION_INCLUDE, validateAccount, validateCategory, withMaintenanceGuard } from "@/lib";
+import { NextRequest, after } from "next/server";
+import {
+  applyBalanceChange,
+  applyBudgetChange,
+  clientKey,
+  getUserPreferences,
+  notifyBudgetThresholdCrossed,
+  notifyTransactionRecorded,
+  prisma,
+  rateLimit,
+  readBooleanPreference,
+  TRANSACTION_INCLUDE,
+  validateAccount,
+  validateCategory,
+  withMaintenanceGuard,
+} from "@/lib";
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
 import z from "zod";
 import { quickTransactionSchema } from "@/types";
@@ -7,12 +21,18 @@ import { quickTransactionSchema } from "@/types";
 export async function GET(req: NextRequest) {
   return withMaintenanceGuard(req, async () => {
     try {
+      const { allowed, retryAfter } = rateLimit(clientKey(req, "quick-lookup"), 20, 60_000);
+      if (!allowed) return errorResponse(`Too many lookups. Try again in ${retryAfter}s.`, 429);
+
       const { searchParams } = new URL(req.url);
       const email = searchParams.get("email");
 
+      if (!email) return errorResponse("Email is required", 422);
+
       const userData = await prisma.user.findUnique({
-        where: { email: email as string },
+        where: { email },
         select: {
+          id: true,
           email: true,
           name: true,
           categories: {
@@ -31,14 +51,28 @@ export async function GET(req: NextRequest) {
               icon: true,
               type: true,
               isDefault: true,
+              balance: true,
+              creditLimit: true,
             },
+            orderBy: [{ isDefault: "desc" }, { createdAt: "asc" }],
           },
         },
       });
 
       if (!userData) return errorResponse("Email not found. Please enter correct email!", 404);
 
-      return successResponse(userData);
+      const preferences = await getUserPreferences(userData.id);
+      const showsBalances = readBooleanPreference(preferences, "publicQuickBalances");
+
+      return successResponse({
+        email: userData.email,
+        name: userData.name,
+        categories: userData.categories,
+        showsBalances,
+        accounts: userData.accounts.map(({ balance, creditLimit, ...account }) =>
+          showsBalances ? { ...account, balance: Number(balance), creditLimit: creditLimit === null ? null : Number(creditLimit) } : account,
+        ),
+      });
     } catch (error) {
       console.error(error);
       const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
@@ -50,6 +84,9 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   return withMaintenanceGuard(req, async () => {
     try {
+      const { allowed, retryAfter } = rateLimit(clientKey(req, "quick-create"), 30, 60_000);
+      if (!allowed) return errorResponse(`Too many transactions. Try again in ${retryAfter}s.`, 429);
+
       const body = await req.json();
       const validation = quickTransactionSchema.safeParse(body);
 
@@ -110,6 +147,21 @@ export async function POST(req: NextRequest) {
         );
 
         return created;
+      });
+
+      after(async () => {
+        await notifyTransactionRecorded(user.id, {
+          type: quickTransaction.type,
+          amount: Number(quickTransaction.amount),
+          description: quickTransaction.description,
+          date: quickTransaction.date,
+          accountName: quickTransaction.account?.name,
+          categoryName: quickTransaction.category?.name,
+        });
+
+        if (quickTransaction.type === "EXPENSE" && quickTransaction.categoryId) {
+          await notifyBudgetThresholdCrossed(user.id, { categoryId: quickTransaction.categoryId, date: quickTransaction.date, appliedAmount: Number(quickTransaction.amount) });
+        }
       });
 
       return successResponse(quickTransaction, "Quick transaction created successfully");

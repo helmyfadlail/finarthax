@@ -2,6 +2,7 @@ import { NextIntlClientProvider, hasLocale } from "next-intl";
 import { notFound } from "next/navigation";
 import { routing } from "@/i18n/routing";
 import { DashboardLayout } from "@/layouts";
+import { LocaleSync } from "@/providers";
 import { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -17,7 +18,9 @@ export default async function LocaleLayout({ children, params }: { children: Rea
 
   return (
     <NextIntlClientProvider>
-      <DashboardLayout>{children}</DashboardLayout>
+      <LocaleSync>
+        <DashboardLayout>{children}</DashboardLayout>
+      </LocaleSync>
     </NextIntlClientProvider>
   );
 }

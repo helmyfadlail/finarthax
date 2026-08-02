@@ -7,6 +7,7 @@
     "nav": {
       "dashboard": "Dashboard",
       "transactions": "Transactions",
+      "recurring": "Recurring",
       "accounts": "Accounts",
       "categories": "Categories",
       "budgets": "Budgets",
@@ -95,6 +96,12 @@
         "title": "Reports",
         "subtitle": "View insights"
       }
+    },
+    "recurring": {
+      "dueTitle": "{count} recurring transactions are due",
+      "detectedTitle": "{count} recurring patterns found in your history",
+      "noDescription": "No description",
+      "action": "Review"
     }
   },
   "transactionsPage": {
@@ -151,7 +158,11 @@
       "descriptionPlaceholder": "e.g., Lunch at restaurant, Salary payment",
       "preview": "Preview",
       "cancel": "Cancel",
-      "create": "Create Transaction"
+      "create": "Create Transaction",
+      "recurring": "Repeat this transaction",
+      "recurringHint": "Finarthax will remind you when the next one is due — nothing is created automatically.",
+      "recurrenceInterval": "Repeats",
+      "recurrenceEndDate": "Repeat until (optional)"
     },
     "deleteModal": {
       "title": "Delete Transaction",
@@ -182,6 +193,144 @@
     "error": {
       "create": "Failed to create transaction",
       "delete": "Failed to delete transaction"
+    },
+    "interval": {
+      "DAILY": "Daily",
+      "WEEKLY": "Weekly",
+      "BIWEEKLY": "Every 2 weeks",
+      "MONTHLY": "Monthly",
+      "YEARLY": "Yearly"
+    }
+  },
+  "recurringPage": {
+    "title": "Recurring",
+    "subtitle": "Suggestions for the transactions that come back every day, week or month",
+    "noDescription": "No description",
+    "detectedSummary": "Logged {count} times, {interval}, around {amount} each time",
+    "summary": {
+      "due": "Due now",
+      "dueHint": "Waiting for you to confirm",
+      "upcoming": "Upcoming",
+      "upcomingHint": "In the next {days} days",
+      "detected": "Suggestions",
+      "detectedHint": "Found in your history",
+      "committed": "Committed",
+      "committedHint": "Recurring expenses per month"
+    },
+    "interval": {
+      "DAILY": "Daily",
+      "WEEKLY": "Weekly",
+      "BIWEEKLY": "Every 2 weeks",
+      "MONTHLY": "Monthly",
+      "YEARLY": "Yearly"
+    },
+    "status": {
+      "OVERDUE": "Overdue",
+      "DUE_TODAY": "Due today",
+      "UPCOMING": "Upcoming"
+    },
+    "relative": {
+      "overdue": "{days} days overdue",
+      "today": "Due today",
+      "inDays": "In {days} days"
+    },
+    "meta": {
+      "next": "Next",
+      "last": "Last",
+      "occurrences": "Logged {count} times",
+      "confidence": "{value}% match",
+      "perMonth": "≈ {amount}/month",
+      "endsOn": "Ends {date}"
+    },
+    "sections": {
+      "due": {
+        "title": "Due now",
+        "description": "Confirm the ones that already happened, or skip them"
+      },
+      "upcoming": {
+        "title": "Coming up",
+        "description": "Scheduled in the next {days} days"
+      },
+      "detected": {
+        "title": "Suggested from your history",
+        "description": "Transactions that repeat on a regular rhythm but are not tracked yet"
+      },
+      "dismissed": {
+        "title": "Dismissed",
+        "description": "Patterns you told Finarthax to ignore",
+        "show": "Show",
+        "hide": "Hide"
+      }
+    },
+    "actions": {
+      "log": "Log now",
+      "skip": "Skip",
+      "stop": "Stop",
+      "track": "Track",
+      "dismiss": "Dismiss",
+      "restore": "Restore"
+    },
+    "empty": {
+      "all": {
+        "title": "Nothing recurring yet",
+        "description": "Record a few transactions and Finarthax will start suggesting the ones that repeat. You can also tick “Repeat this transaction” when adding one."
+      },
+      "due": {
+        "title": "All caught up",
+        "description": "No recurring transaction is waiting for confirmation right now."
+      },
+      "upcoming": {
+        "title": "Nothing scheduled",
+        "description": "No tracked series falls within the next two weeks."
+      },
+      "detected": {
+        "title": "No new patterns",
+        "description": "Finarthax found no untracked transaction repeating often enough to suggest."
+      }
+    },
+    "trackModal": {
+      "title": "Track as recurring",
+      "hint": "“{name}” will be scheduled and suggested to you every period.",
+      "interval": "Repeats",
+      "endDate": "Repeat until (optional)",
+      "endDateHint": "Leave empty to keep the series running until you stop it.",
+      "cancel": "Cancel",
+      "submit": "Start tracking"
+    },
+    "logModal": {
+      "title": "Log this occurrence",
+      "hint": "A new transaction for “{name}” will be created and your balance updated.",
+      "date": "Date",
+      "amount": "Amount",
+      "cancel": "Cancel",
+      "submit": "Log transaction"
+    },
+    "stopModal": {
+      "title": "Stop tracking",
+      "confirm": "Stop suggesting this series?",
+      "warning": "Past transactions stay untouched — only the schedule and its suggestions are removed.",
+      "cancel": "Cancel",
+      "submit": "Stop tracking"
+    },
+    "validation": {
+      "amount": "Please enter a valid amount greater than 0",
+      "date": "Please pick a date"
+    },
+    "success": {
+      "logged": "Recurring transaction logged 🎉",
+      "skipped": "Occurrence skipped",
+      "tracked": "Series is now tracked 🔁",
+      "stopped": "Tracking stopped",
+      "dismissed": "Suggestion dismissed",
+      "restored": "Suggestion restored"
+    },
+    "error": {
+      "log": "Failed to log the transaction",
+      "skip": "Failed to skip the occurrence",
+      "track": "Failed to track the series",
+      "stop": "Failed to stop tracking",
+      "dismiss": "Failed to dismiss the suggestion",
+      "restore": "Failed to restore the suggestion"
     }
   },
   "accountsPage": {
@@ -727,7 +876,8 @@
       "theme": "Theme",
       "themeDescription": "Select your preferred color theme",
       "currency": "Currency",
-      "currencyDescription": "Set your default currency"
+      "currencyDescription": "Set your default currency",
+      "requires": "Requires {setting} to be on"
     },
     "notificationTypes": {
       "emailNotifications": "Email Notifications",
@@ -802,11 +952,145 @@
     "errors": {
       "updateFailed": "Failed to update setting",
       "deleteFailed": "Failed to delete account"
+    },
+    "categories": {
+      "notifications": "Notifications",
+      "appearance": "Appearance",
+      "privacy": "Privacy",
+      "general": "General",
+      "security": "Security",
+      "billing": "Billing"
+    },
+    "categoryDescriptions": {
+      "notifications": "Choose what Finarthax tells you about, and when",
+      "appearance": "How the app looks and reads",
+      "privacy": "Control what is visible on screen",
+      "general": "Defaults that shape everyday screens"
+    },
+    "settings": {
+      "emailNotifications": {
+        "title": "Email notifications",
+        "description": "Master switch for every email Finarthax sends you"
+      },
+      "weeklyReports": {
+        "title": "Weekly summary",
+        "description": "Receive a weekly financial summary by email"
+      },
+      "transactionAlerts": {
+        "title": "Transaction confirmations",
+        "description": "Confirm on screen whenever a transaction is recorded"
+      },
+      "budgetAlerts": {
+        "title": "Budget warnings",
+        "description": "Highlight budgets that are approaching their limit"
+      },
+      "budgetAlertThreshold": {
+        "title": "Warning threshold",
+        "description": "How much of a budget must be used before it is flagged"
+      },
+      "recurringReminders": {
+        "title": "Recurring reminders",
+        "description": "Surface recurring transactions that are due"
+      },
+      "language": {
+        "title": "Language",
+        "description": "Interface language"
+      },
+      "currency": {
+        "title": "Currency",
+        "description": "Currency every amount is displayed in"
+      },
+      "theme": {
+        "title": "Theme",
+        "description": "Interface theme"
+      },
+      "dateFormat": {
+        "title": "Date format",
+        "description": "How dates are written across the app"
+      },
+      "hideAmounts": {
+        "title": "Hide amounts",
+        "description": "Mask every amount until you turn this off"
+      },
+      "itemsPerPage": {
+        "title": "Rows per page",
+        "description": "How many rows lists show at a time"
+      },
+      "defaultTransactionType": {
+        "title": "Default transaction type",
+        "description": "Type preselected when adding a transaction"
+      },
+      "recurringLookaheadDays": {
+        "title": "Recurring lookahead",
+        "description": "How far ahead upcoming recurring transactions are shown"
+      },
+      "publicQuickBalances": {
+        "title": "Public balances",
+        "description": "Show your account balances on the quick-entry page after entering your email"
+      }
     }
   },
   "notFoundPage": {
     "title": "Page Not Found",
     "description": "The page you're looking for doesn't exist or has been moved.",
     "homeButton": "Go to Dashboard"
+  },
+  "emails": {
+    "greeting": "Hi {name},",
+    "manage": "Manage notifications",
+    "why": {
+      "transaction": "You are receiving this because transaction confirmations are switched on.",
+      "budget": "You are receiving this because budget warnings are switched on.",
+      "recurring": "You are receiving this because recurring reminders are switched on.",
+      "weekly": "You are receiving this because the weekly summary is switched on."
+    },
+    "types": {
+      "INCOME": "income",
+      "EXPENSE": "expense",
+      "TRANSFER": "transfer"
+    },
+    "labels": {
+      "type": "Type",
+      "amount": "Amount",
+      "account": "Account",
+      "category": "Category",
+      "date": "Date",
+      "spent": "Spent",
+      "limit": "Limit",
+      "used": "Used",
+      "income": "Income",
+      "expense": "Expenses",
+      "balance": "Net balance",
+      "savingsRate": "Savings rate",
+      "transactions": "Transactions",
+      "topCategory": "Top category"
+    },
+    "transaction": {
+      "subject": "New {type} recorded",
+      "heading": "Transaction recorded",
+      "intro": "A new transaction has just been added to your account.",
+      "introNamed": "“{description}” has just been added to your account.",
+      "cta": "View transactions"
+    },
+    "budget": {
+      "subject": "{category} budget is at {percentage}%",
+      "heading": "Budget warning",
+      "intro": "Your {category} budget has reached {percentage}% of its limit for this month.",
+      "cta": "Review budgets"
+    },
+    "recurring": {
+      "subject": "{count} recurring transactions are due",
+      "heading": "Recurring transactions due",
+      "intro": "{count} of your recurring transactions are waiting to be confirmed.",
+      "item": "{description} — {amount}, due {date}",
+      "untitled": "Untitled",
+      "cta": "Review recurring"
+    },
+    "weekly": {
+      "subject": "Your week in review",
+      "heading": "Weekly summary",
+      "intro": "Here is how your money moved between {from} and {to}.",
+      "cta": "Open dashboard"
+    }
   }
 }

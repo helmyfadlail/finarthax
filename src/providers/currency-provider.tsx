@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useSettings } from "@/hooks";
-import { BASE_CURRENCY, BASE_CURRENCY_SYMBOL, CURRENCY_LOCALE_MAP, ZERO_DECIMAL_CURRENCIES } from "@/static";
+import { apiClient } from "@/utils";
+import { BASE_CURRENCY, BASE_CURRENCY_SYMBOL, CURRENCY_LOCALE_MAP, EXCHANGE_RATE_URL, ZERO_DECIMAL_CURRENCIES } from "@/static";
 
 interface CurrencyOption {
   value: string;
@@ -10,14 +12,22 @@ interface CurrencyOption {
   symbol: string;
 }
 
+interface ExchangeRateResponse {
+  rates: Record<string, number>;
+}
+
 interface CurrencyContextType {
   currency: string;
   symbol: string;
   rates: Record<string, number> | null;
   isLoading: boolean;
-  format: (amount: number | string, fromCurrency?: string) => string;
+  format: (amount: number | string, fromCurrency?: string, options?: { reveal?: boolean }) => string;
   convert: (amount: number, from: string, to: string) => number;
+  isHidden: boolean;
+  canChangeCurrency: boolean;
 }
+
+const MASK = "••••••";
 
 const resolveLocaleMap = (dbValue: unknown): Record<string, string> => {
   if (dbValue && typeof dbValue === "object" && !Array.isArray(dbValue)) return dbValue as Record<string, string>;
@@ -62,11 +72,30 @@ const formatAmount = (converted: number, symbol: string, locale: string, isZeroD
 const CurrencyContext = React.createContext<CurrencyContextType | undefined>(undefined);
 
 export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { getUserSetting, getAppSetting, isLoadingUserSettings, isLoadingAppSettings, exchangeRates, isLoadingRates } = useSettings();
+  const { isAuthenticated, getUserSetting, getAppSetting, isLoadingUserSettings, isLoadingAppSettings } = useSettings();
 
   const currency = React.useMemo<string>(() => {
+    if (!isAuthenticated) return BASE_CURRENCY;
     return getUserSetting("currency")?.value ?? BASE_CURRENCY;
-  }, [getUserSetting]);
+  }, [isAuthenticated, getUserSetting]);
+
+  const needsConversion = currency !== BASE_CURRENCY;
+
+  const { data: exchangeRates = null, isLoading: isLoadingRates } = useQuery({
+    queryKey: ["exchange-rates", BASE_CURRENCY],
+    queryFn: async () => {
+      const data = await apiClient.getExternal<ExchangeRateResponse>(`${EXCHANGE_RATE_URL}/${BASE_CURRENCY}`);
+
+      if (!data.rates || typeof data.rates !== "object") throw new Error("Invalid response format: missing rates data");
+
+      return data.rates;
+    },
+    enabled: needsConversion,
+    staleTime: 1000 * 60 * 60,
+    gcTime: 1000 * 60 * 60 * 24,
+    retry: 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+  });
 
   const currencyOptions = React.useMemo<CurrencyOption[]>(() => {
     return resolveCurrencyOptions(getAppSetting("currency_options")?.value);
@@ -100,15 +129,19 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     [exchangeRates],
   );
 
+  const isHidden = React.useMemo<boolean>(() => isAuthenticated && getUserSetting("hideAmounts")?.value === "true", [isAuthenticated, getUserSetting]);
+
   const format = React.useCallback(
-    (amount: number | string, fromCurrency = BASE_CURRENCY): string => {
+    (amount: number | string, fromCurrency = BASE_CURRENCY, options?: { reveal?: boolean }): string => {
+      if (isHidden && !options?.reveal) return `${symbol} ${MASK}`;
+
       const num = typeof amount === "string" ? parseFloat(amount) : amount;
       if (Number.isNaN(num)) return `${symbol} 0`;
 
       const converted = convert(num, fromCurrency, currency);
       return formatAmount(converted, symbol, locale, isZeroDecimal);
     },
-    [currency, symbol, convert, locale, isZeroDecimal],
+    [currency, symbol, convert, locale, isZeroDecimal, isHidden],
   );
 
   const value = React.useMemo<CurrencyContextType>(
@@ -119,8 +152,10 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       isLoading: isLoadingUserSettings || isLoadingAppSettings || isLoadingRates,
       format,
       convert,
+      isHidden,
+      canChangeCurrency: isAuthenticated,
     }),
-    [currency, symbol, exchangeRates, isLoadingUserSettings, isLoadingAppSettings, isLoadingRates, format, convert],
+    [currency, symbol, exchangeRates, isLoadingUserSettings, isLoadingAppSettings, isLoadingRates, format, convert, isHidden, isAuthenticated],
   );
 
   return <CurrencyContext.Provider value={value}>{children}</CurrencyContext.Provider>;

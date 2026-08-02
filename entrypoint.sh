@@ -1,6 +1,23 @@
 #!/bin/sh
 set -e
 
+# The migration below runs psql directly, so DATABASE_URL has to be readable here —
+# long before next.config.ts gets a chance to decrypt anything. Open sealed values
+# first when the environment was configured from an encrypted .env.
+case "$DATABASE_URL" in
+  enc:v1:*)
+    echo "🔐 Encrypted environment detected, decrypting..."
+    if [ -x node_modules/.bin/tsx ]; then
+      eval "$(node_modules/.bin/tsx scripts/env-export.ts)"
+      echo "✅ Environment decrypted"
+    else
+      echo "✖ Environment is encrypted but tsx is unavailable in this image." >&2
+      echo "  Pass plain values from your orchestrator's secret store instead." >&2
+      exit 1
+    fi
+    ;;
+esac
+
 echo "⏳ Waiting for PostgreSQL..."
 
 until pg_isready \

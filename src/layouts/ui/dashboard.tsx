@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Tooltip as ReTooltip, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { apiClient } from "@/utils";
+import { usePreferences, useRecurring } from "@/hooks";
 import { useCurrency } from "@/providers";
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button, Skeleton } from "@/components";
 import type { ApiResponse, DashboardCharts, DashboardSummary, Transaction, TransactionType } from "@/types";
@@ -23,6 +24,7 @@ interface TransactionItemProps {
 }
 interface BudgetProgressProps {
   budget: { category: string; spent: number; budget: number; percentage: number; icon?: string };
+  alertThreshold: number;
 }
 
 const TX_CONFIG: Record<TransactionType, { color: string; iconBg: string; icon: string; badge: "success" | "error" | "info"; prefix: string }> = {
@@ -126,14 +128,14 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
   );
 };
 
-const BudgetProgress: React.FC<BudgetProgressProps> = ({ budget }) => {
+const BudgetProgress: React.FC<BudgetProgressProps> = ({ budget, alertThreshold }) => {
   const t = useTranslations("dashboardPage");
   const { format } = useCurrency();
   const status = useMemo(() => {
     if (budget.percentage >= 100) return { bar: "from-rose-400 to-rose-600", text: "text-rose-600 dark:text-rose-400", label: t("budgetStatus.overBudget") };
-    if (budget.percentage >= 80) return { bar: "from-amber-400 to-amber-500", text: "text-amber-600 dark:text-amber-400", label: t("budgetStatus.nearLimit") };
+    if (budget.percentage >= alertThreshold) return { bar: "from-amber-400 to-amber-500", text: "text-amber-600 dark:text-amber-400", label: t("budgetStatus.nearLimit") };
     return { bar: "from-secondary-400 to-secondary-500", text: "text-secondary-400 dark:text-secondary-400", label: t("budgetStatus.onTrack") };
-  }, [budget.percentage, t]);
+  }, [budget.percentage, alertThreshold, t]);
 
   return (
     <div className="p-2.5 sm:p-4 rounded-xl border transition-colors bg-primary-50 hover:bg-primary-100 border-transparent hover:border-primary-200 dark:bg-primary-200 dark:hover:bg-primary-300 dark:hover:border-primary-400">
@@ -222,6 +224,12 @@ export const Dashboard: React.FC = () => {
 
   const { data: summary, isLoading: summaryLoading } = useQuery<ApiResponse<DashboardSummary>>({ queryKey: ["dashboard", "summary"], queryFn: () => apiClient.get("/dashboard/summary") });
   const { data: charts, isLoading: chartsLoading } = useQuery<ApiResponse<DashboardCharts>>({ queryKey: ["dashboard", "charts"], queryFn: () => apiClient.get("/dashboard/charts") });
+  const { preferences } = usePreferences();
+  const { due, detected } = useRecurring({ lookaheadDays: preferences.recurringLookaheadDays });
+
+  const recurringDue = preferences.recurringReminders ? due : [];
+  const recurringDetected = preferences.recurringReminders ? detected : [];
+
   const isLoading = summaryLoading || chartsLoading;
 
   const currentMonth = summary?.data?.currentMonth;
@@ -304,6 +312,38 @@ export const Dashboard: React.FC = () => {
         <SummaryCard title={t("transfer")} amount={currentMonth?.transfer ?? 0} change={changes?.transfer ?? 0} icon="🔄" type="transfer" count={counts?.transfer} />
         <SummaryCard title={t("netBalance")} amount={currentMonth?.balance ?? 0} change={changes?.balance ?? 0} icon="📊" type="balance" count={counts?.total} />
       </div>
+
+      {(recurringDue.length > 0 || recurringDetected.length > 0) && (
+        <Card
+          className={
+            recurringDue.length > 0
+              ? "border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20"
+              : "border border-secondary-100 dark:border-secondary-800/30 bg-secondary-50 dark:bg-secondary-900/10"
+          }
+        >
+          <CardContent className="pt-3 pb-3 sm:pt-4 sm:pb-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
+              <div className="flex items-start min-w-0 gap-2 sm:gap-3">
+                <span className="text-xl sm:text-2xl shrink-0">{recurringDue.length > 0 ? "🔔" : "🔍"}</span>
+                <div className="min-w-0">
+                  <p className={`text-sm font-semibold ${recurringDue.length > 0 ? "text-amber-900 dark:text-amber-300" : "text-secondary-700 dark:text-secondary-400"}`}>
+                    {recurringDue.length > 0 ? t("recurring.dueTitle", { count: recurringDue.length }) : t("recurring.detectedTitle", { count: recurringDetected.length })}
+                  </p>
+                  <p className={`text-xs truncate ${recurringDue.length > 0 ? "text-amber-700 dark:text-amber-400" : "text-secondary-600 dark:text-secondary-500"}`}>
+                    {(recurringDue.length > 0 ? recurringDue : recurringDetected)
+                      .slice(0, 3)
+                      .map((item) => item.description || t("recurring.noDescription"))
+                      .join(" • ")}
+                  </p>
+                </div>
+              </div>
+              <Button variant="primary" size="sm" className="shrink-0" onClick={() => router.push("/admin/dashboard/recurring")}>
+                {t("recurring.action")} →
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {totalDebt > 0 && (
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3">
@@ -515,7 +555,7 @@ export const Dashboard: React.FC = () => {
             ) : (
               <div className="pr-1 space-y-1.5 sm:space-y-2 overflow-y-auto max-h-64 sm:max-h-80 lg:max-h-96">
                 {budgetProgress.map((budget, index) => (
-                  <BudgetProgress key={index} budget={budget} />
+                  <BudgetProgress key={index} budget={budget} alertThreshold={preferences.budgetAlertThreshold} />
                 ))}
               </div>
             )}

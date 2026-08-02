@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useTranslations } from "next-intl";
-import { useBudgets, useCategories, useSearchPagination } from "@/hooks";
+import { useBudgets, useCategories, usePreferences, useSearchPagination } from "@/hooks";
 import { useCurrency } from "@/providers";
 import { Card, CardContent, Button, Input, Select, Modal, useToast } from "@/components";
 import type { Budget, SelectOption } from "@/types";
@@ -20,6 +20,7 @@ interface FormData {
 }
 interface BudgetItemProps {
   budget: Budget;
+  alertThreshold: number;
   onEdit: (budgetId: string, newAmount: string) => void;
   onDelete: (budgetId: string) => void;
   isDeleting: boolean;
@@ -28,7 +29,7 @@ interface EmptyStateProps {
   onCreateClick: () => void;
 }
 
-const BudgetItem: React.FC<BudgetItemProps> = ({ budget, onEdit, onDelete, isDeleting }) => {
+const BudgetItem: React.FC<BudgetItemProps> = ({ budget, alertThreshold, onEdit, onDelete, isDeleting }) => {
   const t = useTranslations("budgetsPage");
   const { format } = useCurrency();
 
@@ -42,9 +43,9 @@ const BudgetItem: React.FC<BudgetItemProps> = ({ budget, onEdit, onDelete, isDel
 
   const status: BudgetStatus = React.useMemo(() => {
     if (percentage >= 100) return { type: "over", color: "text-rose-600 dark:text-rose-400", barColor: "bg-rose-500", label: t("status.overBudget") };
-    if (percentage >= 80) return { type: "warning", color: "text-amber-600 dark:text-amber-400", barColor: "bg-amber-500", label: t("status.approachingLimit") };
+    if (percentage >= alertThreshold) return { type: "warning", color: "text-amber-600 dark:text-amber-400", barColor: "bg-amber-500", label: t("status.approachingLimit") };
     return { type: "safe", color: "text-secondary-400 dark:text-secondary-400", barColor: "bg-secondary-400", label: t("status.onTrack") };
-  }, [percentage, t]);
+  }, [percentage, alertThreshold, t]);
 
   const handleSaveEdit = React.useCallback(() => {
     onEdit(budget.id, editAmount);
@@ -186,12 +187,13 @@ export const Budgets: React.FC = () => {
 
   const { categories } = useCategories("EXPENSE");
   const { addToast } = useToast();
+  const { preferences } = usePreferences();
 
   const { budgets, pagination, createBudget, isCreating, updateBudget, deleteBudget, isDeleting } = useBudgets({
     month: selectedMonth,
     year: selectedYear,
     page: currentPage,
-    limit: 10,
+    limit: preferences.itemsPerPage,
     categoryId: selectedCategory,
   });
 
@@ -331,7 +333,7 @@ export const Budgets: React.FC = () => {
         ) : (
           <>
             {budgets.map((budget) => (
-              <BudgetItem key={budget.id} budget={budget} onEdit={handleUpdate} onDelete={handleDeleteClick} isDeleting={isDeleting} />
+              <BudgetItem key={budget.id} budget={budget} alertThreshold={preferences.budgetAlertThreshold} onEdit={handleUpdate} onDelete={handleDeleteClick} isDeleting={isDeleting} />
             ))}
 
             {pagination && pagination.totalPages > 1 && (

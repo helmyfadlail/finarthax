@@ -9,7 +9,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -17,16 +17,61 @@ services:
 
   app:
     image: helmyyy/finarthax:latest
+    # Swap the image for a local build with:  docker compose build app
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: finarthax-app
     env_file:
       - .env
     environment:
       NODE_ENV: production
+      # Set this when .env holds sealed values (npm run encrypt). Passing it here
+      # rather than in .env keeps the key out of the file it unlocks.
+      ENV_ENCRYPTION_KEY: ${ENV_ENCRYPTION_KEY:-}
     ports:
       - "3000:3000"
     depends_on:
       postgres:
         condition: service_healthy
+    # busybox wget, so this works against the published image too — no curl needed
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      start_period: 40s
+      retries: 3
+    restart: unless-stopped
+
+  # Delivers the weekly summary and the recurring-due reminders. Both still obey
+  # each account's notification preferences — this only decides *when* the app is
+  # asked to send. Off by default; start it with:
+  #
+  #   docker compose --profile scheduler up -d
+  #
+  # It needs CRON_SECRET set in .env, otherwise the endpoint stays disabled.
+  digest:
+    image: alpine:3.20
+    container_name: finarthax-digest
+    profiles: ["scheduler"]
+    env_file:
+      - .env
+    depends_on:
+      app:
+        condition: service_healthy
+    # busybox crond + wget only — nothing is installed at start, so it works offline.
+    # Times follow the container clock (UTC) unless you set TZ and add tzdata.
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        printf '%s\n' \
+          '0 7 * * *   wget -q -O- --post-data "" --header="Authorization: Bearer $$CRON_SECRET" "http://app:3000/api/notifications/digest?kind=recurring" >> /var/log/digest.log 2>&1' \
+          '0 8 * * 1   wget -q -O- --post-data "" --header="Authorization: Bearer $$CRON_SECRET" "http://app:3000/api/notifications/digest?kind=weekly"    >> /var/log/digest.log 2>&1' \
+          > /etc/crontabs/root
+        touch /var/log/digest.log
+        crond -f -l 8 &
+        tail -f /var/log/digest.log
     restart: unless-stopped
 
 volumes:

@@ -1,4 +1,4 @@
-import { calculatePasswordExpiresAt, getMaxPasswordAgeDays, prisma } from "@/lib";
+import { addRecurrence, calculatePasswordExpiresAt, getMaxPasswordAgeDays, prisma } from "@/lib";
 import bcrypt from "bcryptjs";
 import { APP_SETTINGS } from "@/static";
 
@@ -9,7 +9,6 @@ async function main() {
   // 1. CLEAN EXISTING DATA
   // ============================================
   console.log("🧹 Cleaning existing data...");
-  await prisma.recurringTransaction.deleteMany({});
   await prisma.budget.deleteMany({});
   await prisma.transaction.deleteMany({});
   await prisma.goal.deleteMany({});
@@ -558,6 +557,44 @@ async function main() {
   console.log();
 
   // ============================================
+  // 6b. TRACK A FEW RECURRING SERIES
+  //
+  //    Every transaction of a series shares a recurrenceKey; the most recent one
+  //    carries `nextOccurrence`, which is what the Recurring page schedules from.
+  //    The remaining repeats (gym, subscriptions, ...) are left untracked on
+  //    purpose so the pattern detector has something to suggest.
+  // ============================================
+  console.log("🔁 Tracking recurring series...");
+
+  const recurringSeries = [
+    { description: "Monthly Salary", interval: "MONTHLY" as const },
+    { description: "Monthly Savings Transfer", interval: "MONTHLY" as const },
+    { description: "Investment Top-Up", interval: "MONTHLY" as const },
+  ];
+
+  for (const series of recurringSeries) {
+    const rows = await prisma.transaction.findMany({
+      where: { userId: demoUser.id, description: series.description },
+      orderBy: { date: "asc" },
+      select: { id: true, date: true },
+    });
+
+    if (rows.length === 0) continue;
+
+    const anchor = rows[rows.length - 1];
+
+    await prisma.transaction.updateMany({
+      where: { id: { in: rows.map((row) => row.id) } },
+      data: { isRecurring: true, recurrenceInterval: series.interval, recurrenceKey: `seed-${series.description.toLowerCase().replace(/\s+/g, "-")}` },
+    });
+
+    await prisma.transaction.update({ where: { id: anchor.id }, data: { nextOccurrence: addRecurrence(anchor.date, series.interval) } });
+
+    console.log(`   🔁 ${series.description.padEnd(26)} ${rows.length} occurrences, next ${addRecurrence(anchor.date, series.interval).toISOString().split("T")[0]}`);
+  }
+  console.log();
+
+  // ============================================
   // 7. CREATE BUDGETS (current month, real spent)
   // ============================================
   console.log("📊 Creating budgets...");
@@ -668,116 +705,7 @@ async function main() {
   console.log("✅ Created 5 financial goals\n");
 
   // ============================================
-  // 9. CREATE RECURRING TRANSACTIONS
-  // ============================================
-  console.log("🔄 Creating recurring transactions...");
-
-  await Promise.all([
-    prisma.recurringTransaction.create({
-      data: {
-        userId: demoUser.id,
-        accountId: bankAccount.id,
-        categoryId: categoryIds["Salary"],
-        amount: 12_500_000,
-        type: "INCOME",
-        description: "Monthly Salary",
-        frequency: "MONTHLY",
-        startDate: new Date(currentYear, 0, 25),
-        nextOccurrence: new Date(currentYear, currentMonth + 1, 25),
-        isActive: true,
-      },
-    }),
-    prisma.recurringTransaction.create({
-      data: {
-        userId: demoUser.id,
-        accountId: bankAccount.id,
-        categoryId: categoryIds["Bills & Utilities"],
-        amount: 400_000,
-        type: "EXPENSE",
-        description: "Electricity Bill",
-        frequency: "MONTHLY",
-        startDate: new Date(currentYear, 0, 5),
-        nextOccurrence: new Date(currentYear, currentMonth + 1, 5),
-        isActive: true,
-      },
-    }),
-    prisma.recurringTransaction.create({
-      data: {
-        userId: demoUser.id,
-        accountId: bankAccount.id,
-        categoryId: categoryIds["Bills & Utilities"],
-        amount: 450_000,
-        type: "EXPENSE",
-        description: "Internet Bill",
-        frequency: "MONTHLY",
-        startDate: new Date(currentYear, 0, 10),
-        nextOccurrence: new Date(currentYear, currentMonth + 1, 10),
-        isActive: true,
-      },
-    }),
-    prisma.recurringTransaction.create({
-      data: {
-        userId: demoUser.id,
-        accountId: bankAccount.id,
-        categoryId: categoryIds["Sports & Fitness"],
-        amount: 750_000,
-        type: "EXPENSE",
-        description: "Gym Membership",
-        frequency: "MONTHLY",
-        startDate: new Date(currentYear, 0, 1),
-        nextOccurrence: new Date(currentYear, currentMonth + 1, 1),
-        isActive: true,
-      },
-    }),
-    prisma.recurringTransaction.create({
-      data: {
-        userId: demoUser.id,
-        accountId: bankAccount.id,
-        categoryId: categoryIds["Bills & Utilities"],
-        amount: 165_000,
-        type: "EXPENSE",
-        description: "Netflix + Spotify",
-        frequency: "MONTHLY",
-        startDate: new Date(currentYear, 0, 15),
-        nextOccurrence: new Date(currentYear, currentMonth + 1, 15),
-        isActive: true,
-      },
-    }),
-    prisma.recurringTransaction.create({
-      data: {
-        userId: demoUser.id,
-        accountId: ewalletAccount.id,
-        categoryId: categoryIds["Food & Drinks"],
-        amount: 500_000,
-        type: "EXPENSE",
-        description: "Weekly Groceries",
-        frequency: "WEEKLY",
-        startDate: new Date(currentYear, 0, 1),
-        nextOccurrence: new Date(currentYear, currentMonth + 1, 7),
-        isActive: true,
-      },
-    }),
-    // Monthly savings transfer (recurring)
-    prisma.recurringTransaction.create({
-      data: {
-        userId: demoUser.id,
-        accountId: bankAccount.id,
-        categoryId: categoryIds["Salary"], // closest category proxy
-        amount: 3_000_000,
-        type: "INCOME", // RecurringTransaction requires a category; we reuse Salary as a placeholder
-        description: "Monthly Savings Transfer",
-        frequency: "MONTHLY",
-        startDate: new Date(currentYear, 0, 26),
-        nextOccurrence: new Date(currentYear, currentMonth + 1, 26),
-        isActive: true,
-      },
-    }),
-  ]);
-
-  console.log("✅ Created 7 recurring transactions\n");
-
-  // ============================================
-  // 10. APP SETTINGS
+  // 9. APP SETTINGS
   // ============================================
   console.log("🔄 Creating app settings data...");
 
@@ -814,7 +742,6 @@ async function main() {
   console.log(`   • ${txCreated} transactions (income + expense + transfer)`);
   console.log(`   • ${budgetDefs.length} budgets`);
   console.log(`   • 5 goals`);
-  console.log(`   • 7 recurring transactions\n`);
 
   console.log("🔐 Credentials:");
   console.log("   Email:    demo@finance.com");

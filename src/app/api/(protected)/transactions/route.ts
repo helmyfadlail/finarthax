@@ -1,5 +1,20 @@
-import { NextRequest } from "next/server";
-import { applyBalanceChange, applyBudgetChange, prisma, requireAuth, TRANSACTION_INCLUDE, validateAccount, validateCategory, validateCreditCardRules, withMaintenanceGuard } from "@/lib";
+import { NextRequest, after } from "next/server";
+import { createId } from "@paralleldrive/cuid2";
+import {
+  addRecurrence,
+  applyBalanceChange,
+  applyBudgetChange,
+  diffInDays,
+  notifyBudgetThresholdCrossed,
+  notifyTransactionRecorded,
+  prisma,
+  requireAuth,
+  TRANSACTION_INCLUDE,
+  validateAccount,
+  validateCategory,
+  validateCreditCardRules,
+  withMaintenanceGuard,
+} from "@/lib";
 import { Prisma } from "prisma-client/client";
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
 import z from "zod";
@@ -98,6 +113,13 @@ export async function POST(req: NextRequest) {
       const { error: categoryError } = await validateCategory(user.id, "categoryId" in data ? data.categoryId : undefined);
       if (categoryError) return errorResponse(categoryError, 404);
 
+      const transactionDate = new Date(data.date);
+      const isRecurring = data.isRecurring === true && !!data.recurrenceInterval;
+      const recurrenceInterval = isRecurring ? data.recurrenceInterval : null;
+      const recurrenceEndDate = isRecurring && data.recurrenceEndDate ? new Date(data.recurrenceEndDate) : null;
+      const nextOccurrence = recurrenceInterval ? addRecurrence(transactionDate, recurrenceInterval) : null;
+      const isFinished = recurrenceEndDate !== null && nextOccurrence !== null && diffInDays(recurrenceEndDate, nextOccurrence) > 0;
+
       const transaction = await prisma.$transaction(async (tx) => {
         const created = await tx.transaction.create({
           data: {
@@ -108,8 +130,13 @@ export async function POST(req: NextRequest) {
             amount: data.amount,
             type: data.type,
             description: data.description,
-            date: new Date(data.date),
+            date: transactionDate,
             attachment: data.attachment,
+            isRecurring,
+            recurrenceInterval,
+            recurrenceKey: isRecurring ? createId() : null,
+            recurrenceEndDate,
+            nextOccurrence: isFinished ? null : nextOccurrence,
           },
           include: TRANSACTION_INCLUDE,
         });
@@ -138,6 +165,21 @@ export async function POST(req: NextRequest) {
         );
 
         return created;
+      });
+
+      after(async () => {
+        await notifyTransactionRecorded(user.id, {
+          type: transaction.type,
+          amount: Number(transaction.amount),
+          description: transaction.description,
+          date: transaction.date,
+          accountName: transaction.account?.name,
+          categoryName: transaction.category?.name,
+        });
+
+        if (transaction.type === "EXPENSE" && transaction.categoryId) {
+          await notifyBudgetThresholdCrossed(user.id, { categoryId: transaction.categoryId, date: transaction.date, appliedAmount: Number(transaction.amount) });
+        }
       });
 
       return successResponse(transaction, "Transaction created successfully");

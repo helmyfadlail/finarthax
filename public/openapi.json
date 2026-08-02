@@ -1,0 +1,1497 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Finarthax API",
+    "version": "2.0.1",
+    "description": "Personal finance API for Finarthax — accounts, transactions, recurring-transaction suggestions, budgets, goals, reports and settings.\n\n## Authentication\n\nEvery route under **Protected** requires a NextAuth session cookie (`next-auth.session-token`, or `__Secure-next-auth.session-token` over HTTPS). The simplest way to test:\n\n1. Sign in at `/login` in this same browser.\n2. Come back to `/api-docs` and press **Try it out** — the cookie is sent automatically.\n\nThere is no bearer-token flow; the API is designed for the app's own browser session.\n\n## Response envelope\n\nEvery JSON response is wrapped:\n\n```json\n{ \"success\": true, \"message\": \"Success\", \"data\": { } }\n```\n\nValidation failures return `422` with an `errors` object keyed by field name instead of `data`.\n\n## Maintenance mode\n\nWhen the `maintenance_mode` app setting is `true`, every non-`GET` request is refused with `503`. Reads keep working."
+  },
+  "servers": [
+    { "url": "/api", "description": "Same origin as this page" },
+    { "url": "http://localhost:3000/api", "description": "Local development" }
+  ],
+  "tags": [
+    { "name": "Auth", "description": "Registration and password recovery (public)" },
+    { "name": "Public", "description": "Endpoints that work without a session" },
+    { "name": "Accounts", "description": "Cash, bank, e-wallet, credit card and investment accounts" },
+    { "name": "Transactions", "description": "Income, expense and transfer records" },
+    { "name": "Recurring", "description": "Recurring-transaction schedules and suggestions" },
+    { "name": "Categories", "description": "Income and expense categories" },
+    { "name": "Budgets", "description": "Monthly spending caps per category" },
+    { "name": "Goals", "description": "Savings targets" },
+    { "name": "Dashboard", "description": "Aggregated figures for the home screen" },
+    { "name": "Reports", "description": "Monthly, yearly and custom-range analysis" },
+    { "name": "Users", "description": "Profile, password, preferences, export and deletion" },
+    { "name": "Uploads", "description": "ImageKit signed uploads" },
+    { "name": "System", "description": "Health probe" }
+  ],
+  "security": [{ "sessionCookie": [] }],
+  "paths": {
+    "/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Create an account",
+        "description": "Creates the user, then bootstraps ten default categories and a default `Cash` account in the same database transaction. Rejected with `403` when the `allow_registration` app setting is off.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/RegisterInput" },
+              "example": { "email": "jane@example.com", "password": "Sup3rSecret", "name": "Jane Doe" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "403": { "$ref": "#/components/responses/Error" },
+          "409": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/auth/forgot-password": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Email a password-reset link",
+        "description": "Stores a SHA-256 hash of a random token with a one-hour expiry and emails the plain token via Resend. Google-only accounts are rejected with `400`.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ForgotPasswordInput" },
+              "example": { "email": "jane@example.com" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/auth/reset-password": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Complete a password reset",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ResetPasswordInput" },
+              "example": { "token": "b0a1…", "password": "Sup3rSecret" }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/settings": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Public app settings",
+        "description": "Returns every `app_settings` row flagged `isPublic` — landing-page copy, currency/language/theme options and feature labels. Values of type `json` are parsed before being returned.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Settings list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/AppSetting" } } } }
+                  ]
+                }
+              }
+            }
+          },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/quick-transactions": {
+      "get": {
+        "tags": ["Public"],
+        "summary": "Look up a user's accounts and categories by email",
+        "description": "Used by the public quick-entry form so a transaction can be recorded without signing in.\n\n**Balances are withheld by default.** This endpoint takes nothing but an email address, so returning balances unconditionally would let anyone who knows an address read that person's money. `balance` and `creditLimit` appear only when the account owner switches on the `publicQuickBalances` preference, and `showsBalances` always says which happened.\n\nRate limited to 20 requests per minute per client, since an unauthenticated lookup keyed by email is otherwise a convenient way to discover which addresses are registered.",
+        "security": [],
+        "parameters": [
+          { "name": "email", "in": "query", "required": true, "schema": { "type": "string", "format": "email" }, "example": "demo@finance.com" }
+        ],
+        "responses": {
+          "200": {
+            "description": "The owner's accounts and categories",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "properties": { "data": { "$ref": "#/components/schemas/QuickTransactionResources" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "404": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" },
+          "429": { "$ref": "#/components/responses/Error" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "post": {
+        "tags": ["Public"],
+        "summary": "Record a transaction without a session",
+        "description": "Same balance and budget bookkeeping as `POST /transactions`, but the owner is resolved from `email` instead of a session. Recurrence fields are not accepted here.",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/QuickTransactionInput" },
+              "example": {
+                "email": "demo@finance.com",
+                "type": "EXPENSE",
+                "accountId": "clx…",
+                "categoryId": "cly…",
+                "amount": 45000,
+                "description": "Lunch",
+                "date": "2026-07-31T12:30:00.000Z"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/TransactionResponse" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": ["System"],
+        "summary": "Health probe",
+        "description": "Reports database connectivity and process uptime. Returns `503` when the database is unreachable. Suitable for Kubernetes liveness and readiness probes. Note: this route is **not** wrapped in the standard response envelope.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Healthy",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Health" },
+                "example": { "status": "healthy", "timestamp": "2026-07-31T09:00:00.000Z", "uptime": 1234.5, "checks": { "database": { "status": "up", "latency": 4 } } }
+              }
+            }
+          },
+          "503": { "description": "Unhealthy", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Health" } } } }
+        }
+      }
+    },
+
+    "/notifications/digest": {
+      "post": {
+        "tags": ["System"],
+        "summary": "Send the scheduled notification emails",
+        "description": "Delivers the weekly summary and the recurring-due reminder to every account that asked for them. Each send still passes the preference gate, so an account with `emailNotifications` — or the individual preference — switched off is skipped.\n\nAuthenticated with a bearer token rather than a session, because a scheduler calls it:\n\n```bash\ncurl -X POST https://your-host/api/notifications/digest \\\n     -H \"Authorization: Bearer $CRON_SECRET\"\n```\n\nReturns `503` when `CRON_SECRET` or the mailer is not configured.",
+        "security": [{ "cronSecret": [] }],
+        "parameters": [
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": { "type": "string", "enum": ["weekly", "recurring", "all"], "default": "all" },
+            "description": "Which digest to run. `recurring` suits a daily schedule, `weekly` a weekly one."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "How many accounts were processed, sent and skipped",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "kind": { "type": "string" },
+                            "processed": { "type": "integer" },
+                            "weekly": { "$ref": "#/components/schemas/DigestTally" },
+                            "recurring": { "$ref": "#/components/schemas/DigestTally" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                },
+                "example": { "success": true, "message": "Digest processed", "data": { "kind": "all", "processed": 12, "weekly": { "sent": 7, "skipped": 5 }, "recurring": { "sent": 3, "skipped": 9 } } }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+
+    "/accounts": {
+      "get": {
+        "tags": ["Accounts"],
+        "summary": "List accounts",
+        "responses": {
+          "200": {
+            "description": "Accounts, oldest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/Account" } } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "post": {
+        "tags": ["Accounts"],
+        "summary": "Create an account",
+        "description": "Refused with `400` once the `max_accounts_per_user` app setting is reached. Setting `isDefault` clears the flag on every other account. `creditLimit` is dropped unless the type is `CREDIT_CARD`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/AccountInput" },
+              "example": { "name": "Main Bank", "type": "BANK", "balance": 0, "color": "#1D546D", "icon": "🏦", "isDefault": true }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/AccountResponse" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+    "/accounts/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "put": {
+        "tags": ["Accounts"],
+        "summary": "Update an account",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/AccountUpdateInput" }, "example": { "name": "Everyday Bank", "icon": "🏦" } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/AccountResponse" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      },
+      "delete": {
+        "tags": ["Accounts"],
+        "summary": "Delete an account",
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+
+    "/transactions": {
+      "get": {
+        "tags": ["Transactions"],
+        "summary": "List transactions",
+        "description": "Filtered and paginated, newest first. `search` matches the description case-insensitively.",
+        "parameters": [
+          { "name": "startDate", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "endDate", "in": "query", "schema": { "type": "string", "format": "date-time" } },
+          { "name": "categoryId", "in": "query", "schema": { "type": "string" } },
+          { "name": "accountId", "in": "query", "schema": { "type": "string" } },
+          { "name": "type", "in": "query", "schema": { "$ref": "#/components/schemas/TransactionType" } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "minimum": 1, "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 100, "default": 20 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated transactions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "data": { "type": "array", "items": { "$ref": "#/components/schemas/Transaction" } },
+                            "pagination": { "$ref": "#/components/schemas/Pagination" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      },
+      "post": {
+        "tags": ["Transactions"],
+        "summary": "Create a transaction",
+        "description": "Creates the row and adjusts account balances and budget spend inside one database transaction. Set `isRecurring` with a `recurrenceInterval` to open a recurring series at the same time — the first suggestion is then scheduled one period after `date`.\n\nCredit-card rules: `INCOME` on a credit card is refused with `422`, and a `TRANSFER` out of a credit card requires `toAccountId`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TransactionInput" },
+              "examples": {
+                "expense": {
+                  "summary": "Simple expense",
+                  "value": { "type": "EXPENSE", "accountId": "clx…", "categoryId": "cly…", "amount": 45000, "description": "Lunch", "date": "2026-07-31T12:30:00.000Z" }
+                },
+                "recurringExpense": {
+                  "summary": "Expense that opens a monthly series",
+                  "value": {
+                    "type": "EXPENSE",
+                    "accountId": "clx…",
+                    "categoryId": "cly…",
+                    "amount": 186000,
+                    "description": "Netflix",
+                    "date": "2026-07-05T09:00:00.000Z",
+                    "isRecurring": true,
+                    "recurrenceInterval": "MONTHLY",
+                    "recurrenceEndDate": "2027-07-05T09:00:00.000Z"
+                  }
+                },
+                "transfer": {
+                  "summary": "Transfer between own accounts",
+                  "value": { "type": "TRANSFER", "accountId": "clx…", "toAccountId": "clz…", "amount": 2000000, "description": "Monthly savings", "date": "2026-07-26T10:00:00.000Z" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/TransactionResponse" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+    "/transactions/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "put": {
+        "tags": ["Transactions"],
+        "summary": "Update a transaction",
+        "description": "The previous balance and budget effect is reversed before the new one is applied, so totals stay exact. Recurrence fields are not accepted here — use the recurring endpoints.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/TransactionUpdateInput" }, "example": { "type": "EXPENSE", "amount": 52000 } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/TransactionResponse" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      },
+      "delete": {
+        "tags": ["Transactions"],
+        "summary": "Delete a transaction",
+        "description": "Reverses the balance and budget effect before removing the row.",
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+
+    "/recurring": {
+      "get": {
+        "tags": ["Recurring"],
+        "summary": "Recurring overview and suggestions",
+        "description": "Returns two kinds of suggestion.\n\n**Scheduled** (`due`, `upcoming`) — series you track. `due` holds everything whose next occurrence is today or earlier; `upcoming` holds those within `lookaheadDays`.\n\n**Detected** (`detected`, `dismissed`) — patterns inferred from history that are not tracked yet. A group needs at least `minOccurrences` occurrences, a median gap matching a known cadence, ≥60% gap consistency and a confidence of ≥55.",
+        "parameters": [
+          { "name": "lookaheadDays", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 90, "default": 14 }, "description": "How far ahead a scheduled occurrence counts as upcoming" },
+          { "name": "historyDays", "in": "query", "schema": { "type": "integer", "minimum": 30, "maximum": 1095, "default": 365 }, "description": "How much history the detector reads" },
+          { "name": "minOccurrences", "in": "query", "schema": { "type": "integer", "minimum": 2, "maximum": 12, "default": 3 }, "description": "Repeats required before a pattern is suggested" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Overview",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "properties": { "data": { "$ref": "#/components/schemas/RecurringOverview" } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": { "$ref": "#/components/responses/ValidationError" }
+        }
+      }
+    },
+    "/recurring/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/TransactionId" }],
+      "patch": {
+        "tags": ["Recurring"],
+        "summary": "Start or stop tracking a series",
+        "description": "With `isRecurring: true`, every transaction matching the same pattern is stamped with a shared `recurrenceKey`, and the most recent one receives the schedule. With `isRecurring: false`, the schedule is cleared across the whole series — past transactions are untouched.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/TrackRecurringInput" },
+              "examples": {
+                "track": { "summary": "Track monthly until a date", "value": { "isRecurring": true, "interval": "MONTHLY", "endDate": "2027-07-05T09:00:00.000Z" } },
+                "untrack": { "summary": "Stop tracking", "value": { "isRecurring": false } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/TransactionResponse" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+    "/recurring/{id}/confirm": {
+      "parameters": [{ "$ref": "#/components/parameters/TransactionId" }],
+      "post": {
+        "tags": ["Recurring"],
+        "summary": "Log the suggested occurrence",
+        "description": "Creates a real transaction from the anchor — balances and budgets move exactly as they would for a manual entry — and hands the schedule to the new row, advanced by **one** period. Confirming repeatedly therefore backfills a series that was missed for months.\n\nAn empty body is valid: the amount, date, description, accounts and category all fall back to the anchor. When confirming a *detected* pattern (which has no series yet), send `interval` so the series can be created.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/ConfirmRecurringInput" },
+              "examples": {
+                "asProposed": { "summary": "Accept the proposal as-is", "value": {} },
+                "adjusted": { "summary": "Adjust amount and date", "value": { "amount": 195000, "date": "2026-08-05T09:00:00.000Z" } },
+                "fromDetection": { "summary": "Confirm a detected pattern", "value": { "interval": "MONTHLY", "amount": 186000, "date": "2026-08-05T09:00:00.000Z" } },
+                "lastOne": { "summary": "Log it, then stop tracking", "value": { "keepTracking": false } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/TransactionResponse" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+    "/recurring/{id}/skip": {
+      "parameters": [{ "$ref": "#/components/parameters/TransactionId" }],
+      "post": {
+        "tags": ["Recurring"],
+        "summary": "Skip an occurrence",
+        "description": "Moves the schedule to the next date in the future without creating anything — one call catches up a series that is several periods overdue. Returns `422` when the transaction is not part of a series. If the new date passes `recurrenceEndDate`, the schedule is cleared and the series ends.",
+        "responses": {
+          "200": { "$ref": "#/components/responses/TransactionResponse" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+    "/recurring/{id}/dismiss": {
+      "parameters": [{ "$ref": "#/components/parameters/TransactionId" }],
+      "post": {
+        "tags": ["Recurring"],
+        "summary": "Dismiss a detected pattern",
+        "description": "Stamps `recurrenceDismissedAt` on every transaction in the group, so a later occurrence does not resurrect a suggestion you already rejected. The pattern still appears under `dismissed` in the overview.",
+        "responses": {
+          "200": { "$ref": "#/components/responses/AffectedResponse" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      },
+      "delete": {
+        "tags": ["Recurring"],
+        "summary": "Restore a dismissed pattern",
+        "responses": {
+          "200": { "$ref": "#/components/responses/AffectedResponse" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+
+    "/categories": {
+      "get": {
+        "tags": ["Categories"],
+        "summary": "List categories",
+        "parameters": [{ "name": "type", "in": "query", "schema": { "$ref": "#/components/schemas/CategoryType" } }],
+        "responses": {
+          "200": {
+            "description": "Categories, alphabetical",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/Category" } } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Categories"],
+        "summary": "Create a category",
+        "description": "Refused with `400` once the `max_categories_per_user` app setting is reached.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CategoryInput" }, "example": { "name": "Subscriptions", "type": "EXPENSE", "icon": "📺", "color": "#8B5CF6" } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+    "/categories/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "put": {
+        "tags": ["Categories"],
+        "summary": "Update a category",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CategoryUpdateInput" }, "example": { "name": "Streaming" } } } },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      },
+      "delete": {
+        "tags": ["Categories"],
+        "summary": "Delete a category",
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+
+    "/budgets": {
+      "get": {
+        "tags": ["Budgets"],
+        "summary": "List budgets for a month",
+        "parameters": [
+          { "name": "month", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 12 }, "description": "Defaults to the current month" },
+          { "name": "year", "in": "query", "schema": { "type": "integer" }, "description": "Defaults to the current year" },
+          { "name": "categoryId", "in": "query", "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated budgets",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    {
+                      "properties": {
+                        "data": {
+                          "type": "object",
+                          "properties": {
+                            "data": { "type": "array", "items": { "$ref": "#/components/schemas/Budget" } },
+                            "pagination": { "$ref": "#/components/schemas/Pagination" }
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Budgets"],
+        "summary": "Create or update a budget",
+        "description": "Upserts on (user, category, month, year). On creation, `spent` is backfilled from the expenses already recorded in that month, so a budget added mid-month is immediately accurate.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BudgetInput" }, "example": { "categoryId": "cly…", "amount": 3000000, "month": 7, "year": 2026 } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+    "/budgets/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "put": {
+        "tags": ["Budgets"],
+        "summary": "Change a budget's cap",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/BudgetUpdateInput" }, "example": { "amount": 3500000 } } } },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      },
+      "delete": {
+        "tags": ["Budgets"],
+        "summary": "Delete a budget",
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+
+    "/goals": {
+      "get": {
+        "tags": ["Goals"],
+        "summary": "List goals",
+        "parameters": [{ "name": "status", "in": "query", "schema": { "$ref": "#/components/schemas/GoalStatus" } }],
+        "responses": {
+          "200": {
+            "description": "Goals, newest first",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/Goal" } } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      },
+      "post": {
+        "tags": ["Goals"],
+        "summary": "Create a goal",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GoalInput" }, "example": { "name": "Emergency fund", "targetAmount": 50000000, "currentAmount": 0, "deadline": "2027-01-01T00:00:00.000Z" } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+    "/goals/{id}": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "put": {
+        "tags": ["Goals"],
+        "summary": "Update a goal",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GoalUpdateInput" }, "example": { "targetAmount": 60000000 } } } },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      },
+      "delete": {
+        "tags": ["Goals"],
+        "summary": "Delete a goal",
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+    "/goals/{id}/progress": {
+      "parameters": [{ "$ref": "#/components/parameters/Id" }],
+      "patch": {
+        "tags": ["Goals"],
+        "summary": "Update a goal's progress",
+        "description": "Sets `currentAmount`. The goal flips to `COMPLETED` automatically once it reaches its target.",
+        "requestBody": { "required": true, "content": { "application/json": { "schema": { "$ref": "#/components/schemas/GoalProgressInput" }, "example": { "currentAmount": 12500000 } } } },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+
+    "/dashboard/summary": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "Headline figures",
+        "description": "This month's income, expense, transfer and net balance with per-type counts, the same figures for last month, the percentage change between them, every account with its balance, and the five most recent transactions.",
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/dashboard/charts": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "Chart series",
+        "description": "Six months of income/expense/transfer totals, spending grouped by category, budget progress and transfer flow.",
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+
+    "/reports/monthly": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Monthly report",
+        "description": "Totals, savings rate, average daily expense, largest transaction, top categories, a day-by-day spending trend and the full transaction list.",
+        "parameters": [
+          { "name": "month", "in": "query", "schema": { "type": "integer", "minimum": 1, "maximum": 12 }, "description": "Defaults to the current month" },
+          { "name": "year", "in": "query", "schema": { "type": "integer" }, "description": "Defaults to the current year" }
+        ],
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/reports/yearly": {
+      "get": {
+        "tags": ["Reports"],
+        "summary": "Yearly report",
+        "description": "Twelve-month breakdown plus averages, savings rate, top categories, and the best and worst month by net balance.",
+        "parameters": [{ "name": "year", "in": "query", "schema": { "type": "integer" }, "description": "Defaults to the current year" }],
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/reports/custom": {
+      "post": {
+        "tags": ["Reports"],
+        "summary": "Custom date-range report",
+        "description": "Adds a per-account breakdown (including transfer in/out) and a daily trend on top of the monthly report's figures. The end date is extended to `23:59:59`.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/CustomReportInput" }, "example": { "startDate": "2026-01-01", "endDate": "2026-07-31" } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+
+    "/users/profile": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Read the profile",
+        "description": "Includes `passwordChangedAt` and `passwordExpiresAt` so the UI can warn before a password expires.",
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" }
+        }
+      },
+      "put": {
+        "tags": ["Users"],
+        "summary": "Update the profile",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ProfileInput" }, "example": { "name": "Jane Doe", "avatar": "https://ik.imagekit.io/…", "avatarFileId": "6631…" } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+    "/users/change-password": {
+      "post": {
+        "tags": ["Users"],
+        "summary": "Change the password",
+        "description": "Verifies the current password, then resets `passwordChangedAt` and `passwordExpiresAt` from the `max_password_age_days` app setting.",
+        "requestBody": {
+          "required": true,
+          "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ChangePasswordInput" }, "example": { "currentPassword": "OldPass123", "newPassword": "NewPass456" } } }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "400": { "$ref": "#/components/responses/Error" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+    "/users/export": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Export transactions as PDF",
+        "description": "Returns a generated PDF rather than the JSON envelope.",
+        "responses": {
+          "200": { "description": "PDF document", "content": { "application/pdf": { "schema": { "type": "string", "format": "binary" } } } },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/users/delete": {
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Delete the account",
+        "description": "Removes the user and, by cascade, every account, transaction, category, budget, goal and setting that belongs to them. Irreversible.",
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+    "/users/settings": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "List preferences",
+        "description": "Returns the account's preferences, reconciled against the catalogue first: keys added to it are created with their default, keys removed from it are deleted. A value the user chose is never overwritten, so this is safe to call on every page load.\n\nEach row carries a `type` (`boolean`, `string`, `number`) that says how to render it, and a `category` that groups it on the settings screen. For a preference offering a fixed set of choices, the options live in the public app setting named `<snake_cased key>_options` — `dateFormat` → `date_format_options`.",
+        "responses": {
+          "200": {
+            "description": "Preferences, ordered by category then key",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "allOf": [
+                    { "$ref": "#/components/schemas/ApiResponse" },
+                    { "properties": { "data": { "type": "array", "items": { "$ref": "#/components/schemas/UserSetting" } } } }
+                  ]
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" }
+        }
+      }
+    },
+    "/users/settings/{key}": {
+      "parameters": [
+        { "name": "key", "in": "path", "required": true, "schema": { "type": "string" }, "description": "The setting key, e.g. `theme`, `currency`, `language`", "example": "currency" }
+      ],
+      "patch": {
+        "tags": ["Users"],
+        "summary": "Update one preference",
+        "description": "Values are stored as strings regardless of the setting's declared type — send `\"true\"`, `\"80\"` or `\"dd/MM/yyyy\"`. Returns `404` for a key that is not in the catalogue.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/SettingValueInput" },
+              "examples": {
+                "currency": { "summary": "Display everything in USD", "value": { "value": "USD" } },
+                "privacy": { "summary": "Mask every amount", "value": { "value": "true" } },
+                "threshold": { "summary": "Flag budgets at 90%", "value": { "value": "90" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "404": { "$ref": "#/components/responses/Error" },
+          "422": { "$ref": "#/components/responses/ValidationError" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    },
+
+    "/imagekit/upload-auth": {
+      "get": {
+        "tags": ["Uploads"],
+        "summary": "Signed upload credentials",
+        "description": "Returns `token`, `expire`, `signature` and `publicKey` for a direct browser upload to ImageKit. Expiry is capped at one hour.",
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "500": { "$ref": "#/components/responses/Error" }
+        }
+      }
+    },
+    "/imagekit/delete/{fileId}": {
+      "parameters": [{ "name": "fileId", "in": "path", "required": true, "schema": { "type": "string" }, "description": "The ImageKit file id stored as `avatarFileId`" }],
+      "delete": {
+        "tags": ["Uploads"],
+        "summary": "Delete an uploaded file",
+        "responses": {
+          "200": { "$ref": "#/components/responses/Success" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "503": { "$ref": "#/components/responses/Maintenance" }
+        }
+      }
+    }
+  },
+
+  "components": {
+    "securitySchemes": {
+      "cronSecret": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "The `CRON_SECRET` value, sent as `Authorization: Bearer <secret>`. Used only by the digest endpoint, which a scheduler calls without a browser session."
+      },
+      "sessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "next-auth.session-token",
+        "description": "NextAuth JWT session cookie. Sign in at `/login` in the same browser and it is sent automatically — there is no token to paste. Over HTTPS the cookie is named `__Secure-next-auth.session-token`."
+      }
+    },
+    "parameters": {
+      "Id": { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "Record id (cuid)" },
+      "TransactionId": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": { "type": "string" },
+        "description": "Id of the transaction that anchors the series. For a detected pattern, use `detected[].transactionId` from `GET /recurring`; for a tracked series, use `due[].transactionId` or `upcoming[].transactionId`."
+      }
+    },
+    "responses": {
+      "Success": {
+        "description": "Success",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ApiResponse" } } }
+      },
+      "AccountResponse": {
+        "description": "The account",
+        "content": {
+          "application/json": {
+            "schema": { "allOf": [{ "$ref": "#/components/schemas/ApiResponse" }, { "properties": { "data": { "$ref": "#/components/schemas/Account" } } }] }
+          }
+        }
+      },
+      "TransactionResponse": {
+        "description": "The transaction, with its account, destination account and category expanded",
+        "content": {
+          "application/json": {
+            "schema": { "allOf": [{ "$ref": "#/components/schemas/ApiResponse" }, { "properties": { "data": { "$ref": "#/components/schemas/Transaction" } } }] }
+          }
+        }
+      },
+      "AffectedResponse": {
+        "description": "How many transactions were changed",
+        "content": {
+          "application/json": {
+            "schema": {
+              "allOf": [
+                { "$ref": "#/components/schemas/ApiResponse" },
+                { "properties": { "data": { "type": "object", "properties": { "affected": { "type": "integer" } } } } }
+              ]
+            }
+          }
+        }
+      },
+      "Unauthorized": {
+        "description": "No valid session",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" }, "example": { "success": false, "message": "Unauthorized" } } }
+      },
+      "Error": {
+        "description": "Request refused",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } }
+      },
+      "ValidationError": {
+        "description": "The body failed schema validation",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ValidationErrorResponse" },
+            "example": { "success": false, "message": "Validation error", "errors": { "amount": ["Amount must be positive"] } }
+          }
+        }
+      },
+      "Maintenance": {
+        "description": "Maintenance mode is on — writes are refused",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/ErrorResponse" },
+            "example": { "success": false, "message": "App is under maintenance. Please try again later." }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "ApiResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "const": true },
+          "message": { "type": "string", "example": "Success" },
+          "data": {}
+        },
+        "required": ["success", "message"]
+      },
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "const": false },
+          "message": { "type": "string" }
+        },
+        "required": ["success", "message"]
+      },
+      "ValidationErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "const": false },
+          "message": { "type": "string", "const": "Validation error" },
+          "errors": { "type": "object", "additionalProperties": { "type": "array", "items": { "type": "string" } } }
+        },
+        "required": ["success", "message", "errors"]
+      },
+      "DigestTally": {
+        "type": "object",
+        "properties": {
+          "sent": { "type": "integer", "description": "Accounts that received the email" },
+          "skipped": { "type": "integer", "description": "Accounts blocked by a preference, or with nothing to report" }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "properties": {
+          "page": { "type": "integer" },
+          "limit": { "type": "integer" },
+          "total": { "type": "integer" },
+          "totalPages": { "type": "integer" }
+        }
+      },
+      "Health": {
+        "type": "object",
+        "properties": {
+          "status": { "type": "string", "enum": ["healthy", "unhealthy"] },
+          "timestamp": { "type": "string", "format": "date-time" },
+          "uptime": { "type": "number", "description": "Process uptime in seconds" },
+          "checks": { "type": "object", "properties": { "database": { "type": "object", "properties": { "status": { "type": "string", "enum": ["up", "down"] } } } } }
+        }
+      },
+
+      "TransactionType": { "type": "string", "enum": ["INCOME", "EXPENSE", "TRANSFER"] },
+      "CategoryType": { "type": "string", "enum": ["INCOME", "EXPENSE"] },
+      "AccountType": { "type": "string", "enum": ["CASH", "BANK", "EWALLET", "CREDIT_CARD", "INVESTMENT"] },
+      "GoalStatus": { "type": "string", "enum": ["ACTIVE", "COMPLETED", "CANCELLED"] },
+      "RecurrenceInterval": { "type": "string", "enum": ["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY", "YEARLY"] },
+      "RecurrenceStatus": { "type": "string", "enum": ["OVERDUE", "DUE_TODAY", "UPCOMING"] },
+
+      "Account": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "userId": { "type": "string" },
+          "name": { "type": "string" },
+          "type": { "$ref": "#/components/schemas/AccountType" },
+          "balance": { "type": "number", "description": "Negative on a credit card — the magnitude is the debt owed" },
+          "creditLimit": { "type": ["number", "null"] },
+          "color": { "type": ["string", "null"] },
+          "icon": { "type": ["string", "null"] },
+          "isDefault": { "type": "boolean" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Category": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "userId": { "type": ["string", "null"] },
+          "name": { "type": "string" },
+          "type": { "$ref": "#/components/schemas/CategoryType" },
+          "icon": { "type": ["string", "null"] },
+          "color": { "type": ["string", "null"] },
+          "isDefault": { "type": "boolean" }
+        }
+      },
+      "Transaction": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "userId": { "type": "string" },
+          "accountId": { "type": "string" },
+          "toAccountId": { "type": ["string", "null"], "description": "Transfers only. Null means the money left your accounts entirely (e.g. an ATM withdrawal)." },
+          "categoryId": { "type": ["string", "null"] },
+          "amount": { "type": "number" },
+          "type": { "$ref": "#/components/schemas/TransactionType" },
+          "description": { "type": ["string", "null"] },
+          "date": { "type": "string", "format": "date-time" },
+          "attachment": { "type": ["string", "null"] },
+          "isRecurring": { "type": "boolean", "description": "Belongs to a recurring series" },
+          "recurrenceInterval": { "oneOf": [{ "$ref": "#/components/schemas/RecurrenceInterval" }, { "type": "null" }] },
+          "recurrenceKey": { "type": ["string", "null"], "description": "Shared by every occurrence of one series" },
+          "nextOccurrence": { "type": ["string", "null"], "format": "date-time", "description": "Set on the newest occurrence only — this row is the series anchor" },
+          "recurrenceEndDate": { "type": ["string", "null"], "format": "date-time" },
+          "recurrenceDismissedAt": { "type": ["string", "null"], "format": "date-time", "description": "Set when the user asked not to be shown this pattern again" },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" },
+          "account": { "$ref": "#/components/schemas/Account" },
+          "toAccount": { "oneOf": [{ "$ref": "#/components/schemas/Account" }, { "type": "null" }] },
+          "category": { "oneOf": [{ "$ref": "#/components/schemas/Category" }, { "type": "null" }] }
+        }
+      },
+      "Budget": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "categoryId": { "type": "string" },
+          "amount": { "type": "number" },
+          "spent": { "type": "number", "description": "Maintained incrementally as transactions are written" },
+          "month": { "type": "integer" },
+          "year": { "type": "integer" },
+          "category": { "$ref": "#/components/schemas/Category" }
+        }
+      },
+      "Goal": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "targetAmount": { "type": "number" },
+          "currentAmount": { "type": "number" },
+          "deadline": { "type": ["string", "null"], "format": "date-time" },
+          "status": { "$ref": "#/components/schemas/GoalStatus" }
+        }
+      },
+      "PublicAccount": {
+        "type": "object",
+        "description": "An account as the public quick-entry page sees it.",
+        "properties": {
+          "id": { "type": "string" },
+          "name": { "type": "string" },
+          "icon": { "type": ["string", "null"] },
+          "type": { "$ref": "#/components/schemas/AccountType" },
+          "isDefault": { "type": "boolean" },
+          "balance": { "type": "number", "description": "Present only when the owner enabled `publicQuickBalances`. Negative on a credit card — the magnitude is the debt." },
+          "creditLimit": { "type": ["number", "null"], "description": "Present only when the owner enabled `publicQuickBalances`." }
+        }
+      },
+      "QuickTransactionResources": {
+        "type": "object",
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "name": { "type": "string" },
+          "showsBalances": { "type": "boolean", "description": "False when the owner keeps balances private, so the UI can explain rather than show zeros" },
+          "accounts": { "type": "array", "items": { "$ref": "#/components/schemas/PublicAccount" } },
+          "categories": { "type": "array", "items": { "$ref": "#/components/schemas/Category" } }
+        }
+      },
+      "UserSetting": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "key": { "type": "string", "example": "budgetAlertThreshold" },
+          "value": { "type": "string", "description": "Always a string, whatever the declared type", "example": "80" },
+          "type": { "type": "string", "enum": ["boolean", "string", "number", "object", "array"], "description": "Which control the settings screen renders" },
+          "category": { "type": "string", "enum": ["general", "notifications", "appearance", "security", "privacy", "billing"], "description": "Groups the preference into a card" },
+          "icon": { "type": "string", "example": "🎯" },
+          "description": { "type": ["string", "null"] },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "AppSetting": {
+        "type": "object",
+        "properties": {
+          "key": { "type": "string" },
+          "value": { "description": "String, or a parsed object/array when `type` is `json`" },
+          "type": { "type": "string" },
+          "category": { "type": "string" },
+          "label": { "type": "string" },
+          "description": { "type": ["string", "null"] }
+        }
+      },
+
+      "ScheduledRecurrence": {
+        "type": "object",
+        "description": "A tracked series, described by the transaction that currently anchors its schedule.",
+        "properties": {
+          "transactionId": { "type": "string", "description": "Pass this as `{id}` to the recurring actions" },
+          "recurrenceKey": { "type": "string" },
+          "type": { "$ref": "#/components/schemas/TransactionType" },
+          "description": { "type": ["string", "null"] },
+          "amount": { "type": "number" },
+          "interval": { "$ref": "#/components/schemas/RecurrenceInterval" },
+          "status": { "$ref": "#/components/schemas/RecurrenceStatus" },
+          "nextOccurrence": { "type": "string", "format": "date-time" },
+          "lastDate": { "type": "string", "format": "date-time" },
+          "daysUntil": { "type": "integer", "description": "Negative when overdue" },
+          "occurrences": { "type": "integer" },
+          "monthlyEstimate": { "type": "number", "description": "Amount normalised to a 30.44-day month" },
+          "recurrenceEndDate": { "type": ["string", "null"], "format": "date-time" },
+          "account": { "$ref": "#/components/schemas/Account" },
+          "toAccount": { "oneOf": [{ "$ref": "#/components/schemas/Account" }, { "type": "null" }] },
+          "category": { "oneOf": [{ "$ref": "#/components/schemas/Category" }, { "type": "null" }] }
+        }
+      },
+      "DetectedPattern": {
+        "type": "object",
+        "description": "A repeating pattern inferred from history that is not tracked as a series yet.",
+        "properties": {
+          "patternKey": { "type": "string", "description": "type::account::toAccount::category::normalised description" },
+          "transactionId": { "type": "string", "description": "The most recent occurrence — pass this as `{id}` to the recurring actions" },
+          "type": { "$ref": "#/components/schemas/TransactionType" },
+          "accountId": { "type": "string" },
+          "toAccountId": { "type": ["string", "null"] },
+          "categoryId": { "type": ["string", "null"] },
+          "description": { "type": ["string", "null"] },
+          "interval": { "$ref": "#/components/schemas/RecurrenceInterval" },
+          "occurrences": { "type": "integer" },
+          "averageAmount": { "type": "number" },
+          "lastAmount": { "type": "number" },
+          "lastDate": { "type": "string", "format": "date-time" },
+          "nextDate": { "type": "string", "format": "date-time", "description": "Predicted, always in the future" },
+          "confidence": { "type": "integer", "minimum": 0, "maximum": 100, "description": "Regularity (60) + repetition (25) + amount stability (15)" },
+          "monthlyEstimate": { "type": "number" },
+          "dismissed": { "type": "boolean" }
+        }
+      },
+      "RecurringOverview": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "object",
+            "properties": {
+              "dueCount": { "type": "integer" },
+              "upcomingCount": { "type": "integer" },
+              "detectedCount": { "type": "integer" },
+              "trackedCount": { "type": "integer" },
+              "monthlyCommitted": { "type": "number", "description": "Monthly cost of tracked recurring expenses" },
+              "monthlyPotential": { "type": "number", "description": "Monthly cost of detected but untracked recurring expenses" }
+            }
+          },
+          "due": { "type": "array", "items": { "$ref": "#/components/schemas/ScheduledRecurrence" } },
+          "upcoming": { "type": "array", "items": { "$ref": "#/components/schemas/ScheduledRecurrence" } },
+          "detected": { "type": "array", "items": { "$ref": "#/components/schemas/DetectedPattern" } },
+          "dismissed": { "type": "array", "items": { "$ref": "#/components/schemas/DetectedPattern" } }
+        }
+      },
+
+      "RegisterInput": {
+        "type": "object",
+        "required": ["email", "password", "name"],
+        "properties": {
+          "email": { "type": "string", "format": "email" },
+          "password": { "type": "string", "minLength": 8, "description": "At least one uppercase letter, one lowercase letter and one digit" },
+          "name": { "type": "string", "minLength": 2, "maxLength": 50 }
+        }
+      },
+      "ForgotPasswordInput": { "type": "object", "required": ["email"], "properties": { "email": { "type": "string", "format": "email" } } },
+      "ResetPasswordInput": {
+        "type": "object",
+        "required": ["token", "password"],
+        "properties": { "token": { "type": "string" }, "password": { "type": "string", "minLength": 8 } }
+      },
+      "ChangePasswordInput": {
+        "type": "object",
+        "required": ["currentPassword", "newPassword"],
+        "properties": { "currentPassword": { "type": "string" }, "newPassword": { "type": "string", "minLength": 8 } }
+      },
+      "ProfileInput": {
+        "type": "object",
+        "required": ["name"],
+        "properties": {
+          "name": { "type": "string", "minLength": 2, "maxLength": 100 },
+          "avatar": { "type": ["string", "null"] },
+          "avatarFileId": { "type": ["string", "null"] }
+        }
+      },
+      "SettingValueInput": { "type": "object", "required": ["value"], "properties": { "value": { "type": "string" } } },
+
+      "AccountInput": {
+        "type": "object",
+        "required": ["name", "type"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 50 },
+          "type": { "$ref": "#/components/schemas/AccountType" },
+          "balance": { "type": "number", "default": 0 },
+          "creditLimit": { "type": ["number", "null"], "description": "Ignored unless the type is CREDIT_CARD" },
+          "color": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" },
+          "icon": { "type": ["string", "null"] },
+          "isDefault": { "type": "boolean", "default": false }
+        }
+      },
+      "AccountUpdateInput": { "allOf": [{ "$ref": "#/components/schemas/AccountInput" }], "required": [] },
+
+      "TransactionInput": {
+        "type": "object",
+        "required": ["type", "accountId", "amount", "date"],
+        "properties": {
+          "type": { "$ref": "#/components/schemas/TransactionType" },
+          "accountId": { "type": "string" },
+          "toAccountId": { "type": "string", "description": "Transfers only, and must differ from `accountId`" },
+          "categoryId": { "type": "string", "description": "Required for INCOME and EXPENSE" },
+          "amount": { "type": "number", "exclusiveMinimum": 0 },
+          "description": { "type": "string" },
+          "date": { "type": "string", "format": "date-time" },
+          "attachment": { "type": "string" },
+          "isRecurring": { "type": "boolean", "description": "Open a recurring series from this transaction" },
+          "recurrenceInterval": { "oneOf": [{ "$ref": "#/components/schemas/RecurrenceInterval" }, { "type": "null" }], "description": "Required when `isRecurring` is true" },
+          "recurrenceEndDate": { "type": ["string", "null"], "format": "date-time" }
+        }
+      },
+      "TransactionUpdateInput": {
+        "type": "object",
+        "required": ["type"],
+        "description": "Every field except `type` is optional; `type` selects which shape is validated.",
+        "properties": {
+          "type": { "$ref": "#/components/schemas/TransactionType" },
+          "accountId": { "type": "string" },
+          "toAccountId": { "type": "string" },
+          "categoryId": { "type": "string" },
+          "amount": { "type": "number", "exclusiveMinimum": 0 },
+          "description": { "type": "string" },
+          "date": { "type": "string", "format": "date-time" },
+          "attachment": { "type": "string" }
+        }
+      },
+      "QuickTransactionInput": {
+        "allOf": [
+          { "$ref": "#/components/schemas/TransactionInput" },
+          { "type": "object", "required": ["email"], "properties": { "email": { "type": "string", "format": "email" } } }
+        ]
+      },
+
+      "TrackRecurringInput": {
+        "type": "object",
+        "required": ["isRecurring"],
+        "properties": {
+          "isRecurring": { "type": "boolean" },
+          "interval": { "oneOf": [{ "$ref": "#/components/schemas/RecurrenceInterval" }, { "type": "null" }], "description": "Required when `isRecurring` is true" },
+          "endDate": { "type": ["string", "null"], "format": "date-time", "description": "Stop suggesting after this date" }
+        }
+      },
+      "ConfirmRecurringInput": {
+        "type": "object",
+        "properties": {
+          "amount": { "type": "number", "exclusiveMinimum": 0, "description": "Defaults to the anchor's amount" },
+          "date": { "type": "string", "format": "date-time", "description": "Defaults to the scheduled occurrence" },
+          "description": { "type": "string", "maxLength": 200, "description": "Defaults to the anchor's description" },
+          "interval": { "$ref": "#/components/schemas/RecurrenceInterval" },
+          "keepTracking": { "type": "boolean", "default": true, "description": "Set false to log this occurrence and end the series" }
+        }
+      },
+
+      "CategoryInput": {
+        "type": "object",
+        "required": ["name", "type"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 50 },
+          "type": { "$ref": "#/components/schemas/CategoryType" },
+          "icon": { "type": ["string", "null"] },
+          "color": { "type": ["string", "null"], "pattern": "^#[0-9A-Fa-f]{6}$" },
+          "isDefault": { "type": "boolean", "default": false }
+        }
+      },
+      "CategoryUpdateInput": { "allOf": [{ "$ref": "#/components/schemas/CategoryInput" }], "required": [] },
+
+      "BudgetInput": {
+        "type": "object",
+        "required": ["categoryId", "amount", "month", "year"],
+        "properties": {
+          "categoryId": { "type": "string" },
+          "amount": { "type": "number", "exclusiveMinimum": 0 },
+          "month": { "type": "integer", "minimum": 1, "maximum": 12 },
+          "year": { "type": "integer", "minimum": 2020, "maximum": 2100 }
+        }
+      },
+      "BudgetUpdateInput": { "type": "object", "required": ["amount"], "properties": { "amount": { "type": "number", "exclusiveMinimum": 0 } } },
+
+      "GoalInput": {
+        "type": "object",
+        "required": ["name", "targetAmount"],
+        "properties": {
+          "name": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "targetAmount": { "type": "number", "exclusiveMinimum": 0 },
+          "currentAmount": { "type": "number", "minimum": 0, "default": 0 },
+          "deadline": { "type": ["string", "null"], "format": "date-time" },
+          "status": { "$ref": "#/components/schemas/GoalStatus" }
+        }
+      },
+      "GoalUpdateInput": { "allOf": [{ "$ref": "#/components/schemas/GoalInput" }], "required": [] },
+      "GoalProgressInput": { "type": "object", "required": ["currentAmount"], "properties": { "currentAmount": { "type": "number", "minimum": 0 } } },
+
+      "CustomReportInput": {
+        "type": "object",
+        "required": ["startDate", "endDate"],
+        "properties": {
+          "startDate": { "type": "string", "example": "2026-01-01" },
+          "endDate": { "type": "string", "example": "2026-07-31", "description": "Extended to 23:59:59 server-side" }
+        }
+      }
+    }
+  }
+}

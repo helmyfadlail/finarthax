@@ -20,11 +20,11 @@ export function useTheme(): ThemeContextValue {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const { userSettingsData } = useSettings();
+  const { isAuthenticated, userSettingsData } = useSettings();
 
-  const dbTheme = userSettingsData?.find((n) => n.key === "theme")?.value as ThemeValue | undefined;
+  const storedTheme = isAuthenticated ? (userSettingsData?.find((setting) => setting.key === "theme")?.value as ThemeValue | undefined) : undefined;
   const [pendingTheme, setPendingTheme] = useState<ThemeValue | null>(null);
-  const theme: ThemeValue = pendingTheme ?? dbTheme ?? "system";
+  const theme: ThemeValue = pendingTheme ?? storedTheme ?? "system";
 
   const [systemPrefersDark, setSystemPrefersDark] = useState(() => typeof window !== "undefined" && window.matchMedia("(prefers-color-scheme: dark)").matches);
 
@@ -35,12 +35,14 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
     return () => mq.removeEventListener("change", handleChange);
   }, []);
 
-  const isDark = theme === "dark" || (theme === "system" && systemPrefersDark);
+  const isDark = isAuthenticated && (theme === "dark" || (theme === "system" && systemPrefersDark));
 
   useEffect(() => {
     const root = document.documentElement;
     if (isDark) root.classList.add("dark");
     else root.classList.remove("dark");
+
+    return () => root.classList.remove("dark");
   }, [isDark]);
 
   const setTheme = (value: ThemeValue) => {

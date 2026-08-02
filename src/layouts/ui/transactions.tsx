@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import { useTranslations } from "next-intl";
-import { useTransactions, useCategories, useAccounts, useSearchPagination } from "@/hooks";
+import { useTransactions, useCategories, useAccounts, useSearchPagination, usePreferences } from "@/hooks";
 import { useCurrency } from "@/providers";
 import { Card, CardContent, Button, Input, Select, Badge, Modal, Skeleton, useToast } from "@/components";
-import type { Transaction, TransactionFilter, TransactionType, Account } from "@/types";
-import { formattedDateTime } from "@/utils";
+import { RECURRENCE_ICONS, RECURRENCE_INTERVALS } from "@/static";
+import type { Transaction, TransactionFilter, TransactionType, Account, RecurrenceInterval } from "@/types";
+import { endOfTodayInputValue, formattedDateTime, toDateTimeInputValue } from "@/utils";
 
 const FILTER_NAMES = ["type", "category", "startDate", "endDate", "account"] as const;
 interface FormData {
@@ -17,13 +18,18 @@ interface FormData {
   type: TransactionType;
   description: string;
   date: string;
+  isRecurring: boolean;
+  recurrenceInterval: RecurrenceInterval;
+  recurrenceEndDate: string;
 }
+type FormTextField = Exclude<keyof FormData, "isRecurring">;
 interface SelectOption {
   value: string;
   label: string;
 }
 interface TransactionItemProps {
   transaction: Transaction;
+  dateFormat: string;
   onDelete: (id: string) => void;
   isDeleting: boolean;
 }
@@ -31,7 +37,18 @@ interface EmptyStateProps {
   onCreateClick: () => void;
 }
 
-const INITIAL_FORM_DATA: FormData = { accountId: "", toAccountId: "", categoryId: "", amount: "", type: "EXPENSE", description: "", date: new Date().toISOString().split("T")[0] };
+const INITIAL_FORM_DATA: FormData = {
+  accountId: "",
+  toAccountId: "",
+  categoryId: "",
+  amount: "",
+  type: "EXPENSE",
+  description: "",
+  date: toDateTimeInputValue(new Date()),
+  isRecurring: false,
+  recurrenceInterval: "MONTHLY",
+  recurrenceEndDate: "",
+};
 
 const TYPE_CONFIG: Record<TransactionType, { color: string; bg: string; icon: string; prefix: string }> = {
   INCOME: { color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30", icon: "💰", prefix: "+" },
@@ -58,7 +75,7 @@ const getTransactionHint = (
   return null;
 };
 
-const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, onDelete, isDeleting }) => {
+const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, dateFormat, onDelete, isDeleting }) => {
   const t = useTranslations("transactionsPage");
   const { format } = useCurrency();
   const config = TYPE_CONFIG[transaction.type as TransactionType] ?? TYPE_CONFIG.EXPENSE;
@@ -74,8 +91,13 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, onDelete
           {isTransfer ? "🔄" : (transaction.category?.icon ?? "💰")}
         </div>
         <div className="flex-1 min-w-0">
-          <h4 className="text-sm font-medium truncate sm:text-base text-primary-900 dark:text-primary-900" title={transaction.description}>
-            {transaction.description || t("noDescription")}
+          <h4 className="flex items-center gap-1.5 text-sm font-medium truncate sm:text-base text-primary-900 dark:text-primary-900" title={transaction.description}>
+            <span className="truncate">{transaction.description || t("noDescription")}</span>
+            {transaction.isRecurring && (
+              <span className="shrink-0 text-xs" title={transaction.recurrenceInterval ? t(`interval.${transaction.recurrenceInterval}`) : t("modal.recurring")}>
+                🔁
+              </span>
+            )}
           </h4>
           <div className="flex flex-wrap items-center gap-1 mt-0.5 text-xs sm:gap-2 sm:mt-1 sm:text-sm text-primary-500 dark:text-primary-700">
             {!isTransfer && transaction.category && (
@@ -102,9 +124,9 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, onDelete
               </>
             )}
             <span className="hidden sm:inline">•</span>
-            <span className="hidden sm:inline">📅 {formattedDateTime(transaction.date)}</span>
+            <span className="hidden sm:inline">📅 {formattedDateTime(transaction.date, dateFormat)}</span>
           </div>
-          <p className="mt-0.5 text-xs text-primary-400 dark:text-primary-600 sm:hidden">📅 {formattedDateTime(transaction.date)}</p>
+          <p className="mt-0.5 text-xs text-primary-400 dark:text-primary-600 sm:hidden">📅 {formattedDateTime(transaction.date, dateFormat)}</p>
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0 sm:gap-4">
@@ -160,7 +182,15 @@ export const Transactions: React.FC = () => {
   const { accounts } = useAccounts();
   const { format } = useCurrency();
   const { addToast } = useToast();
+  const { preferences } = usePreferences();
   const { createTransaction, isCreating } = useTransactions();
+
+  const notifySuccess = React.useCallback(
+    (message: string) => {
+      if (preferences.transactionAlerts) addToast({ message, type: "success" });
+    },
+    [preferences.transactionAlerts, addToast],
+  );
 
   const {
     searchQuery,
@@ -190,7 +220,7 @@ export const Transactions: React.FC = () => {
     endDate: selectedEndDate,
     search: searchQuery,
     page: currentPage,
-    limit: 20,
+    limit: preferences.itemsPerPage,
   });
 
   const [formData, setFormData] = React.useState<FormData>(INITIAL_FORM_DATA);
@@ -230,7 +260,15 @@ export const Transactions: React.FC = () => {
   );
   const fromAccountLabel = React.useMemo(() => (formData.type === "TRANSFER" ? t("modal.fromAccount") : t("modal.account")), [formData.type, t]);
 
-  const resetForm = React.useCallback(() => setFormData(INITIAL_FORM_DATA), []);
+  const resetForm = React.useCallback(() => {
+    const type = preferences.defaultTransactionType;
+    setFormData({
+      ...INITIAL_FORM_DATA,
+      type,
+      categoryId: type === "TRANSFER" ? "" : (getDefaultCategory(type)?.id ?? ""),
+      date: toDateTimeInputValue(new Date()),
+    });
+  }, [preferences.defaultTransactionType, getDefaultCategory]);
   const openModal = React.useCallback(() => {
     resetForm();
     setIsModalOpen(true);
@@ -241,7 +279,7 @@ export const Transactions: React.FC = () => {
   }, [resetForm]);
 
   const handleChangeForm = React.useCallback(
-    (field: keyof FormData, value: string) => {
+    (field: FormTextField, value: string) => {
       setFormData((prev) => {
         const updated = { ...prev, [field]: value };
         if (field === "type") {
@@ -262,6 +300,8 @@ export const Transactions: React.FC = () => {
     },
     [getDefaultCategory, accounts],
   );
+
+  const handleToggleRecurring = React.useCallback((isRecurring: boolean) => setFormData((prev) => ({ ...prev, isRecurring, recurrenceEndDate: isRecurring ? prev.recurrenceEndDate : "" })), []);
 
   const handleSubmitForm = React.useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
@@ -290,6 +330,12 @@ export const Transactions: React.FC = () => {
         addToast({ message: t("validation.description"), type: "error" });
         return;
       }
+      const recurrence = {
+        isRecurring: formData.isRecurring,
+        recurrenceInterval: formData.isRecurring ? formData.recurrenceInterval : undefined,
+        recurrenceEndDate: formData.isRecurring && formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate).toISOString() : undefined,
+      };
+
       const payload =
         formData.type === "TRANSFER"
           ? {
@@ -299,6 +345,7 @@ export const Transactions: React.FC = () => {
               amount: parseFloat(formData.amount),
               description: formData.description.trim(),
               date: new Date(formData.date).toISOString(),
+              ...recurrence,
             }
           : {
               type: formData.type,
@@ -307,10 +354,11 @@ export const Transactions: React.FC = () => {
               amount: parseFloat(formData.amount),
               description: formData.description.trim(),
               date: new Date(formData.date).toISOString(),
+              ...recurrence,
             };
       createTransaction(payload, {
         onSuccess: () => {
-          addToast({ message: t("success.created"), type: "success" });
+          notifySuccess(t("success.created"));
           closeModal();
         },
         onError: (error: Error) => {
@@ -318,7 +366,7 @@ export const Transactions: React.FC = () => {
         },
       });
     },
-    [formData, createTransaction, addToast, closeModal, t, isSourceCreditCard],
+    [formData, createTransaction, addToast, notifySuccess, closeModal, t, isSourceCreditCard],
   );
 
   const handleDeleteClick = React.useCallback((id: string) => setDeleteId(id), []);
@@ -326,7 +374,7 @@ export const Transactions: React.FC = () => {
     if (!deleteId) return;
     deleteTransaction(deleteId, {
       onSuccess: () => {
-        addToast({ message: t("success.deleted"), type: "success" });
+        notifySuccess(t("success.deleted"));
         setDeleteId(null);
       },
       onError: (error: Error) => {
@@ -334,7 +382,7 @@ export const Transactions: React.FC = () => {
         setDeleteId(null);
       },
     });
-  }, [deleteId, deleteTransaction, addToast, t]);
+  }, [deleteId, deleteTransaction, addToast, notifySuccess, t]);
 
   const hasActiveFilters = React.useMemo(
     () => selectedType || selectedCategory || selectedAccount || selectedStartDate || selectedEndDate || searchQuery,
@@ -426,12 +474,12 @@ export const Transactions: React.FC = () => {
                 )}
                 {selectedStartDate && (
                   <Badge variant="default" className="text-xs">
-                    {t("filter.startDate")}: {formattedDateTime(selectedStartDate)}
+                    {t("filter.startDate")}: {formattedDateTime(selectedStartDate, preferences.dateFormat)}
                   </Badge>
                 )}
                 {selectedEndDate && (
                   <Badge variant="default" className="text-xs">
-                    {t("filter.endDate")}: {formattedDateTime(selectedEndDate)}
+                    {t("filter.endDate")}: {formattedDateTime(selectedEndDate, preferences.dateFormat)}
                   </Badge>
                 )}
                 {searchQuery && (
@@ -453,7 +501,7 @@ export const Transactions: React.FC = () => {
             </h2>
             {pagination && (
               <p className="text-xs sm:text-sm text-primary-500 dark:text-primary-700">
-                {t("pagination.showing", { start: (pagination.page - 1) * 20 + 1, end: Math.min(pagination.page * 20, pagination.total), total: pagination.total })}
+                {t("pagination.showing", { start: (pagination.page - 1) * pagination.limit + 1, end: Math.min(pagination.page * pagination.limit, pagination.total), total: pagination.total })}
               </p>
             )}
           </div>
@@ -463,7 +511,7 @@ export const Transactions: React.FC = () => {
             <>
               <div className="space-y-2 sm:space-y-3">
                 {transactions.map((tx) => (
-                  <TransactionItem key={tx.id} transaction={tx} onDelete={handleDeleteClick} isDeleting={isDeleting} />
+                  <TransactionItem key={tx.id} transaction={tx} dateFormat={preferences.dateFormat} onDelete={handleDeleteClick} isDeleting={isDeleting} />
                 ))}
               </div>
               {pagination && pagination.totalPages > 1 && (
@@ -542,14 +590,7 @@ export const Transactions: React.FC = () => {
               <p>{contextHint.text}</p>
             </div>
           )}
-          <Input
-            type="datetime-local"
-            label={`${t("modal.date")} *`}
-            value={formData.date}
-            onChange={(e) => handleChangeForm("date", e.target.value)}
-            max={new Date().toISOString().split("T")[0]}
-            required
-          />
+          <Input type="datetime-local" label={`${t("modal.date")} *`} value={formData.date} onChange={(e) => handleChangeForm("date", e.target.value)} max={endOfTodayInputValue()} required />
           <Input
             type="text"
             label={`${t("modal.description")} *`}
@@ -559,6 +600,33 @@ export const Transactions: React.FC = () => {
             maxLength={200}
             required
           />
+
+          <div className="p-3 border rounded-lg sm:p-4 border-primary-100 dark:border-primary-400 bg-primary-50 dark:bg-primary-300">
+            <label className="flex items-start gap-2.5 cursor-pointer sm:gap-3">
+              <input
+                type="checkbox"
+                checked={formData.isRecurring}
+                onChange={(e) => handleToggleRecurring(e.target.checked)}
+                className="mt-0.5 w-4 h-4 rounded cursor-pointer accent-primary-500 dark:accent-secondary-400"
+              />
+              <span className="min-w-0">
+                <span className="block text-xs font-medium sm:text-sm text-primary-900 dark:text-primary-900">🔁 {t("modal.recurring")}</span>
+                <span className="block mt-0.5 text-xs text-primary-500 dark:text-primary-700">{t("modal.recurringHint")}</span>
+              </span>
+            </label>
+
+            {formData.isRecurring && (
+              <div className="grid grid-cols-1 gap-3 mt-3 sm:grid-cols-2 sm:gap-4">
+                <Select
+                  label={t("modal.recurrenceInterval")}
+                  options={RECURRENCE_INTERVALS.map((interval) => ({ value: interval, label: `${RECURRENCE_ICONS[interval]} ${t(`interval.${interval}`)}` }))}
+                  value={formData.recurrenceInterval}
+                  onChange={(e) => handleChangeForm("recurrenceInterval", e.target.value)}
+                />
+                <Input type="datetime-local" label={t("modal.recurrenceEndDate")} value={formData.recurrenceEndDate} onChange={(e) => handleChangeForm("recurrenceEndDate", e.target.value)} />
+              </div>
+            )}
+          </div>
           {formData.amount && formData.description && (
             <div className="p-3 border rounded-lg sm:p-4 bg-primary-50 dark:bg-primary-300 border-primary-100 dark:border-primary-400">
               <p className="mb-2 text-xs font-medium sm:mb-3 sm:text-sm text-primary-600 dark:text-primary-700">{t("modal.preview")}:</p>

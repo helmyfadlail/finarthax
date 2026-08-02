@@ -7,6 +7,7 @@
     "nav": {
       "dashboard": "仪表板",
       "transactions": "交易",
+      "recurring": "定期交易",
       "accounts": "账户",
       "categories": "类别",
       "budgets": "预算",
@@ -95,6 +96,12 @@
         "title": "报告",
         "subtitle": "查看洞察"
       }
+    },
+    "recurring": {
+      "dueTitle": "有 {count} 笔定期交易待确认",
+      "detectedTitle": "从历史记录中发现 {count} 个定期模式",
+      "noDescription": "无描述",
+      "action": "查看"
     }
   },
   "transactionsPage": {
@@ -151,7 +158,11 @@
       "descriptionPlaceholder": "例如：餐厅午餐，工资支付",
       "preview": "预览",
       "cancel": "取消",
-      "create": "创建交易"
+      "create": "创建交易",
+      "recurring": "重复此交易",
+      "recurringHint": "Finarthax 会在下次到期时提醒您——不会自动创建任何交易。",
+      "recurrenceInterval": "重复频率",
+      "recurrenceEndDate": "重复至（可选）"
     },
     "deleteModal": {
       "title": "删除交易",
@@ -182,6 +193,144 @@
     "error": {
       "create": "创建交易失败",
       "delete": "删除交易失败"
+    },
+    "interval": {
+      "DAILY": "每天",
+      "WEEKLY": "每周",
+      "BIWEEKLY": "每两周",
+      "MONTHLY": "每月",
+      "YEARLY": "每年"
+    }
+  },
+  "recurringPage": {
+    "title": "定期交易",
+    "subtitle": "为每天、每周或每月重复出现的交易提供建议",
+    "noDescription": "无描述",
+    "detectedSummary": "已记录 {count} 次，{interval}，每次约 {amount}",
+    "summary": {
+      "due": "待确认",
+      "dueHint": "等待您确认",
+      "upcoming": "即将到来",
+      "upcomingHint": "未来 {days} 天内",
+      "detected": "建议",
+      "detectedHint": "来自历史记录",
+      "committed": "固定支出",
+      "committedHint": "每月定期支出"
+    },
+    "interval": {
+      "DAILY": "每天",
+      "WEEKLY": "每周",
+      "BIWEEKLY": "每两周",
+      "MONTHLY": "每月",
+      "YEARLY": "每年"
+    },
+    "status": {
+      "OVERDUE": "已逾期",
+      "DUE_TODAY": "今天到期",
+      "UPCOMING": "即将到来"
+    },
+    "relative": {
+      "overdue": "逾期 {days} 天",
+      "today": "今天到期",
+      "inDays": "{days} 天后"
+    },
+    "meta": {
+      "next": "下次",
+      "last": "上次",
+      "occurrences": "已记录 {count} 次",
+      "confidence": "匹配度 {value}%",
+      "perMonth": "≈ {amount}/月",
+      "endsOn": "{date} 结束"
+    },
+    "sections": {
+      "due": {
+        "title": "待确认",
+        "description": "确认已经发生的交易，或跳过它们"
+      },
+      "upcoming": {
+        "title": "即将到来",
+        "description": "未来 {days} 天内的排期"
+      },
+      "detected": {
+        "title": "根据历史记录的建议",
+        "description": "有规律重复但尚未跟踪的交易"
+      },
+      "dismissed": {
+        "title": "已忽略",
+        "description": "您让 Finarthax 忽略的模式",
+        "show": "显示",
+        "hide": "隐藏"
+      }
+    },
+    "actions": {
+      "log": "记录",
+      "skip": "跳过",
+      "stop": "停止",
+      "track": "跟踪",
+      "dismiss": "忽略",
+      "restore": "恢复"
+    },
+    "empty": {
+      "all": {
+        "title": "暂无定期交易",
+        "description": "记录几笔交易后，Finarthax 会开始推荐重复出现的交易。添加交易时也可以勾选“重复此交易”。"
+      },
+      "due": {
+        "title": "全部完成",
+        "description": "目前没有定期交易等待确认。"
+      },
+      "upcoming": {
+        "title": "暂无排期",
+        "description": "未来两周内没有已跟踪的定期交易。"
+      },
+      "detected": {
+        "title": "没有新模式",
+        "description": "Finarthax 未发现重复次数足够的未跟踪交易。"
+      }
+    },
+    "trackModal": {
+      "title": "跟踪为定期交易",
+      "hint": "“{name}” 将被排期，并在每个周期向您推荐。",
+      "interval": "重复频率",
+      "endDate": "重复至（可选）",
+      "endDateHint": "留空则一直重复，直到您手动停止。",
+      "cancel": "取消",
+      "submit": "开始跟踪"
+    },
+    "logModal": {
+      "title": "记录本次交易",
+      "hint": "将为 “{name}” 创建一笔新交易并更新您的余额。",
+      "date": "日期",
+      "amount": "金额",
+      "cancel": "取消",
+      "submit": "记录交易"
+    },
+    "stopModal": {
+      "title": "停止跟踪",
+      "confirm": "停止推荐此定期交易？",
+      "warning": "历史交易保持不变——仅删除排期及其建议。",
+      "cancel": "取消",
+      "submit": "停止跟踪"
+    },
+    "validation": {
+      "amount": "请输入大于 0 的有效金额",
+      "date": "请选择日期"
+    },
+    "success": {
+      "logged": "定期交易记录成功 🎉",
+      "skipped": "已跳过本次",
+      "tracked": "已开始跟踪该定期交易 🔁",
+      "stopped": "已停止跟踪",
+      "dismissed": "已忽略该建议",
+      "restored": "已恢复该建议"
+    },
+    "error": {
+      "log": "记录交易失败",
+      "skip": "跳过本次失败",
+      "track": "跟踪定期交易失败",
+      "stop": "停止跟踪失败",
+      "dismiss": "忽略建议失败",
+      "restore": "恢复建议失败"
     }
   },
   "accountsPage": {
@@ -727,7 +876,8 @@
       "theme": "主题",
       "themeDescription": "选择您的首选颜色主题",
       "currency": "货币",
-      "currencyDescription": "设置您的默认货币"
+      "currencyDescription": "设置您的默认货币",
+      "requires": "需要先开启{setting}"
     },
     "notificationTypes": {
       "emailNotifications": "电子邮件通知",
@@ -802,11 +952,145 @@
     "errors": {
       "updateFailed": "更新设置失败",
       "deleteFailed": "删除账户失败"
+    },
+    "categories": {
+      "notifications": "通知",
+      "appearance": "外观",
+      "privacy": "隐私",
+      "general": "通用",
+      "security": "安全",
+      "billing": "账单"
+    },
+    "categoryDescriptions": {
+      "notifications": "选择 Finarthax 在何时提醒您什么",
+      "appearance": "应用的外观与呈现方式",
+      "privacy": "控制屏幕上显示的内容",
+      "general": "日常界面的默认设置"
+    },
+    "settings": {
+      "emailNotifications": {
+        "title": "邮件通知",
+        "description": "Finarthax 所有邮件的总开关"
+      },
+      "weeklyReports": {
+        "title": "每周摘要",
+        "description": "通过邮件接收每周财务摘要"
+      },
+      "transactionAlerts": {
+        "title": "交易确认",
+        "description": "每次记录交易时在屏幕上确认"
+      },
+      "budgetAlerts": {
+        "title": "预算提醒",
+        "description": "高亮接近上限的预算"
+      },
+      "budgetAlertThreshold": {
+        "title": "提醒阈值",
+        "description": "预算使用到多少比例时发出提醒"
+      },
+      "recurringReminders": {
+        "title": "定期提醒",
+        "description": "显示到期的定期交易"
+      },
+      "language": {
+        "title": "语言",
+        "description": "界面语言"
+      },
+      "currency": {
+        "title": "货币",
+        "description": "显示所有金额所用的货币"
+      },
+      "theme": {
+        "title": "主题",
+        "description": "界面主题"
+      },
+      "dateFormat": {
+        "title": "日期格式",
+        "description": "全应用的日期书写方式"
+      },
+      "hideAmounts": {
+        "title": "隐藏金额",
+        "description": "在关闭前遮蔽所有金额"
+      },
+      "itemsPerPage": {
+        "title": "每页行数",
+        "description": "列表一次显示的行数"
+      },
+      "defaultTransactionType": {
+        "title": "默认交易类型",
+        "description": "添加交易时预选的类型"
+      },
+      "recurringLookaheadDays": {
+        "title": "定期预览范围",
+        "description": "提前多久显示即将到来的定期交易"
+      },
+      "publicQuickBalances": {
+        "title": "公开余额",
+        "description": "输入邮箱后在快速记账页面显示您的账户余额"
+      }
     }
   },
   "notFoundPage": {
     "title": "页面未找到",
     "description": "您访问的页面不存在或已被移动。",
     "homeButton": "返回仪表板"
+  },
+  "emails": {
+    "greeting": "您好 {name}，",
+    "manage": "管理通知",
+    "why": {
+      "transaction": "您收到此邮件是因为交易确认已开启。",
+      "budget": "您收到此邮件是因为预算提醒已开启。",
+      "recurring": "您收到此邮件是因为定期提醒已开启。",
+      "weekly": "您收到此邮件是因为每周摘要已开启。"
+    },
+    "types": {
+      "INCOME": "收入",
+      "EXPENSE": "支出",
+      "TRANSFER": "转账"
+    },
+    "labels": {
+      "type": "类型",
+      "amount": "金额",
+      "account": "账户",
+      "category": "类别",
+      "date": "日期",
+      "spent": "已花费",
+      "limit": "上限",
+      "used": "已使用",
+      "income": "收入",
+      "expense": "支出",
+      "balance": "净余额",
+      "savingsRate": "储蓄率",
+      "transactions": "交易笔数",
+      "topCategory": "最高类别"
+    },
+    "transaction": {
+      "subject": "已记录新的{type}",
+      "heading": "交易已记录",
+      "intro": "刚刚有一笔新交易添加到您的账户。",
+      "introNamed": "“{description}” 刚刚添加到您的账户。",
+      "cta": "查看交易"
+    },
+    "budget": {
+      "subject": "{category} 预算已达 {percentage}%",
+      "heading": "预算提醒",
+      "intro": "您的 {category} 预算本月已达到上限的 {percentage}%。",
+      "cta": "查看预算"
+    },
+    "recurring": {
+      "subject": "有 {count} 笔定期交易待确认",
+      "heading": "定期交易到期",
+      "intro": "您有 {count} 笔定期交易等待确认。",
+      "item": "{description} — {amount}，到期 {date}",
+      "untitled": "无标题",
+      "cta": "查看定期交易"
+    },
+    "weekly": {
+      "subject": "您的一周回顾",
+      "heading": "每周摘要",
+      "intro": "以下是 {from} 至 {to} 期间您的资金变动。",
+      "cta": "打开仪表板"
+    }
   }
 }

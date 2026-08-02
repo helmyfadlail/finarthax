@@ -6,7 +6,6 @@ import { usePathname, useRouter } from "@/i18n/navigation";
 import { Session } from "next-auth";
 import { useTranslations } from "next-intl";
 import { useAuth } from "@/hooks";
-import { ThemeProvider } from "@/providers";
 import { Dropdown, DropdownItem, DropdownDivider, AvatarImg, Img } from "@/components";
 import { formatInitialName } from "@/utils";
 
@@ -83,6 +82,7 @@ const SidebarContent = ({ session, router, pathname, logout }: SidebarContentPro
   const navigation = [
     { name: t("nav.dashboard"), href: "/admin/dashboard", icon: "📊" },
     { name: t("nav.transactions"), href: "/admin/dashboard/transactions", icon: "💰" },
+    { name: t("nav.recurring"), href: "/admin/dashboard/recurring", icon: "🔁" },
     { name: t("nav.accounts"), href: "/admin/dashboard/accounts", icon: "💳" },
     { name: t("nav.categories"), href: "/admin/dashboard/categories", icon: "📁" },
     { name: t("nav.budgets"), href: "/admin/dashboard/budgets", icon: "📊" },
@@ -233,9 +233,5 @@ const DashboardLayoutInner = ({ children }: { children: React.ReactNode }) => {
 };
 
 export const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
-  return (
-    <ThemeProvider>
-      <DashboardLayoutInner>{children}</DashboardLayoutInner>
-    </ThemeProvider>
-  );
+  return <DashboardLayoutInner>{children}</DashboardLayoutInner>;
 };

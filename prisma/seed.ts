@@ -4,6 +4,13 @@ import { APP_SETTINGS } from "@/static";
 async function main() {
   console.log("🌱 Starting database seeding...\n");
   // ============================================
+  // 1. CLEAN EXISTING DATA
+  // ============================================
+  console.log("🧹 Cleaning existing data...");
+  await prisma.appSetting.deleteMany({});
+  console.log("✅ Clean done\n");
+
+  // ============================================
   // 1. CREATE DEFAULT APP SETTINGS
   // ============================================
 

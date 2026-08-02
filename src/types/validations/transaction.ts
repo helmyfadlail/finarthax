@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { recurrenceFields } from "./recurring";
 
 const incomeExpenseSchema = z.object({
   type: z.enum(["INCOME", "EXPENSE"]),
@@ -21,12 +22,16 @@ const transferBaseSchema = z.object({
   attachment: z.string().optional(),
 });
 
-const transferSchema = transferBaseSchema.refine((d) => !d.toAccountId || d.toAccountId !== d.accountId, {
-  message: "Source and destination accounts must be different",
-  path: ["toAccountId"],
-});
+export const transactionSchema = z.discriminatedUnion("type", [
+  incomeExpenseSchema.extend({ ...recurrenceFields, type: z.literal("INCOME") }),
 
-export const transactionSchema = z.discriminatedUnion("type", [incomeExpenseSchema.extend({ type: z.literal("INCOME") }), incomeExpenseSchema.extend({ type: z.literal("EXPENSE") }), transferSchema]);
+  incomeExpenseSchema.extend({ ...recurrenceFields, type: z.literal("EXPENSE") }),
+
+  transferBaseSchema.extend(recurrenceFields).refine((d) => !d.toAccountId || d.toAccountId !== d.accountId, {
+    message: "Source and destination accounts must be different",
+    path: ["toAccountId"],
+  }),
+]);
 
 export const updateTransactionSchema = z.discriminatedUnion("type", [
   incomeExpenseSchema

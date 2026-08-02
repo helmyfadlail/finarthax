@@ -22,7 +22,8 @@ export async function GET(req: NextRequest) {
       return successResponse(parsed);
     } catch (error) {
       console.error("[GET /settings]", error);
-      return errorResponse("Failed to fetch app settings", 500);
+      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
+      return errorResponse(errorMessage, 500);
     }
   });
 }

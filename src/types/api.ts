@@ -1,5 +1,9 @@
 export type TransactionType = "INCOME" | "EXPENSE" | "TRANSFER";
 
+export type RecurrenceInterval = "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "YEARLY";
+
+export type RecurrenceStatus = "OVERDUE" | "DUE_TODAY" | "UPCOMING";
+
 export interface ApiResponse<T> {
   success: boolean;
   message: string;
@@ -68,6 +72,12 @@ export interface Transaction {
   description?: string;
   date: string;
   attachment?: string;
+  isRecurring: boolean;
+  recurrenceInterval?: RecurrenceInterval | null;
+  recurrenceKey?: string | null;
+  nextOccurrence?: string | null;
+  recurrenceEndDate?: string | null;
+  recurrenceDismissedAt?: string | null;
   createdAt: string;
   updatedAt: string;
   account: Account;
@@ -126,6 +136,24 @@ export interface Goal {
   updatedAt: string;
 }
 
+export interface PublicAccount {
+  id: string;
+  name: string;
+  icon?: string | null;
+  type: Account["type"];
+  isDefault: boolean;
+  balance?: number;
+  creditLimit?: number | null;
+}
+
+export interface QuickTransactionResources {
+  email: string;
+  name: string;
+  categories: Category[];
+  accounts: PublicAccount[];
+  showsBalances: boolean;
+}
+
 export interface QuickTransactionData {
   email: string;
   accountId: string;
@@ -136,6 +164,79 @@ export interface QuickTransactionData {
   description?: string;
   date: string;
   attachment?: string;
+}
+
+export interface DetectedPattern {
+  patternKey: string;
+  transactionId: string;
+  type: TransactionType;
+  accountId: string;
+  toAccountId: string | null;
+  categoryId: string | null;
+  description: string | null;
+  interval: RecurrenceInterval;
+  occurrences: number;
+  averageAmount: number;
+  lastAmount: number;
+  lastDate: string;
+  nextDate: string;
+  confidence: number;
+  monthlyEstimate: number;
+  dismissed: boolean;
+}
+
+interface RecurrenceAccountRef {
+  id: string;
+  name: string;
+  icon: string | null;
+  type: Account["type"];
+}
+
+interface RecurrenceCategoryRef {
+  id: string;
+  name: string;
+  icon: string | null;
+  color: string | null;
+}
+
+export interface ScheduledRecurrence {
+  transactionId: string;
+  recurrenceKey: string;
+  type: TransactionType;
+  description: string | null;
+  amount: number;
+  interval: RecurrenceInterval;
+  status: RecurrenceStatus;
+  nextOccurrence: string;
+  lastDate: string;
+  daysUntil: number;
+  occurrences: number;
+  monthlyEstimate: number;
+  recurrenceEndDate: string | null;
+  account: RecurrenceAccountRef;
+  toAccount: RecurrenceAccountRef | null;
+  category: RecurrenceCategoryRef | null;
+}
+
+export interface RecurringOverview {
+  summary: {
+    dueCount: number;
+    upcomingCount: number;
+    detectedCount: number;
+    trackedCount: number;
+    monthlyCommitted: number;
+    monthlyPotential: number;
+  };
+  due: ScheduledRecurrence[];
+  upcoming: ScheduledRecurrence[];
+  detected: DetectedPattern[];
+  dismissed: DetectedPattern[];
+}
+
+export interface RecurringFilter {
+  lookaheadDays?: number;
+  historyDays?: number;
+  minOccurrences?: number;
 }
 
 export interface TransactionFilter {

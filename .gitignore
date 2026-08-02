@@ -31,8 +31,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# covers .env, .env.bak and .env.key — the key must never be committed alongside the file it unlocks
+.env
+.env.bak
+.env.key
 
 # vercel
 .vercel
@@ -43,8 +45,12 @@ next-env.d.ts
 
 # prisma
 /generated/prisma
-/prisma/migrations
 
 # kubernetes and docker
 k8s/
 
+# claude setting
+.claude/
+
+# deployment guide
+DEPLOYMENT.md

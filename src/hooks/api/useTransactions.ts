@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/utils";
-import type { ApiResponse, Transaction, TransactionFilter, PaginatedResponse } from "@/types/api";
+import type { ApiResponse, Transaction, TransactionFilter, PaginatedResponse, RecurrenceInterval } from "@/types/api";
 
 interface CreateTransactionData {
   accountId: string;
@@ -13,6 +13,9 @@ interface CreateTransactionData {
   description?: string;
   date: string;
   attachment?: string;
+  isRecurring?: boolean;
+  recurrenceInterval?: RecurrenceInterval;
+  recurrenceEndDate?: string;
 }
 
 export const useTransactions = (filters?: TransactionFilter) => {
@@ -33,6 +36,7 @@ export const useTransactions = (filters?: TransactionFilter) => {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["budgets"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["recurring"] });
     },
   });
 
@@ -43,6 +47,7 @@ export const useTransactions = (filters?: TransactionFilter) => {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["budgets"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["recurring"] });
     },
   });
 
@@ -53,6 +58,7 @@ export const useTransactions = (filters?: TransactionFilter) => {
       queryClient.invalidateQueries({ queryKey: ["accounts"] });
       queryClient.invalidateQueries({ queryKey: ["budgets"] });
       queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["recurring"] });
     },
   });
 

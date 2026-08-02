@@ -1,22 +1,33 @@
 import { NextRequest } from "next/server";
 import { prisma, requireAuth, withMaintenanceGuard } from "@/lib";
 import { errorResponse, successResponse } from "@/utils";
-import { DEFAULT_SETTINGS } from "@/static";
+import { USER_SETTINGS } from "@/static";
 
 export async function GET(req: NextRequest) {
   return withMaintenanceGuard(req, async () => {
     try {
       const user = await requireAuth();
 
-      let settings = await prisma.userSetting.findMany({ where: { userId: user.id }, orderBy: [{ category: "asc" }, { key: "asc" }] });
+      const existing = await prisma.userSetting.findMany({ where: { userId: user.id }, select: { key: true } });
+      const existingKeys = new Set(existing.map((setting) => setting.key));
+      const catalogueKeys = new Set(USER_SETTINGS.map((setting) => setting.key));
 
-      if (settings.length === 0) {
-        const defaultSettings = DEFAULT_SETTINGS.map((setting) => ({ userId: user.id, ...setting }));
+      const missing = USER_SETTINGS.filter((setting) => !existingKeys.has(setting.key));
+      const retired = [...existingKeys].filter((key) => !catalogueKeys.has(key));
 
-        await prisma.userSetting.createMany({ data: defaultSettings, skipDuplicates: true });
+      if (missing.length > 0 || retired.length > 0) {
+        await prisma.$transaction(async (tx) => {
+          if (missing.length > 0) {
+            await tx.userSetting.createMany({ data: missing.map((setting) => ({ userId: user.id, ...setting })), skipDuplicates: true });
+          }
 
-        settings = await prisma.userSetting.findMany({ where: { userId: user.id }, orderBy: [{ category: "asc" }, { key: "asc" }] });
+          if (retired.length > 0) {
+            await tx.userSetting.deleteMany({ where: { userId: user.id, key: { in: retired } } });
+          }
+        });
       }
+
+      const settings = await prisma.userSetting.findMany({ where: { userId: user.id }, orderBy: [{ category: "asc" }, { key: "asc" }] });
 
       return successResponse(settings);
     } catch (error) {

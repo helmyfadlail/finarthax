@@ -3,21 +3,25 @@
 import * as React from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter } from "@/i18n/navigation";
-import { useSettings } from "@/hooks";
+import { usePreferences, useSettings } from "@/hooks";
 import { useTheme } from "@/providers";
 import { Card, CardContent, CardHeader, CardTitle, Button, Select, Alert, AlertTitle, AlertDescription, useToast, Skeleton, Modal, Input } from "@/components";
 import { formatSettingKey } from "@/utils";
+import type { UserSetting } from "@/types";
 
-interface NotificationSettings {
-  emailNotifications: boolean;
-  budgetAlerts: boolean;
-  weeklyReports: boolean;
-  transactionAlerts: boolean;
-  marketingEmails: boolean;
-  language: string;
-  currency: string;
-  theme: string;
-}
+const CATEGORY_ORDER = ["notifications", "appearance", "privacy", "general", "security", "billing"];
+
+const CATEGORY_ICONS: Record<string, string> = {
+  notifications: "🔔",
+  appearance: "⚙️",
+  privacy: "🔒",
+  general: "🧭",
+  security: "🛡️",
+  billing: "💳",
+};
+
+const DEPENDS_ON: Record<string, string> = { weeklyReports: "emailNotifications" };
+
 interface ToggleItemProps {
   title: string;
   description: string;
@@ -63,7 +67,7 @@ const ToggleItem: React.FC<ToggleItemProps> = ({ title, description, icon, check
   </div>
 );
 
-const PreferenceItem: React.FC<PreferenceItemProps> = ({ title, description, icon, options, value, onChange }) => (
+const PlainItem: React.FC<{ title: string; description: string; icon: string; children: React.ReactNode }> = ({ title, description, icon, children }) => (
   <div className="flex flex-col gap-2 px-2 py-3 sm:py-4 transition-colors border-b border-primary-100 dark:border-primary-400 rounded-lg last:border-b-0 hover:bg-primary-50 dark:hover:bg-primary-300 sm:flex-row sm:items-center">
     <div className="flex items-center flex-1 gap-2 sm:gap-3 min-w-0">
       <span className="text-xl sm:text-2xl shrink-0">{icon}</span>
@@ -72,8 +76,14 @@ const PreferenceItem: React.FC<PreferenceItemProps> = ({ title, description, ico
         <p className="text-xs sm:text-sm text-primary-500 dark:text-primary-700">{description}</p>
       </div>
     </div>
-    <Select options={options} value={value} onChange={(e) => onChange(e.target.value)} parentClassName="w-full sm:w-56 lg:w-72 shrink-0" />
+    <div className="w-full sm:w-56 lg:w-72 shrink-0">{children}</div>
   </div>
+);
+
+const PreferenceItem: React.FC<PreferenceItemProps> = ({ title, description, icon, options, value, onChange }) => (
+  <PlainItem title={title} description={description} icon={icon}>
+    <Select options={options} value={value} onChange={(e) => onChange(e.target.value)} />
+  </PlainItem>
 );
 
 const LoadingSkeleton: React.FC = () => (
@@ -99,32 +109,41 @@ export const Settings: React.FC = () => {
   const router = useRouter();
   const pathname = usePathname();
   const { theme: currentTheme, isDark, setTheme } = useTheme();
-  const { appSettingsData, getAppSetting, userSettingsData, isLoadingUserSettings, updateNotification, isUpdatingNotification, exportData, isExporting, deleteAccount, isDeleting } = useSettings();
-
-  const [currencyOptions, themeOptions, languageOptions] = React.useMemo(() => {
-    const resolve = (key: string) => {
-      const setting = getAppSetting(key);
-      if (!setting || !Array.isArray(setting.value)) return [];
-      return setting.value as unknown as PreferenceItemProps["options"];
-    };
-    return [resolve("currency_options"), resolve("theme_options"), resolve("language_options")];
-  }, [getAppSetting]);
+  const { appSettingsData, userSettingsData, isLoadingUserSettings, updateNotification, isUpdatingNotification, exportData, isExporting, deleteAccount, isDeleting } = useSettings();
+  const { optionsFor } = usePreferences();
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = React.useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = React.useState("");
 
-  const enabledNotificationsCount = React.useMemo(() => userSettingsData?.filter((n) => n.type === "boolean" && n.value === "true").length ?? 0, [userSettingsData]);
-  const notificationsCount = React.useMemo(() => userSettingsData?.filter((n) => n.type === "boolean").length ?? 0, [userSettingsData]);
+  const groupedSettings = React.useMemo(() => {
+    const groups = new Map<string, UserSetting[]>();
+    for (const setting of userSettingsData ?? []) {
+      groups.set(setting.category, [...(groups.get(setting.category) ?? []), setting]);
+    }
+    return [...groups.entries()].sort(([a], [b]) => {
+      const rankA = CATEGORY_ORDER.indexOf(a);
+      const rankB = CATEGORY_ORDER.indexOf(b);
+      return (rankA === -1 ? CATEGORY_ORDER.length : rankA) - (rankB === -1 ? CATEGORY_ORDER.length : rankB);
+    });
+  }, [userSettingsData]);
+
+  const notificationToggles = React.useMemo(() => userSettingsData?.filter((s) => s.category === "notifications" && s.type === "boolean") ?? [], [userSettingsData]);
+  const enabledNotificationsCount = React.useMemo(() => notificationToggles.filter((s) => s.value === "true").length, [notificationToggles]);
+  const notificationsCount = notificationToggles.length;
+
+  const settingValue = React.useCallback((key: string) => userSettingsData?.find((s) => s.key === key)?.value, [userSettingsData]);
+
+  const labelFor = React.useCallback((setting: UserSetting) => (t.has(`settings.${setting.key}.title`) ? t(`settings.${setting.key}.title`) : formatSettingKey(setting.key)), [t]);
+  const descriptionFor = React.useCallback((setting: UserSetting) => (t.has(`settings.${setting.key}.description`) ? t(`settings.${setting.key}.description`) : (setting.description ?? "")), [t]);
+  const categoryTitle = React.useCallback((category: string) => (t.has(`categories.${category}`) ? t(`categories.${category}`) : formatSettingKey(category)), [t]);
 
   const handleToggleNotification = React.useCallback(
-    (key: keyof NotificationSettings, value: string | boolean): void => {
+    (key: string, value: string | boolean): void => {
       updateNotification(
         { key, value },
         {
           onSuccess: () => {
-            const label = String(key)
-              .replace(/([A-Z])/g, " $1")
-              .trim();
+            const label = formatSettingKey(key);
             const message = typeof value === "boolean" ? `${label} ${value ? t("notifications.enabled") : t("notifications.disabled")} ✓` : `${label} ${t("notifications.updatedTo")} ${value} ✓`;
             addToast({ message, type: "success" });
           },
@@ -151,6 +170,15 @@ export const Settings: React.FC = () => {
       handleToggleNotification("theme", value);
     },
     [setTheme, handleToggleNotification],
+  );
+
+  const handleSettingChange = React.useCallback(
+    (key: string, value: string | boolean): void => {
+      if (key === "language") return handleLanguageChange(String(value));
+      if (key === "theme") return handleThemeChange(String(value));
+      handleToggleNotification(key, value);
+    },
+    [handleLanguageChange, handleThemeChange, handleToggleNotification],
   );
 
   const handleExportData = React.useCallback((): void => {
@@ -183,14 +211,14 @@ export const Settings: React.FC = () => {
   }, [deleteConfirmText, deleteAccount, addToast, t]);
 
   const handleQuickDisableAll = React.useCallback((): void => {
-    userSettingsData?.filter((s) => s.type === "boolean").map((n) => handleToggleNotification(n.key as keyof NotificationSettings, false));
+    notificationToggles.forEach((n) => handleToggleNotification(n.key, false));
     addToast({ message: t("notifications.allDisabled"), type: "success" });
-  }, [userSettingsData, handleToggleNotification, addToast, t]);
+  }, [notificationToggles, handleToggleNotification, addToast, t]);
 
   const handleQuickEnableAll = React.useCallback((): void => {
-    userSettingsData?.filter((s) => s.type === "boolean").map((n) => handleToggleNotification(n.key as keyof NotificationSettings, true));
+    notificationToggles.forEach((n) => handleToggleNotification(n.key, true));
     addToast({ message: t("notifications.allEnabled"), type: "success" });
-  }, [userSettingsData, handleToggleNotification, addToast, t]);
+  }, [notificationToggles, handleToggleNotification, addToast, t]);
 
   if (isLoadingUserSettings) return <LoadingSkeleton />;
 
@@ -235,71 +263,90 @@ export const Settings: React.FC = () => {
         </Card>
       </div>
 
-      <Card className="dark:bg-primary-200 dark:border-primary-400">
-        <CardHeader>
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg lg:text-xl dark:text-primary-900">🔔 {t("notifications.title")}</CardTitle>
-              <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-primary-500 dark:text-primary-700">{t("notifications.subtitle")}</p>
+      {groupedSettings.map(([category, settings]) => (
+        <Card key={category} className="dark:bg-primary-200 dark:border-primary-400">
+          <CardHeader>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg lg:text-xl dark:text-primary-900">
+                  {CATEGORY_ICONS[category] ?? "⚙️"} {categoryTitle(category)}
+                </CardTitle>
+                {t.has(`categoryDescriptions.${category}`) && <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-primary-500 dark:text-primary-700">{t(`categoryDescriptions.${category}`)}</p>}
+              </div>
+              {category === "notifications" && notificationsCount > 0 && (
+                <div className="flex gap-2 shrink-0">
+                  <Button variant="ghost" size="sm" onClick={handleQuickDisableAll} disabled={enabledNotificationsCount === 0} className="text-xs sm:text-sm">
+                    🔕 {t("notifications.disableAll")}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={handleQuickEnableAll} disabled={enabledNotificationsCount === notificationsCount} className="text-xs sm:text-sm">
+                    🔔 {t("notifications.enableAll")}
+                  </Button>
+                </div>
+              )}
             </div>
-            <div className="flex gap-2 shrink-0">
-              <Button variant="ghost" size="sm" onClick={handleQuickDisableAll} disabled={enabledNotificationsCount === 0} className="text-xs sm:text-sm">
-                🔕 {t("notifications.disableAll")}
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleQuickEnableAll} disabled={enabledNotificationsCount === notificationsCount} className="text-xs sm:text-sm">
-                🔔 {t("notifications.enableAll")}
-              </Button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-1">
-            {userSettingsData
-              ?.filter((s) => s.type === "boolean")
-              .map((n) => (
-                <ToggleItem
-                  key={n.id}
-                  icon={n.icon}
-                  title={formatSettingKey(n.key)}
-                  description={n.description || ""}
-                  checked={n.value === "true"}
-                  onChange={(checked) => handleToggleNotification(n.key as keyof NotificationSettings, checked)}
-                  disabled={isUpdatingNotification}
-                />
-              ))}
-            <Alert variant="info" className="mt-3 sm:mt-4">
-              <AlertTitle>⚡ {t("notifications.autoSave.title")}</AlertTitle>
-              <AlertDescription>{t("notifications.autoSave.description")}</AlertDescription>
-            </Alert>
-          </div>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-1">
+              {settings.map((setting) => {
+                const dependency = DEPENDS_ON[setting.key];
+                const isBlocked = !!dependency && settingValue(dependency) === "false";
+                const description = isBlocked && t.has("preferences.requires") ? t("preferences.requires", { setting: formatSettingKey(dependency) }) : descriptionFor(setting);
 
-      <Card className="dark:bg-primary-200 dark:border-primary-400">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base sm:text-lg lg:text-xl dark:text-primary-900">⚙️ {t("preferences.title")}</CardTitle>
-          <p className="mt-0.5 sm:mt-1 text-xs sm:text-sm text-primary-500 dark:text-primary-700">{t("preferences.subtitle")}</p>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-1">
-            {userSettingsData
-              ?.filter((s) => s.category === "appearance")
-              .map((n) => (
-                <PreferenceItem
-                  key={n.id}
-                  icon={n.icon}
-                  title={formatSettingKey(n.key)}
-                  description={n.description || ""}
-                  options={n.key === "theme" ? themeOptions : n.key === "language" ? languageOptions : currencyOptions}
-                  value={n.key === "theme" ? currentTheme : n.key === "language" ? currentLocale : n.value}
-                  onChange={(value) =>
-                    n.key === "theme" ? handleThemeChange(value) : n.key === "language" ? handleLanguageChange(value) : handleToggleNotification(n.key as keyof NotificationSettings, value)
-                  }
-                />
-              ))}
-          </div>
-        </CardContent>
-      </Card>
+                if (setting.type === "boolean") {
+                  return (
+                    <ToggleItem
+                      key={setting.id}
+                      icon={setting.icon}
+                      title={labelFor(setting)}
+                      description={description}
+                      checked={setting.value === "true"}
+                      onChange={(checked) => handleSettingChange(setting.key, checked)}
+                      disabled={isUpdatingNotification || isBlocked}
+                    />
+                  );
+                }
+
+                const options = optionsFor(setting.key);
+
+                const value = setting.key === "theme" ? currentTheme : setting.key === "language" ? currentLocale : setting.value;
+
+                if (options.length === 0) {
+                  return (
+                    <PlainItem key={setting.id} icon={setting.icon} title={labelFor(setting)} description={description}>
+                      <Input
+                        type={setting.type === "number" ? "number" : "text"}
+                        defaultValue={setting.value}
+                        onBlur={(e) => {
+                          if (e.target.value !== setting.value) handleSettingChange(setting.key, e.target.value);
+                        }}
+                      />
+                    </PlainItem>
+                  );
+                }
+
+                return (
+                  <PreferenceItem
+                    key={setting.id}
+                    icon={setting.icon}
+                    title={labelFor(setting)}
+                    description={description}
+                    options={options}
+                    value={value}
+                    onChange={(next) => handleSettingChange(setting.key, next)}
+                  />
+                );
+              })}
+
+              {category === "notifications" && (
+                <Alert variant="info" className="mt-3 sm:mt-4">
+                  <AlertTitle>⚡ {t("notifications.autoSave.title")}</AlertTitle>
+                  <AlertDescription>{t("notifications.autoSave.description")}</AlertDescription>
+                </Alert>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      ))}
 
       <Card className="dark:bg-primary-200 dark:border-primary-400">
         <CardHeader>

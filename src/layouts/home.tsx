@@ -3,8 +3,9 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useQuickTransactions, useSettings } from "@/hooks";
+import { useCurrency } from "@/providers";
 import { Card, CardContent, Button, Input, Select, Badge, useToast, Skeleton, Img } from "@/components";
-import type { Account, Category, TransactionType } from "@/types";
+import type { Category, PublicAccount, TransactionType } from "@/types";
 
 interface FormData {
   categoryId: string;
@@ -41,6 +42,40 @@ const TYPE_CONFIG: Record<
   TRANSFER: { bg: "bg-blue-50", text: "text-blue-600", badge: "info", prefix: "⇄", icon: "🔄" },
 };
 
+const isCreditCard = (account?: PublicAccount | null): boolean => account?.type === "CREDIT_CARD";
+
+/**
+ * A credit-card balance is stored negative and its magnitude is what you owe. A positive one means
+ * the card is in credit, so it is shown like any other balance rather than as a debt.
+ */
+const isDebt = (account: PublicAccount, balance = account.balance ?? 0): boolean => isCreditCard(account) && balance < 0;
+
+/** What to print for a balance: debts read as a positive "owed" figure. */
+const displayBalance = (account: PublicAccount, balance: number): number => (isDebt(account, balance) ? Math.abs(balance) : balance);
+
+/**
+ * What this transaction does to an account's balance. Mirrors applyBalanceChange on the server, so
+ * the preview and the saved result agree.
+ *
+ * A credit-card balance is stored negative and its magnitude is the debt, which is why an expense
+ * subtracts there too — it pushes the balance further below zero.
+ */
+const balanceAfter = (account: PublicAccount, formData: FormData): number | null => {
+  if (account.balance === undefined) return null;
+
+  const amount = parseFloat(formData.amount);
+  if (!Number.isFinite(amount) || amount <= 0) return null;
+
+  if (account.id === formData.accountId) {
+    if (formData.type === "INCOME") return account.balance + amount;
+    return account.balance - amount; // EXPENSE, and the outgoing side of a TRANSFER
+  }
+
+  if (formData.type === "TRANSFER" && account.id === formData.toAccountId) return account.balance + amount;
+
+  return null;
+};
+
 const validateEmail = (email: string): string | null => {
   if (!email.trim()) return "Please enter your email address";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Please enter a valid email address";
@@ -65,6 +100,7 @@ export const Home: React.FC = () => {
 
   const { createTransaction, searchEmail, isCreating, isSearchingEmail } = useQuickTransactions();
   const { getAppSetting, isLoadingAppSettings } = useSettings();
+  const { format } = useCurrency();
 
   const homeData = React.useMemo(() => {
     const resolve = (key: string) => {
@@ -86,8 +122,9 @@ export const Home: React.FC = () => {
 
   const [email, setEmail] = React.useState("");
   const [emailVerified, setEmailVerified] = React.useState(false);
-  const [accounts, setAccounts] = React.useState<Account[]>([]);
+  const [accounts, setAccounts] = React.useState<PublicAccount[]>([]);
   const [categories, setCategories] = React.useState<Category[]>([]);
+  const [showsBalances, setShowsBalances] = React.useState(false);
   const [formData, setFormData] = React.useState<FormData>(INITIAL_FORM_DATA);
 
   const getFilteredCategories = React.useCallback(
@@ -111,12 +148,37 @@ export const Home: React.FC = () => {
     [formData.type, getFilteredCategories],
   );
 
-  const accountOptions = React.useMemo(() => [{ value: "", label: "Select Account..." }, ...accounts.map((a) => ({ value: a.id, label: `${a.icon} ${a.name}` }))], [accounts]);
+  // The balance goes straight into the option label, so you can pick an account by how much is in it.
+  const accountLabel = React.useCallback(
+    (account: PublicAccount) => {
+      const base = `${account.icon ?? "💳"} ${account.name}`;
+      if (account.balance === undefined) return base;
+
+      const amount = format(displayBalance(account, account.balance));
+      return isDebt(account) ? `${base} — ${amount} owed` : `${base} — ${amount}`;
+    },
+    [format],
+  );
+
+  const accountOptions = React.useMemo(() => [{ value: "", label: "Select Account..." }, ...accounts.map((a) => ({ value: a.id, label: accountLabel(a) }))], [accounts, accountLabel]);
 
   const toAccountOptions = React.useMemo(
-    () => [{ value: "", label: "No destination (withdrawal only)" }, ...accounts.filter((a) => a.id !== formData.accountId).map((a) => ({ value: a.id, label: `${a.icon} ${a.name}` }))],
-    [accounts, formData.accountId],
+    () => [{ value: "", label: "No destination (withdrawal only)" }, ...accounts.filter((a) => a.id !== formData.accountId).map((a) => ({ value: a.id, label: accountLabel(a) }))],
+    [accounts, formData.accountId, accountLabel],
   );
+
+  const totals = React.useMemo(() => {
+    if (!showsBalances) return null;
+
+    const withBalance = accounts.filter((a) => a.balance !== undefined);
+    if (withBalance.length === 0) return null;
+
+    // Split so that assets − debt always equals net, whatever sign each balance carries.
+    const debt = withBalance.filter((a) => isDebt(a)).reduce((sum, a) => sum + Math.abs(a.balance as number), 0);
+    const assets = withBalance.filter((a) => !isDebt(a)).reduce((sum, a) => sum + (a.balance as number), 0);
+
+    return { assets, debt, net: assets - debt };
+  }, [accounts, showsBalances]);
 
   const resetForm = React.useCallback(() => setFormData(INITIAL_FORM_DATA), []);
 
@@ -132,6 +194,7 @@ export const Home: React.FC = () => {
       onSuccess: (data) => {
         setCategories(data.data.categories);
         setAccounts(data.data.accounts);
+        setShowsBalances(data.data.showsBalances);
         setEmailVerified(true);
         addToast({ message: "Email verified! Ready to record transactions.", type: "success" });
       },
@@ -286,12 +349,73 @@ export const Home: React.FC = () => {
                       resetForm();
                       setAccounts([]);
                       setCategories([]);
+                      setShowsBalances(false);
                     }}
                     className="ml-2 text-xs text-green-700 hover:text-green-900 shrink-0"
                   >
                     Change
                   </button>
                 </div>
+
+                {showsBalances && totals && (
+                  <div className="p-3 mb-3 border rounded-lg sm:p-4 sm:mb-4 border-primary-200 bg-primary-50">
+                    <div className="flex items-baseline justify-between mb-2 sm:mb-3">
+                      <span className="text-xs font-medium tracking-wide uppercase text-primary-500">Your accounts</span>
+                      <div className="text-right">
+                        <span className={`text-base sm:text-lg font-bold tabular-nums ${totals.net >= 0 ? "text-primary-900" : "text-red-600"}`}>{format(totals.net)}</span>
+                        {totals.debt > 0 && <p className="text-xs text-primary-500">{format(totals.assets)} in accounts · {format(totals.debt)} owed</p>}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      {accounts
+                        .filter((account) => account.balance !== undefined)
+                        .map((account) => {
+                          const balance = account.balance as number;
+                          const projected = balanceAfter(account, formData);
+                          const isTouched = projected !== null;
+                          const owes = isDebt(account, isTouched ? (projected as number) : balance);
+
+                          return (
+                            <div
+                              key={account.id}
+                              className={`flex items-center justify-between gap-2 px-2 py-1.5 rounded-md transition-colors ${isTouched ? "bg-white ring-1 ring-primary-200" : ""}`}
+                            >
+                              <span className="flex items-center min-w-0 gap-1.5 text-xs sm:text-sm text-primary-700">
+                                <span className="shrink-0">{account.icon ?? "💳"}</span>
+                                <span className="truncate">{account.name}</span>
+                                {owes && <span className="px-1 py-0.5 text-[10px] font-semibold rounded shrink-0 bg-red-100 text-red-600">owed</span>}
+                              </span>
+
+                              <span className="flex items-center gap-1.5 text-xs sm:text-sm shrink-0 tabular-nums">
+                                <span className={isTouched ? "text-primary-400 line-through" : isDebt(account, balance) ? "text-red-600" : "text-primary-900"}>
+                                  {format(displayBalance(account, balance))}
+                                </span>
+                                {isTouched && (
+                                  <>
+                                    <span className="text-primary-400">→</span>
+                                    <span className={`font-semibold ${owes || (projected as number) < 0 ? "text-red-600" : "text-green-700"}`}>
+                                      {format(displayBalance(account, projected as number))}
+                                    </span>
+                                  </>
+                                )}
+                              </span>
+                            </div>
+                          );
+                        })}
+                    </div>
+
+                    <p className="mt-2 text-xs text-primary-400">Balances update as you fill in the form — nothing is saved until you press Record.</p>
+                  </div>
+                )}
+
+                {!showsBalances && (
+                  <div className="p-2.5 sm:p-3 mb-3 sm:mb-4 border rounded-lg border-primary-100 bg-primary-50">
+                    <p className="text-xs text-primary-600 sm:text-sm">
+                      🔒 Balances stay hidden here. Turn on <span className="font-medium">Show balances on the quick-entry page</span> in Settings → Privacy to see them without signing in.
+                    </p>
+                  </div>
+                )}
 
                 <div className="space-y-3 sm:space-y-4">
                   <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">

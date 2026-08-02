@@ -1,4 +1,4 @@
-import { AuthProvider, CurrencyProvider, QueryProvider } from "@/providers";
+import { AuthProvider, CurrencyProvider, QueryProvider, ThemeProvider } from "@/providers";
 import type { Metadata } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
@@ -35,9 +35,11 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         {isHealthy ? (
           <QueryProvider>
             <AuthProvider>
-              <ToastProvider>
-                <CurrencyProvider>{children}</CurrencyProvider>
-              </ToastProvider>
+              <ThemeProvider>
+                <ToastProvider>
+                  <CurrencyProvider>{children}</CurrencyProvider>
+                </ToastProvider>
+              </ThemeProvider>
             </AuthProvider>
           </QueryProvider>
         ) : (

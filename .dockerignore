@@ -1,12 +1,34 @@
+# Build artefacts and tooling that must never reach the image
 Dockerfile
 .dockerignore
+docker-compose.yml
 node_modules
 npm-debug.log
 .next
+out
+build
 .git
 .gitignore
 README.md
-.env*.local
 k8s/
 .vscode/
 .idea/
+.claude/
+coverage
+*.tsbuildinfo
+
+# Secrets. Every .env* stays out of the build context — the image must be
+# configured at run time, not baked with credentials. The template is the one
+# exception: it carries placeholders and documents what the container needs.
+.env
+.env.*
+!.env.example
+
+# The key that unlocks an encrypted .env belongs in the environment, never in a layer
+.env.key
+
+# Local artefacts
+release.ps1
+
+# Note: generated/ is intentionally NOT ignored — package.json depends on
+# generated/prisma through a file: link, and the builder regenerates it anyway.

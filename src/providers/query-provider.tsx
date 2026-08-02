@@ -12,12 +12,12 @@ export const QueryProvider = ({ children }: { children: ReactNode }) => {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 60 * 1000, // 1 minute
+            staleTime: 60 * 1000,
             refetchOnWindowFocus: false,
             retry: 1,
           },
         },
-      })
+      }),
   );
 
   return (

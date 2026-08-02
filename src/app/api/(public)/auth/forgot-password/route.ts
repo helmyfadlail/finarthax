@@ -1,12 +1,11 @@
 import { NextRequest } from "next/server";
-import { prisma, withMaintenanceGuard } from "@/lib";
-import nodemailer from "nodemailer";
+import { appUrl, prisma, sendEmail, withMaintenanceGuard } from "@/lib";
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
 import z from "zod";
 import { forgotPasswordSchema } from "@/types";
 import crypto from "crypto";
 
-const url = process.env.NODE_ENV === "development" ? "http://localhost:3000" : process.env.NEXTAUTH_URL;
+const url = appUrl();
 
 const generatePasswordResetEmail = (resetUrl: string): string => {
   return `
@@ -215,20 +214,6 @@ const generatePasswordResetEmail = (resetUrl: string): string => {
 </body>
 </html>
   `.trim();
-};
-
-const sendEmail = async ({ to, subject, html }: { to: string; subject: string; html: string }) => {
-  const transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: Number(process.env.SMTP_PORT) || 587,
-    secure: process.env.SMTP_SECURE === "true",
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASSWORD,
-    },
-  });
-
-  await transporter.sendMail({ from: `"Finarthax" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`, to, subject, html });
 };
 
 export async function POST(req: NextRequest) {

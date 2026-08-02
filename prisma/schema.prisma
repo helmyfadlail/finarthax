@@ -32,7 +32,6 @@ model User {
   categories            Category[]
   budgets               Budget[]
   goals                 Goal[]
-  recurring             RecurringTransaction[]
 
   @@map("users")
 }
@@ -110,7 +109,6 @@ model Account {
   user                  User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions          Transaction[]             @relation("SourceAccount")
   incomingTransfers     Transaction[]             @relation("DestinationAccount")
-  recurring             RecurringTransaction[]
 
   @@index([userId])
   @@map("accounts")
@@ -120,6 +118,14 @@ enum TransactionType {
   INCOME
   EXPENSE
   TRANSFER
+}
+
+enum RecurrenceInterval {
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+  YEARLY
 }
 
 model Transaction {
@@ -133,6 +139,12 @@ model Transaction {
   description           String?
   date                  DateTime
   attachment            String?
+  isRecurring           Boolean                   @default(false)
+  recurrenceInterval    RecurrenceInterval?
+  recurrenceKey         String?
+  nextOccurrence        DateTime?
+  recurrenceEndDate     DateTime?
+  recurrenceDismissedAt DateTime?
   createdAt             DateTime                  @default(now())
   updatedAt             DateTime                  @updatedAt
 
@@ -146,6 +158,9 @@ model Transaction {
   @@index([toAccountId])
   @@index([categoryId])
   @@index([date])
+  @@index([userId, isRecurring])
+  @@index([userId, recurrenceKey])
+  @@index([userId, nextOccurrence])
   @@map("transactions")
 }
 
@@ -168,7 +183,6 @@ model Category {
   user                  User?                     @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions          Transaction[]
   budgets               Budget[]
-  recurring             RecurringTransaction[]
 
   @@index([userId])
   @@map("categories")
@@ -214,36 +228,4 @@ model Goal {
 
   @@index([userId])
   @@map("goals")
-}
-
-enum RecurringFrequency {
-  DAILY
-  WEEKLY
-  MONTHLY
-  YEARLY
-}
-
-model RecurringTransaction {
-  id                    String                    @id @default(cuid())
-  userId                String
-  accountId             String
-  categoryId            String
-  amount                Decimal                   @db.Decimal(15, 2)
-  type                  TransactionType
-  description           String?
-  frequency             RecurringFrequency
-  startDate             DateTime
-  endDate               DateTime?
-  nextOccurrence        DateTime
-  isActive              Boolean                   @default(true)
-  createdAt             DateTime                  @default(now())
-  updatedAt             DateTime                  @updatedAt
-
-  user                  User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  account               Account                   @relation(fields: [accountId], references: [id])
-  category              Category                  @relation(fields: [categoryId], references: [id])
-
-  @@index([userId])
-  @@index([nextOccurrence])
-  @@map("recurring_transactions")
 }

@@ -2,18 +2,11 @@
 
 import { useMutation } from "@tanstack/react-query";
 import { apiClient } from "@/utils";
-import type { ApiResponse, Category, Account, Transaction, QuickTransactionData } from "@/types";
-
-interface QuickTransactionResources {
-  email: string;
-  name: string;
-  categories: Category[];
-  accounts: Account[];
-}
+import type { ApiResponse, Transaction, QuickTransactionData, QuickTransactionResources } from "@/types";
 
 export const useQuickTransactions = () => {
   const searchEmailMutation = useMutation({
-    mutationFn: (email: string) => apiClient.get<ApiResponse<QuickTransactionResources>>(`/quick-transactions?email=${email}`),
+    mutationFn: (email: string) => apiClient.get<ApiResponse<QuickTransactionResources>>(`/quick-transactions?email=${encodeURIComponent(email)}`),
   });
 
   const createMutation = useMutation({

@@ -7,6 +7,7 @@
     "nav": {
       "dashboard": "Dasbor",
       "transactions": "Transaksi",
+      "recurring": "Berulang",
       "accounts": "Akun",
       "categories": "Kategori",
       "budgets": "Anggaran",
@@ -95,6 +96,12 @@
         "title": "Laporan",
         "subtitle": "Lihat wawasan"
       }
+    },
+    "recurring": {
+      "dueTitle": "{count} transaksi berulang menunggu konfirmasi",
+      "detectedTitle": "{count} pola berulang ditemukan dari riwayat Anda",
+      "noDescription": "Tanpa deskripsi",
+      "action": "Tinjau"
     }
   },
   "transactionsPage": {
@@ -151,7 +158,11 @@
       "descriptionPlaceholder": "contoh: Makan siang di restoran, Pembayaran gaji",
       "preview": "Pratinjau",
       "cancel": "Batal",
-      "create": "Buat Transaksi"
+      "create": "Buat Transaksi",
+      "recurring": "Ulangi transaksi ini",
+      "recurringHint": "Finarthax akan mengingatkan saat jatuh tempo berikutnya — tidak ada yang dibuat otomatis.",
+      "recurrenceInterval": "Perulangan",
+      "recurrenceEndDate": "Ulangi sampai (opsional)"
     },
     "deleteModal": {
       "title": "Hapus Transaksi",
@@ -182,6 +193,144 @@
     "error": {
       "create": "Gagal membuat transaksi",
       "delete": "Gagal menghapus transaksi"
+    },
+    "interval": {
+      "DAILY": "Harian",
+      "WEEKLY": "Mingguan",
+      "BIWEEKLY": "Setiap 2 minggu",
+      "MONTHLY": "Bulanan",
+      "YEARLY": "Tahunan"
+    }
+  },
+  "recurringPage": {
+    "title": "Transaksi Berulang",
+    "subtitle": "Rekomendasi untuk transaksi yang muncul setiap hari, minggu, atau bulan",
+    "noDescription": "Tanpa deskripsi",
+    "detectedSummary": "Tercatat {count} kali, {interval}, sekitar {amount} setiap kali",
+    "summary": {
+      "due": "Jatuh tempo",
+      "dueHint": "Menunggu konfirmasi Anda",
+      "upcoming": "Akan datang",
+      "upcomingHint": "Dalam {days} hari ke depan",
+      "detected": "Rekomendasi",
+      "detectedHint": "Ditemukan dari riwayat",
+      "committed": "Komitmen",
+      "committedHint": "Pengeluaran berulang per bulan"
+    },
+    "interval": {
+      "DAILY": "Harian",
+      "WEEKLY": "Mingguan",
+      "BIWEEKLY": "Setiap 2 minggu",
+      "MONTHLY": "Bulanan",
+      "YEARLY": "Tahunan"
+    },
+    "status": {
+      "OVERDUE": "Terlambat",
+      "DUE_TODAY": "Hari ini",
+      "UPCOMING": "Akan datang"
+    },
+    "relative": {
+      "overdue": "Terlambat {days} hari",
+      "today": "Jatuh tempo hari ini",
+      "inDays": "Dalam {days} hari"
+    },
+    "meta": {
+      "next": "Berikutnya",
+      "last": "Terakhir",
+      "occurrences": "Tercatat {count} kali",
+      "confidence": "Kecocokan {value}%",
+      "perMonth": "≈ {amount}/bulan",
+      "endsOn": "Berakhir {date}"
+    },
+    "sections": {
+      "due": {
+        "title": "Jatuh tempo",
+        "description": "Konfirmasi yang sudah terjadi, atau lewati"
+      },
+      "upcoming": {
+        "title": "Akan datang",
+        "description": "Terjadwal dalam {days} hari ke depan"
+      },
+      "detected": {
+        "title": "Rekomendasi dari riwayat Anda",
+        "description": "Transaksi yang berulang teratur tetapi belum dilacak"
+      },
+      "dismissed": {
+        "title": "Diabaikan",
+        "description": "Pola yang Anda minta untuk diabaikan Finarthax",
+        "show": "Tampilkan",
+        "hide": "Sembunyikan"
+      }
+    },
+    "actions": {
+      "log": "Catat",
+      "skip": "Lewati",
+      "stop": "Hentikan",
+      "track": "Lacak",
+      "dismiss": "Abaikan",
+      "restore": "Pulihkan"
+    },
+    "empty": {
+      "all": {
+        "title": "Belum ada transaksi berulang",
+        "description": "Catat beberapa transaksi dan Finarthax akan mulai merekomendasikan yang berulang. Anda juga bisa mencentang “Ulangi transaksi ini” saat menambah transaksi."
+      },
+      "due": {
+        "title": "Semua beres",
+        "description": "Tidak ada transaksi berulang yang menunggu konfirmasi saat ini."
+      },
+      "upcoming": {
+        "title": "Tidak ada jadwal",
+        "description": "Tidak ada seri terlacak dalam dua minggu ke depan."
+      },
+      "detected": {
+        "title": "Tidak ada pola baru",
+        "description": "Finarthax tidak menemukan transaksi tak terlacak yang cukup sering berulang."
+      }
+    },
+    "trackModal": {
+      "title": "Lacak sebagai berulang",
+      "hint": "“{name}” akan dijadwalkan dan direkomendasikan setiap periode.",
+      "interval": "Perulangan",
+      "endDate": "Ulangi sampai (opsional)",
+      "endDateHint": "Kosongkan agar seri berjalan sampai Anda menghentikannya.",
+      "cancel": "Batal",
+      "submit": "Mulai lacak"
+    },
+    "logModal": {
+      "title": "Catat kejadian ini",
+      "hint": "Transaksi baru untuk “{name}” akan dibuat dan saldo Anda diperbarui.",
+      "date": "Tanggal",
+      "amount": "Jumlah",
+      "cancel": "Batal",
+      "submit": "Catat transaksi"
+    },
+    "stopModal": {
+      "title": "Hentikan pelacakan",
+      "confirm": "Hentikan rekomendasi untuk seri ini?",
+      "warning": "Transaksi lama tidak berubah — hanya jadwal dan rekomendasinya yang dihapus.",
+      "cancel": "Batal",
+      "submit": "Hentikan pelacakan"
+    },
+    "validation": {
+      "amount": "Masukkan jumlah yang valid lebih dari 0",
+      "date": "Silakan pilih tanggal"
+    },
+    "success": {
+      "logged": "Transaksi berulang berhasil dicatat 🎉",
+      "skipped": "Kejadian dilewati",
+      "tracked": "Seri sekarang dilacak 🔁",
+      "stopped": "Pelacakan dihentikan",
+      "dismissed": "Rekomendasi diabaikan",
+      "restored": "Rekomendasi dipulihkan"
+    },
+    "error": {
+      "log": "Gagal mencatat transaksi",
+      "skip": "Gagal melewati kejadian",
+      "track": "Gagal melacak seri",
+      "stop": "Gagal menghentikan pelacakan",
+      "dismiss": "Gagal mengabaikan rekomendasi",
+      "restore": "Gagal memulihkan rekomendasi"
     }
   },
   "accountsPage": {
@@ -727,7 +876,8 @@
       "theme": "Tema",
       "themeDescription": "Pilih tema warna pilihan Anda",
       "currency": "Mata Uang",
-      "currencyDescription": "Tetapkan mata uang default Anda"
+      "currencyDescription": "Tetapkan mata uang default Anda",
+      "requires": "Membutuhkan {setting} aktif"
     },
     "notificationTypes": {
       "emailNotifications": "Notifikasi Email",
@@ -802,11 +952,145 @@
     "errors": {
       "updateFailed": "Gagal memperbarui pengaturan",
       "deleteFailed": "Gagal menghapus akun"
+    },
+    "categories": {
+      "notifications": "Notifikasi",
+      "appearance": "Tampilan",
+      "privacy": "Privasi",
+      "general": "Umum",
+      "security": "Keamanan",
+      "billing": "Tagihan"
+    },
+    "categoryDescriptions": {
+      "notifications": "Pilih apa yang diberitahukan Finarthax, dan kapan",
+      "appearance": "Bagaimana aplikasi tampil dan terbaca",
+      "privacy": "Atur apa yang terlihat di layar",
+      "general": "Nilai bawaan untuk layar sehari-hari"
+    },
+    "settings": {
+      "emailNotifications": {
+        "title": "Notifikasi email",
+        "description": "Sakelar utama untuk semua email dari Finarthax"
+      },
+      "weeklyReports": {
+        "title": "Ringkasan mingguan",
+        "description": "Terima ringkasan keuangan mingguan lewat email"
+      },
+      "transactionAlerts": {
+        "title": "Konfirmasi transaksi",
+        "description": "Tampilkan konfirmasi setiap kali transaksi dicatat"
+      },
+      "budgetAlerts": {
+        "title": "Peringatan anggaran",
+        "description": "Tandai anggaran yang mendekati batasnya"
+      },
+      "budgetAlertThreshold": {
+        "title": "Ambang peringatan",
+        "description": "Berapa persen anggaran terpakai sebelum ditandai"
+      },
+      "recurringReminders": {
+        "title": "Pengingat berulang",
+        "description": "Tampilkan transaksi berulang yang jatuh tempo"
+      },
+      "language": {
+        "title": "Bahasa",
+        "description": "Bahasa antarmuka"
+      },
+      "currency": {
+        "title": "Mata uang",
+        "description": "Mata uang untuk menampilkan semua nominal"
+      },
+      "theme": {
+        "title": "Tema",
+        "description": "Tema antarmuka"
+      },
+      "dateFormat": {
+        "title": "Format tanggal",
+        "description": "Cara penulisan tanggal di seluruh aplikasi"
+      },
+      "hideAmounts": {
+        "title": "Sembunyikan nominal",
+        "description": "Samarkan semua nominal sampai Anda menonaktifkannya"
+      },
+      "itemsPerPage": {
+        "title": "Baris per halaman",
+        "description": "Jumlah baris yang ditampilkan sekaligus"
+      },
+      "defaultTransactionType": {
+        "title": "Tipe transaksi bawaan",
+        "description": "Tipe yang dipilih saat menambah transaksi"
+      },
+      "recurringLookaheadDays": {
+        "title": "Jangkauan berulang",
+        "description": "Seberapa jauh transaksi berulang mendatang ditampilkan"
+      },
+      "publicQuickBalances": {
+        "title": "Saldo publik",
+        "description": "Tampilkan saldo akun Anda di halaman catat cepat setelah memasukkan email"
+      }
     }
   },
   "notFoundPage": {
     "title": "Halaman Tidak Ditemukan",
     "description": "Halaman yang Anda cari tidak ada atau telah dipindahkan.",
     "homeButton": "Kembali ke Dasbor"
+  },
+  "emails": {
+    "greeting": "Halo {name},",
+    "manage": "Kelola notifikasi",
+    "why": {
+      "transaction": "Anda menerima ini karena konfirmasi transaksi sedang aktif.",
+      "budget": "Anda menerima ini karena peringatan anggaran sedang aktif.",
+      "recurring": "Anda menerima ini karena pengingat berulang sedang aktif.",
+      "weekly": "Anda menerima ini karena ringkasan mingguan sedang aktif."
+    },
+    "types": {
+      "INCOME": "pemasukan",
+      "EXPENSE": "pengeluaran",
+      "TRANSFER": "transfer"
+    },
+    "labels": {
+      "type": "Tipe",
+      "amount": "Jumlah",
+      "account": "Akun",
+      "category": "Kategori",
+      "date": "Tanggal",
+      "spent": "Terpakai",
+      "limit": "Batas",
+      "used": "Digunakan",
+      "income": "Pemasukan",
+      "expense": "Pengeluaran",
+      "balance": "Saldo bersih",
+      "savingsRate": "Rasio tabungan",
+      "transactions": "Transaksi",
+      "topCategory": "Kategori teratas"
+    },
+    "transaction": {
+      "subject": "{type} baru dicatat",
+      "heading": "Transaksi dicatat",
+      "intro": "Transaksi baru baru saja ditambahkan ke akun Anda.",
+      "introNamed": "“{description}” baru saja ditambahkan ke akun Anda.",
+      "cta": "Lihat transaksi"
+    },
+    "budget": {
+      "subject": "Anggaran {category} sudah {percentage}%",
+      "heading": "Peringatan anggaran",
+      "intro": "Anggaran {category} Anda sudah mencapai {percentage}% dari batas bulan ini.",
+      "cta": "Tinjau anggaran"
+    },
+    "recurring": {
+      "subject": "{count} transaksi berulang jatuh tempo",
+      "heading": "Transaksi berulang jatuh tempo",
+      "intro": "{count} transaksi berulang Anda menunggu konfirmasi.",
+      "item": "{description} — {amount}, jatuh tempo {date}",
+      "untitled": "Tanpa judul",
+      "cta": "Tinjau transaksi berulang"
+    },
+    "weekly": {
+      "subject": "Ringkasan minggu Anda",
+      "heading": "Ringkasan mingguan",
+      "intro": "Berikut pergerakan uang Anda antara {from} dan {to}.",
+      "cta": "Buka dasbor"
+    }
   }
 }
