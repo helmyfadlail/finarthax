@@ -1,13 +1,16 @@
 import { NextResponse } from "next/server";
-import { checkDatabaseConnection } from "@/lib";
-import { errorResponse } from "@/utils";
+import { checkDatabaseConnection, logger, withApi } from "@/lib";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  try {
+export const GET = withApi(
+  "health.check",
+  async () => {
     const database = await checkDatabaseConnection();
     const isHealthy = database.status === "up";
+
+    // Probes hit this constantly; only the unhealthy result is worth a log line.
+    if (!isHealthy) logger.error("health.unhealthy", { database });
 
     const body = {
       status: isHealthy ? "healthy" : "unhealthy",
@@ -20,9 +23,6 @@ export async function GET() {
       status: isHealthy ? 200 : 503,
       headers: { "Cache-Control": "no-store" },
     });
-  } catch (error) {
-    console.error(error);
-    const errorMessage = error instanceof Error ? error.message : "Service unavailable";
-    return errorResponse(errorMessage, 503);
-  }
-}
+  },
+  { maintenance: false, quiet: true },
+);

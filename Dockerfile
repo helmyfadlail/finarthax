@@ -57,6 +57,12 @@ COPY --from=builder /app/tsconfig.json ./
 # Message catalogues, read at runtime when composing notification emails
 COPY --from=builder /app/messages ./messages
 
+# Log directory (LOG_DIR). Created here and owned by the runtime user, because the
+# app runs as non-root and could not create it itself. Mount a volume over it to
+# keep the files across `docker compose down`.
+RUN mkdir -p /app/logs && chown nextjs:nodejs /app/logs
+VOLUME ["/app/logs"]
+
 # Copy entrypoint (Windows-safe)
 COPY entrypoint.sh /entrypoint.sh
 RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh

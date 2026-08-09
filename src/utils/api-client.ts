@@ -2,6 +2,31 @@ type FetchOptions = RequestInit & {
   params?: Record<string, string | number | boolean | undefined>;
 };
 
+/**
+ * Carries the server's `x-request-id` back to the UI, so a user-visible failure can
+ * be traced to the exact server log line ("error id: 4f2c..." in a toast is enough).
+ */
+export class ApiError extends Error {
+  readonly status: number;
+  readonly requestId: string | null;
+  readonly errors?: Record<string, string[]>;
+
+  constructor(message: string, status: number, requestId: string | null, errors?: Record<string, string[]>) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+    this.requestId = requestId;
+    this.errors = errors;
+  }
+}
+
+const throwApiError = (response: Response, payload: unknown, fallback: string): never => {
+  const body = (payload ?? {}) as { message?: string; requestId?: string; errors?: Record<string, string[]> };
+  const requestId = response.headers.get("x-request-id") ?? body.requestId ?? null;
+
+  throw new ApiError(body.message || fallback, response.status, requestId, body.errors);
+};
+
 class ApiClient {
   private baseURL: string;
 
@@ -37,10 +62,7 @@ class ApiClient {
 
     const data: TResponse = await response.json();
 
-    if (!response.ok) {
-      const message = (data as { message?: string }).message || "An error occurred";
-      throw new Error(message);
-    }
+    if (!response.ok) throwApiError(response, data, "An error occurred");
 
     return data;
   }
@@ -63,10 +85,7 @@ class ApiClient {
     const response = await fetch(fullUrl, { ...fetchOptions });
     const data: TResponse = await response.json();
 
-    if (!response.ok) {
-      const message = (data as { message?: string }).message || "An error occurred";
-      throw new Error(message);
-    }
+    if (!response.ok) throwApiError(response, data, "An error occurred");
 
     return data;
   }
@@ -88,9 +107,7 @@ class ApiClient {
 
     const response = await fetch(url, { ...fetchOptions });
 
-    if (!response.ok) {
-      throw new Error(`Request failed: ${response.status} ${response.statusText}`);
-    }
+    if (!response.ok) throwApiError(response, null, `Request failed: ${response.status} ${response.statusText}`);
 
     return response.blob();
   }

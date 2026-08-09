@@ -7,7 +7,6 @@
     "nav": {
       "dashboard": "Dashboard",
       "transactions": "Transactions",
-      "recurring": "Recurring",
       "accounts": "Accounts",
       "categories": "Categories",
       "budgets": "Budgets",
@@ -200,7 +199,8 @@
       "BIWEEKLY": "Every 2 weeks",
       "MONTHLY": "Monthly",
       "YEARLY": "Yearly"
-    }
+    },
+    "recurringButton": "Recurring"
   },
   "recurringPage": {
     "title": "Recurring",
@@ -331,7 +331,8 @@
       "stop": "Failed to stop tracking",
       "dismiss": "Failed to dismiss the suggestion",
       "restore": "Failed to restore the suggestion"
-    }
+    },
+    "backToTransactions": "Back to transactions"
   },
   "accountsPage": {
     "title": "Accounts",

@@ -151,6 +151,114 @@ export const LIMIT_SETTINGS = [
   },
 ];
 
+/**
+ * Numbers the server behaves by. They live here so an instance can be retuned from the database
+ * instead of a redeploy, and so no feature carries a magic constant of its own — `getTuning()` in
+ * src/lib/app-settings.ts reads them, falling back to the values below.
+ */
+export const TUNING_SETTINGS = [
+  {
+    key: "recurring_history_days",
+    value: "365",
+    type: "number",
+    category: "tuning",
+    label: "Recurring History Window",
+    description: "How many days of history the recurring detector reads",
+    sortOrder: 0,
+    isPublic: false,
+  },
+  {
+    key: "recurring_min_occurrences",
+    value: "3",
+    type: "number",
+    category: "tuning",
+    label: "Recurring Minimum Occurrences",
+    description: "How many times something must repeat before it is suggested",
+    sortOrder: 0,
+    isPublic: false,
+  },
+  {
+    key: "recurring_min_consistency",
+    value: "0.6",
+    type: "number",
+    category: "tuning",
+    label: "Recurring Minimum Consistency",
+    description: "Share of gaps (0-1) that must match the interval for a pattern to count",
+    sortOrder: 0,
+    isPublic: false,
+  },
+  {
+    key: "recurring_min_confidence",
+    value: "55",
+    type: "number",
+    category: "tuning",
+    label: "Recurring Minimum Confidence",
+    description: "Confidence score (0-100) below which a detected pattern is discarded",
+    sortOrder: 0,
+    isPublic: false,
+  },
+  {
+    key: "recurring_time_bucket_minutes",
+    value: "120",
+    type: "number",
+    category: "tuning",
+    label: "Recurring Time Bucket",
+    description: "Transactions this many minutes apart count as the same slot, so a morning and an evening habit stay separate series",
+    sortOrder: 0,
+    isPublic: false,
+  },
+  {
+    key: "recurring_due_email_limit",
+    value: "20",
+    type: "number",
+    category: "tuning",
+    label: "Recurring Reminder Size",
+    description: "Most due items listed in one recurring reminder email",
+    sortOrder: 0,
+    isPublic: false,
+  },
+  {
+    key: "weekly_report_days",
+    value: "7",
+    type: "number",
+    category: "tuning",
+    label: "Weekly Report Window",
+    description: "How many days the weekly summary email covers",
+    sortOrder: 0,
+    isPublic: false,
+  },
+  {
+    key: "quick_lookup_rate_limit",
+    value: "20",
+    type: "number",
+    category: "tuning",
+    label: "Quick Lookup Rate Limit",
+    description: "Public account lookups allowed per client per window",
+    sortOrder: 0,
+    isPublic: false,
+  },
+  {
+    key: "quick_create_rate_limit",
+    value: "30",
+    type: "number",
+    category: "tuning",
+    label: "Quick Create Rate Limit",
+    description: "Public transactions allowed per client per window",
+    sortOrder: 0,
+    isPublic: false,
+  },
+  {
+    key: "quick_rate_limit_window_seconds",
+    value: "60",
+    type: "number",
+    category: "tuning",
+    label: "Quick Rate Limit Window",
+    description: "Length of the public rate-limit window, in seconds",
+    sortOrder: 0,
+    isPublic: false,
+  },
+];
+
 /** Shown on the settings screen. */
 export const APP_INFO_SETTINGS = [
   { key: "app_version", value: "2.1.0", type: "string", category: "app_information", label: "App Version", description: "Current application version", sortOrder: 1, isPublic: true },
@@ -160,4 +268,4 @@ export const APP_INFO_SETTINGS = [
 ];
 
 /** Everything the seed writes to `app_settings`. */
-export const APP_SETTINGS = [...OPTION_SETTINGS, ...CURRENCY_SETTINGS, ...FEATURE_SETTINGS, ...LIMIT_SETTINGS, ...APP_INFO_SETTINGS, ...CONTENT_SETTINGS] as const;
+export const APP_SETTINGS = [...OPTION_SETTINGS, ...CURRENCY_SETTINGS, ...FEATURE_SETTINGS, ...LIMIT_SETTINGS, ...TUNING_SETTINGS, ...APP_INFO_SETTINGS, ...CONTENT_SETTINGS] as const;

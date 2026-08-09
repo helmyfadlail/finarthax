@@ -7,7 +7,6 @@
     "nav": {
       "dashboard": "仪表板",
       "transactions": "交易",
-      "recurring": "定期交易",
       "accounts": "账户",
       "categories": "类别",
       "budgets": "预算",
@@ -200,7 +199,8 @@
       "BIWEEKLY": "每两周",
       "MONTHLY": "每月",
       "YEARLY": "每年"
-    }
+    },
+    "recurringButton": "定期交易"
   },
   "recurringPage": {
     "title": "定期交易",
@@ -331,7 +331,8 @@
       "stop": "停止跟踪失败",
       "dismiss": "忽略建议失败",
       "restore": "恢复建议失败"
-    }
+    },
+    "backToTransactions": "返回交易"
   },
   "accountsPage": {
     "title": "账户",

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { findSeriesSiblings, prisma, requireAuth, withMaintenanceGuard } from "@/lib";
+import { findSeriesSiblings, logger, prisma, requireAuth, withApi } from "@/lib";
 import { errorResponse, successResponse } from "@/utils";
 
 const setDismissedAt = async (userId: string, id: string, dismissedAt: Date | null) => {
@@ -16,38 +16,26 @@ const setDismissedAt = async (userId: string, id: string, dismissedAt: Date | nu
   return siblings.length;
 };
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  return withMaintenanceGuard(req, async () => {
-    try {
-      const user = await requireAuth();
-      const { id } = await params;
+export const POST = withApi<{ id: string }>("recurring.dismiss", async (req: NextRequest, { params }) => {
+  const user = await requireAuth();
+  const { id } = await params;
 
-      const affected = await setDismissedAt(user.id, id, new Date());
-      if (affected === null) return errorResponse("Transaction not found", 404);
+  const affected = await setDismissedAt(user.id, id, new Date());
+  if (affected === null) return errorResponse("Transaction not found", 404);
 
-      return successResponse({ affected }, "Suggestion dismissed");
-    } catch (error) {
-      console.error(error);
-      if (error instanceof Error && error.message === "Unauthorized") return errorResponse("Unauthorized", 401);
-      return errorResponse(error instanceof Error ? error.message : "An unexpected error occurred", 500);
-    }
-  });
-}
+  logger.info("recurring.dismissed", { transactionId: id, affected });
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  return withMaintenanceGuard(req, async () => {
-    try {
-      const user = await requireAuth();
-      const { id } = await params;
+  return successResponse({ affected }, "Suggestion dismissed");
+});
 
-      const affected = await setDismissedAt(user.id, id, null);
-      if (affected === null) return errorResponse("Transaction not found", 404);
+export const DELETE = withApi<{ id: string }>("recurring.restore", async (req: NextRequest, { params }) => {
+  const user = await requireAuth();
+  const { id } = await params;
 
-      return successResponse({ affected }, "Suggestion restored");
-    } catch (error) {
-      console.error(error);
-      if (error instanceof Error && error.message === "Unauthorized") return errorResponse("Unauthorized", 401);
-      return errorResponse(error instanceof Error ? error.message : "An unexpected error occurred", 500);
-    }
-  });
-}
+  const affected = await setDismissedAt(user.id, id, null);
+  if (affected === null) return errorResponse("Transaction not found", 404);
+
+  logger.info("recurring.restored", { transactionId: id, affected });
+
+  return successResponse({ affected }, "Suggestion restored");
+});

@@ -1,7 +1,8 @@
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
-import { prisma } from "@/lib";
+import { prisma } from "./prisma";
+import { logger } from "./logger";
 import bcrypt from "bcryptjs";
 
 export const authOptions: NextAuthOptions = {
@@ -22,17 +23,31 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({ where: { email: credentials.email } });
 
-        if (!user) throw new Error("Email is not registered.");
+        // NextAuth swallows these errors into a generic client-side message, so the
+        // real reason a login failed only exists if it is logged here.
+        if (!user) {
+          logger.warn("auth.login_failed", { provider: "credentials", reason: "email_not_registered", email: credentials.email });
+          throw new Error("Email is not registered.");
+        }
 
-        if (!user.password) throw new Error("This account uses Google login. Please sign in with Google.");
+        if (!user.password) {
+          logger.warn("auth.login_failed", { provider: "credentials", reason: "oauth_account", targetUserId: user.id });
+          throw new Error("This account uses Google login. Please sign in with Google.");
+        }
 
         const isValid = await bcrypt.compare(credentials.password, user.password);
 
-        if (!isValid) throw new Error("Incorrect password.");
+        if (!isValid) {
+          logger.warn("auth.login_failed", { provider: "credentials", reason: "bad_password", targetUserId: user.id });
+          throw new Error("Incorrect password.");
+        }
 
         if (user.password && user.passwordExpiresAt && user.passwordExpiresAt < new Date()) {
+          logger.warn("auth.login_failed", { provider: "credentials", reason: "password_expired", targetUserId: user.id, expiredAt: user.passwordExpiresAt.toISOString() });
           throw new Error("Your password has expired. Please reset your password to continue.");
         }
+
+        logger.info("auth.login", { provider: "credentials", targetUserId: user.id });
 
         return {
           id: user.id,
@@ -94,7 +109,10 @@ export const authOptions: NextAuthOptions = {
         const email = user.email;
         const name = user.name;
 
-        if (!email || !name) return false;
+        if (!email || !name) {
+          logger.warn("auth.login_failed", { provider: "google", reason: "missing_profile_fields", hasEmail: Boolean(email), hasName: Boolean(name) });
+          return false;
+        }
 
         let existingUser = await prisma.user.findUnique({ where: { email } });
 
@@ -135,9 +153,13 @@ export const authOptions: NextAuthOptions = {
               icon: "💵",
             },
           });
+
+          logger.info("auth.registered", { provider: "google", newUserId: existingUser.id, email });
         }
 
         user.id = existingUser.id;
+
+        logger.info("auth.login", { provider: "google", targetUserId: existingUser.id });
       }
       return true;
     },

@@ -1,4 +1,7 @@
 import { prisma } from "@/lib";
+// Imported from the module rather than the barrel: going through @/lib forms a cycle that
+// collapses getTuning's inferred return type.
+import { getTuning } from "./app-settings";
 import type { DetectedPattern, RecurrenceInterval, RecurrenceStatus } from "@/types";
 import { RECURRENCE_DAYS } from "@/static";
 
@@ -12,11 +15,12 @@ const GAP_RANGES: Array<{ interval: RecurrenceInterval; min: number; max: number
 
 const MS_PER_DAY = 24 * 60 * 60 * 1000;
 
+/**
+ * Only the lookahead is left here, and only as a last resort: everything else comes from
+ * `getTuning()` so an instance can retune the detector from the database. The lookahead itself is
+ * a per-account preference (`recurringLookaheadDays`).
+ */
 export const DETECTION_DEFAULTS = {
-  historyDays: 365,
-  minOccurrences: 3,
-  minConsistency: 0.6,
-  minConfidence: 55,
   lookaheadDays: 14,
 };
 
@@ -101,8 +105,32 @@ export const normalizeDescription = (description?: string | null): string => {
   return normalized || "untitled";
 };
 
-export const buildPatternKey = (transaction: Pick<DetectableTransaction, "type" | "accountId" | "toAccountId" | "categoryId" | "description">): string =>
-  [transaction.type, transaction.accountId, transaction.toAccountId ?? "-", transaction.categoryId ?? "-", normalizeDescription(transaction.description)].join("::");
+/**
+ * Which slot of the day a transaction falls in.
+ *
+ * This is what lets the same habit run twice a day: a coffee at 08:00 and another at 20:00 are the
+ * same description, account and category, so without a time component they would collapse into one
+ * pattern with 12-hour gaps and be detected as neither. Bucketing keeps them apart as two daily
+ * series, while still tolerating that you do not buy it at exactly 08:00 every morning.
+ */
+export const timeSlot = (value: Date | string, bucketMinutes: number): number => {
+  if (bucketMinutes <= 0) return 0;
+
+  const date = new Date(value);
+  const minutes = date.getUTCHours() * 60 + date.getUTCMinutes();
+
+  return Math.floor(minutes / bucketMinutes);
+};
+
+export const buildPatternKey = (transaction: Pick<DetectableTransaction, "type" | "accountId" | "toAccountId" | "categoryId" | "description" | "date">, bucketMinutes: number): string =>
+  [
+    transaction.type,
+    transaction.accountId,
+    transaction.toAccountId ?? "-",
+    transaction.categoryId ?? "-",
+    normalizeDescription(transaction.description),
+    `slot${timeSlot(transaction.date, bucketMinutes)}`,
+  ].join("::");
 
 const median = (values: number[]): number => {
   const sorted = [...values].sort((a, b) => a - b);
@@ -112,16 +140,23 @@ const median = (values: number[]): number => {
 
 const matchInterval = (gapInDays: number): RecurrenceInterval | null => GAP_RANGES.find(({ min, max }) => gapInDays >= min && gapInDays <= max)?.interval ?? null;
 
-const dedupeByDay = (transactions: DetectableTransaction[]): DetectableTransaction[] => {
-  const byDay = new Map<number, DetectableTransaction>();
+/**
+ * One occurrence per day *per time slot*.
+ *
+ * Two coffees bought within the same slot are still one habit, but a morning and an evening one are
+ * two — which is the whole point of running a series twice a day. Grouping already separates the
+ * slots, so this only collapses genuine duplicates inside one of them.
+ */
+const dedupeByDaySlot = (transactions: DetectableTransaction[], bucketMinutes: number): DetectableTransaction[] => {
+  const seen = new Map<string, DetectableTransaction>();
 
   for (const transaction of transactions) {
-    const day = startOfDay(transaction.date).getTime();
-    const existing = byDay.get(day);
-    if (!existing || new Date(transaction.date) > new Date(existing.date)) byDay.set(day, transaction);
+    const key = `${startOfDay(transaction.date).getTime()}:${timeSlot(transaction.date, bucketMinutes)}`;
+    const existing = seen.get(key);
+    if (!existing || new Date(transaction.date) > new Date(existing.date)) seen.set(key, transaction);
   }
 
-  return [...byDay.values()].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+  return [...seen.values()].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 };
 
 const scoreConfidence = (consistency: number, occurrences: number, amounts: number[]): number => {
@@ -134,27 +169,29 @@ const scoreConfidence = (consistency: number, occurrences: number, amounts: numb
 };
 
 interface DetectionOptions {
-  minOccurrences?: number;
-  minConsistency?: number;
-  minConfidence?: number;
+  minOccurrences: number;
+  minConsistency: number;
+  minConfidence: number;
+  /** Width of a daily slot; see `timeSlot`. */
+  timeBucketMinutes: number;
   reference?: Date;
 }
 
-export const detectRecurringPatterns = (transactions: DetectableTransaction[], options: DetectionOptions = {}): DetectedPattern[] => {
-  const { minOccurrences = DETECTION_DEFAULTS.minOccurrences, minConsistency = DETECTION_DEFAULTS.minConsistency, minConfidence = DETECTION_DEFAULTS.minConfidence, reference = new Date() } = options;
+export const detectRecurringPatterns = (transactions: DetectableTransaction[], options: DetectionOptions): DetectedPattern[] => {
+  const { minOccurrences, minConsistency, minConfidence, timeBucketMinutes, reference = new Date() } = options;
 
   const groups = new Map<string, DetectableTransaction[]>();
 
   for (const transaction of transactions) {
     if (transaction.recurrenceKey) continue;
-    const key = buildPatternKey(transaction);
+    const key = buildPatternKey(transaction, timeBucketMinutes);
     groups.set(key, [...(groups.get(key) ?? []), transaction]);
   }
 
   const patterns: DetectedPattern[] = [];
 
   for (const [patternKey, group] of groups) {
-    const occurrences = dedupeByDay(group);
+    const occurrences = dedupeByDaySlot(group, timeBucketMinutes);
     if (occurrences.length < minOccurrences) continue;
 
     const latest = occurrences[occurrences.length - 1];
@@ -199,11 +236,23 @@ export const detectRecurringPatterns = (transactions: DetectableTransaction[], o
   return patterns.sort((a, b) => b.confidence - a.confidence || new Date(a.nextDate).getTime() - new Date(b.nextDate).getTime());
 };
 
+/**
+ * Every transaction that belongs to the same series as `transaction`, itself included.
+ *
+ * Matching includes the time slot, so tracking or dismissing the morning habit leaves the evening
+ * one alone even though they share a description, account and category.
+ */
 export const findSeriesSiblings = async (
   userId: string,
   transaction: Pick<DetectableTransaction, "id" | "type" | "accountId" | "toAccountId" | "categoryId" | "description" | "date">,
-  historyDays = DETECTION_DEFAULTS.historyDays,
+  options?: { historyDays: number; timeBucketMinutes: number },
 ) => {
+  // Resolved here rather than at each call site, so no caller can forget the time bucket and
+  // silently merge two series that only differ by time of day.
+  const tuning = await getTuning();
+  const historyDays = options?.historyDays ?? tuning.recurringHistoryDays;
+  const timeBucketMinutes = options?.timeBucketMinutes ?? tuning.recurringTimeBucketMinutes;
+
   const since = new Date(Date.now() - historyDays * MS_PER_DAY);
 
   const candidates = await prisma.transaction.findMany({
@@ -220,7 +269,9 @@ export const findSeriesSiblings = async (
   });
 
   const seriesDescription = normalizeDescription(transaction.description);
-  const siblings = candidates.filter((candidate) => normalizeDescription(candidate.description) === seriesDescription);
+  const seriesSlot = timeSlot(transaction.date, timeBucketMinutes);
+
+  const siblings = candidates.filter((candidate) => normalizeDescription(candidate.description) === seriesDescription && timeSlot(candidate.date, timeBucketMinutes) === seriesSlot);
 
   if (!siblings.some((sibling) => sibling.id === transaction.id)) {
     siblings.push({ id: transaction.id, date: new Date(transaction.date), description: transaction.description });

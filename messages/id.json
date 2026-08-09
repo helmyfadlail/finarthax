@@ -7,7 +7,6 @@
     "nav": {
       "dashboard": "Dasbor",
       "transactions": "Transaksi",
-      "recurring": "Berulang",
       "accounts": "Akun",
       "categories": "Kategori",
       "budgets": "Anggaran",
@@ -200,7 +199,8 @@
       "BIWEEKLY": "Setiap 2 minggu",
       "MONTHLY": "Bulanan",
       "YEARLY": "Tahunan"
-    }
+    },
+    "recurringButton": "Berulang"
   },
   "recurringPage": {
     "title": "Transaksi Berulang",
@@ -331,7 +331,8 @@
       "stop": "Gagal menghentikan pelacakan",
       "dismiss": "Gagal mengabaikan rekomendasi",
       "restore": "Gagal memulihkan rekomendasi"
-    }
+    },
+    "backToTransactions": "Kembali ke transaksi"
   },
   "accountsPage": {
     "title": "Akun",

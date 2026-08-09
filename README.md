@@ -25,6 +25,7 @@ Built with Next.js 16 (App Router), React 19, Prisma 7 and PostgreSQL.
 - [Currency](#currency)
 - [Internationalisation & routing](#internationalisation--routing)
 - [Health & maintenance](#health--maintenance)
+- [Logging & tracing](#logging--tracing)
 - [API documentation](#api-documentation)
 - [API reference](#api-reference)
 - [Data model](#data-model)
@@ -142,7 +143,7 @@ src/
   layouts/
     ui/                    One file per dashboard screen
   hooks/api/               One TanStack Query hook per resource
-  lib/                     Server-side logic: prisma, auth, transaction maths, recurrence engine
+  lib/                     Server-side logic: prisma, auth, logging, transaction maths, recurrence engine
   types/
     api.ts                 Shared response and domain types
     validations/           Zod schemas shared by routes and forms
@@ -205,6 +206,7 @@ Three rules hold everywhere:
 1. **One response envelope.** `successResponse`, `errorResponse` and `validationErrorResponse` in [`src/utils/api-response.ts`](src/utils/api-response.ts) are the only ways a route replies.
 2. **One validation source.** A Zod schema in `src/types/validations` defines a payload once; the route parses with it, the form reuses the same types.
 3. **One place money moves.** `applyBalanceChange` and `applyBudgetChange` in [`src/lib/transaction.ts`](src/lib/transaction.ts), always inside `prisma.$transaction`.
+4. **One request wrapper.** `withApi` in [`src/lib/api-handler.ts`](src/lib/api-handler.ts) owns the request id, logging, maintenance gate and error mapping for every route — see [Logging & tracing](#logging--tracing).
 
 ---
 
@@ -325,16 +327,20 @@ Finarthax groups your past transactions and looks for a regular rhythm. If "Netf
 
 ### How detection works
 
-Transactions from the last 365 days that are not already part of a series are grouped by **type + source account + destination account + category + normalised description**. Normalising strips digits, punctuation and casing, so invoice numbers and month suffixes do not split a series in two.
+Transactions from the history window that are not already part of a series are grouped by **type + source account + destination account + category + normalised description + time of day**. Normalising strips digits, punctuation and casing, so invoice numbers and month suffixes do not split a series in two.
 
-For each group, at most one occurrence per calendar day is kept (two coffees on Monday are not a daily habit). Then:
+**Time of day is part of the identity**, which is what lets the same habit run more than once a day. A coffee at 08:00 and another at 20:00 share every other attribute; without a time component they would collapse into one pattern with 12-hour gaps and be detected as neither. The day is divided into buckets (`recurring_time_bucket_minutes`, two hours by default) so 08:05 and 08:20 still count as the same slot, while 08:00 and 20:00 become two independent daily series — each with its own schedule, amount and next occurrence.
+
+Within a slot, one occurrence per day is kept: two coffees the same morning are still one habit. Then:
 
 | Step        | Rule                                                                                                                    |
 | ----------- | ----------------------------------------------------------------------------------------------------------------------- |
-| Volume      | At least **3** occurrences (`minOccurrences`)                                                                           |
+| Volume      | At least `recurring_min_occurrences` occurrences (3 by default)                                                         |
 | Cadence     | The median gap must match a known interval: **1** day, **6–8** days, **13–16** days, **27–32** days or **355–375** days |
-| Consistency | At least **60%** of gaps must sit within 25% of that interval's nominal length                                          |
-| Confidence  | Score ≥ **55**, from regularity (60%), number of repeats (25%) and amount stability (15%)                               |
+| Consistency | At least `recurring_min_consistency` of gaps (60%) must sit within 25% of that interval's nominal length                |
+| Confidence  | Score ≥ `recurring_min_confidence` (55), from regularity (60%), repeats (25%) and amount stability (15%)                |
+
+Tracking or dismissing a series matches on the slot too, so acting on the morning habit leaves the evening one alone.
 
 Survivors are shown with their confidence score, average amount, predicted next date and an estimated monthly cost — every interval is normalised to a 30.44-day month, so different cadences can be compared and summed.
 
@@ -352,7 +358,7 @@ Confirming advances by **exactly one period**, so a series you forgot for three 
 
 ### Where it shows up
 
-- **Recurring page** (`/admin/dashboard/recurring`) — due, upcoming, detected and dismissed, plus how much recurring expense you are committed to each month.
+- **Recurring page** (`/admin/dashboard/transactions/recurring`) — due, upcoming, detected and dismissed, plus how much recurring expense you are committed to each month. It sits under Transactions rather than in the sidebar: it is a view of your transactions, not a separate area. The Transactions header links to it and shows the due count, and the old top-level URL redirects here so older notification emails keep working.
 - **Dashboard** — a banner when something is due, or when new patterns are found.
 - **Transactions page** — recurring rows are marked 🔁, and the add form can open a series directly.
 
@@ -488,8 +494,28 @@ A boolean renders as a toggle, a key with options renders as a select, and anyth
 | `currency_locale_map`, `zero_decimal_currencies` | How each currency is formatted |
 | `home_*`, `login_*`, `register_*`, `footer_copyright`, …                                                  | Landing-page and auth-screen copy        |
 | `app_version`, `app_created`, `app_build_number`, `app_environment`                                       | Shown on the settings screen             |
+| `recurring_*`, `weekly_report_days`, `quick_*_rate_limit`, `quick_rate_limit_window_seconds`              | The numbers the server behaves by — see [Tuning](#tuning) |
 
 Rows flagged `isPublic` are exposed unauthenticated at `GET /api/settings`, which is how the landing and login pages get their text before anyone signs in. Values of type `json` are parsed before being returned.
+
+### Tuning
+
+No feature carries its own magic constant. Everything a maintainer might want to adjust lives in the `tuning` category of `app_settings` and is read through `getTuning()` ([src/lib/app-settings.ts](src/lib/app-settings.ts)), which caches for a minute and falls back to the catalogue in [src/static/app-settings.ts](src/static/app-settings.ts) if the database is unreachable:
+
+| Key | Default | Governs |
+| --- | --- | --- |
+| `recurring_history_days` | `365` | How far back the detector reads |
+| `recurring_min_occurrences` | `3` | Repeats before a pattern is suggested |
+| `recurring_min_consistency` | `0.6` | Share of gaps that must match the interval |
+| `recurring_min_confidence` | `55` | Score below which a pattern is discarded |
+| `recurring_time_bucket_minutes` | `120` | Width of a daily slot — what keeps a morning and an evening habit apart |
+| `recurring_due_email_limit` | `20` | Items listed in one reminder email |
+| `weekly_report_days` | `7` | Window the weekly summary covers |
+| `quick_lookup_rate_limit` | `20` | Public lookups per client per window |
+| `quick_create_rate_limit` | `30` | Public writes per client per window |
+| `quick_rate_limit_window_seconds` | `60` | Length of that window |
+
+Change a row and the next request picks it up — no redeploy, no code change. Per-account defaults are a separate matter: those come from the `USER_SETTINGS` catalogue, and the client's `PREFERENCE_DEFAULTS` is derived from it rather than restated, so the value a new account is created with and the value the UI falls back to cannot drift apart.
 
 ---
 
@@ -593,7 +619,67 @@ for (const l of ['id','zh']) console.log(l, en.filter(x=>!k(require('./messages/
 
 **`GET /api/health`** runs `SELECT 1` against a `DATABASE_TIMEOUT_MS` deadline and reports `status`, `timestamp`, process `uptime` and the database latency, answering `503` when the database is unreachable. A cached variant (`HEALTH_CACHE_TTL_MS`) is used for internal checks so probes cannot hammer the database. This is the only route that does not use the standard envelope, because probes expect a plain body.
 
-**Maintenance mode** is enforced by `withMaintenanceGuard`, which wraps every route handler. `GET`, `HEAD` and `OPTIONS` pass straight through; anything else checks the `maintenance_mode` app setting first and returns `503` when it is on. Reads therefore keep working during maintenance.
+**Maintenance mode** is enforced by `withApi`, which wraps every route handler. `GET`, `HEAD` and `OPTIONS` pass straight through; anything else checks the `maintenance_mode` app setting first and returns `503` when it is on. Reads therefore keep working during maintenance. If that lookup itself fails the request is allowed through — a database blip must not read as "maintenance".
+
+---
+
+## Logging & tracing
+
+Every route is wrapped in **`withApi`** ([`src/lib/api-handler.ts`](src/lib/api-handler.ts)), which gives each request an id and writes a `request.start` / `request.finish` pair around it. Handlers contain no `try`/`catch`: whatever they throw is classified, logged with its stack, and returned as a clean JSON error.
+
+```ts
+export const GET = withApi("accounts.list", async () => {
+  const user = await requireAuth();
+  return successResponse(await prisma.account.findMany({ where: { userId: user.id } }));
+});
+
+export const PUT = withApi<{ id: string }>("accounts.update", async (req, { params }) => {
+  const { id } = await params;
+  // …throwing here is fine — withApi maps and logs it
+});
+```
+
+**One id ties everything together.** The id comes from the incoming `x-request-id` header when a proxy already set one, otherwise it is generated. It is returned on every response as `x-request-id` (alongside `x-response-time`), included in the body of every error, and — because it lives in an `AsyncLocalStorage` context — stamped automatically onto every log line written while that request runs, including Prisma queries and background email sends. `requireAuth` adds the `userId` to the same context, so lines written after sign-in carry it too.
+
+**Logs are written to files, not to the terminal.** The app writes its own rotating files, so keeping history needs nothing installed — no shipper, no `docker logs` plumbing. The terminal stays clean.
+
+```
+logs/finarthax-2026-08-05.log         everything
+logs/finarthax-error-2026-08-05.log   warn + error only, for triage
+```
+
+A new file starts each day, and once a file passes `LOG_FILE_MAX_SIZE_MB` (10 MB) it continues into `finarthax-2026-08-05.1.log`. Anything older than `LOG_FILE_RETENTION_DAYS` (14) is deleted at startup and once a day after that, so the disk cannot fill up unattended. Files are always JSON — one object per line — whatever `LOG_FORMAT` does to the terminal, because a file is read with `grep` and `jq`.
+
+```bash
+tail -f logs/finarthax-$(date +%F).log                    # follow everything
+jq -r 'select(.level=="error")' logs/finarthax-error-*.log  # today's failures
+grep 4f2c8b1e logs/*.log | jq .                           # one request, start to finish
+```
+
+Nothing here can take the app down. If the directory is not writable, file logging switches itself off, prints one `[logger] file logging disabled` notice, and **falls back to stdout** so the lines are never silently dropped — then the app keeps serving.
+
+Set `LOG_TO_CONSOLE=true` to mirror everything to the terminal as well, which is what makes `docker logs` and `journalctl` show the app's logs again; it is off by default. Under Docker the log directory is a mounted volume (`./logs`), so the files are readable straight from the host — see the notes in [`docker-compose.yml`](docker-compose.yml).
+
+**What gets logged.** `logger` ([`src/lib/logger.ts`](src/lib/logger.ts)) writes one JSON object per line to the files. `LOG_FORMAT` only affects the terminal mirror, where `pretty` gives readable colourised lines.
+
+| Level   | What lands there                                                                       |
+| ------- | -------------------------------------------------------------------------------------- |
+| `debug` | Individual database queries, request bodies, per-step timings                            |
+| `info`  | Request start/finish, domain events (`transactions.created`, `auth.login`, `users.deleted`) |
+| `warn`  | `4xx` responses, slow requests and queries, rate limits, failed logins, maintenance blocks |
+| `error` | `5xx` responses, database failures, email sends that failed, unhandled rejections          |
+
+**Errors are classified, not guessed.** `Unauthorized` → `401`, `ZodError` → `422` with field errors, Prisma `P2002` → `409`, `P2025` → `404`, malformed JSON → `400`. Anything unrecognised is a `500` whose message is replaced with a generic one in production — the real message and stack stay in the logs, and the client gets the request id to quote. In development the real message is returned, because that is more useful than a lookup.
+
+**Secrets never reach the logs.** Any field whose name looks like a password, token, secret, api key, authorization header, cookie, cvv, otp or pin is replaced with `***redacted***`; emails are masked to `he***@gmail.com`; long strings and large arrays are truncated and cycles broken. Redaction is recursive, so it applies to request bodies and Prisma arguments too.
+
+**Slow things surface on their own.** A request over `LOG_SLOW_REQUEST_MS` (default 1s) is logged at `warn` with `slow: true`; a query over `LOG_SLOW_QUERY_MS` (default 300ms) is logged at `warn` with its model, operation and arguments.
+
+**Nothing is lost outside a request.** [`src/instrumentation.ts`](src/instrumentation.ts) logs server start and shutdown, catches `unhandledRejection` and `uncaughtException`, and hooks Next's `onRequestError` so failures in server components and page renders are captured in the same format.
+
+Configuration lives in [`.env.example`](.env.example) under **Logging** and **Log files**. The defaults are already correct per environment — nothing has to be set for production to work. The one worth knowing is `LOG_REQUEST_BODY`, which is off in production and can be switched on temporarily while chasing a bug.
+
+On the browser side, a failed call from `apiClient` throws an **`ApiError`** carrying `status` and `requestId`, so the UI can show the user the same id you will grep for.
 
 ---
 
@@ -775,6 +861,17 @@ Start from [`.env.example`](.env.example) — it carries this same list with pla
 | `EXCHANGE_RATE_URL`          |          | exchangerate-api                    | Source for conversion rates                      |
 | `DATABASE_TIMEOUT_MS`        |          | `5000`                              | Deadline for the health-check query              |
 | `HEALTH_CACHE_TTL_MS`        |          | `10000`                             | How long a health result is cached               |
+| `LOG_LEVEL`                  |          | `debug` dev / `info` prod           | `debug`, `info`, `warn` or `error`               |
+| `LOG_FORMAT`                 |          | `pretty` dev / `json` prod          | Terminal mirror only; files are always JSON      |
+| `LOG_SERVICE_NAME`           |          | `finarthax`                         | Stamped on every line; log filename prefix       |
+| `LOG_SLOW_REQUEST_MS`        |          | `1000`                              | Requests above this are logged at `warn`         |
+| `LOG_SLOW_QUERY_MS`          |          | `300`                               | Queries above this are logged at `warn`          |
+| `LOG_REQUEST_BODY`           |          | `true` dev / `false` prod           | Mirror JSON bodies into the logs (redacted)      |
+| `LOG_TO_FILE`                |          | `true`                              | Write rotating log files                         |
+| `LOG_TO_CONSOLE`             |          | `false`                             | Also mirror to stdout                            |
+| `LOG_DIR`                    |          | `logs`                              | Where the log files go                           |
+| `LOG_FILE_MAX_SIZE_MB`       |          | `10`                                | Roll over once a file passes this size           |
+| `LOG_FILE_RETENTION_DAYS`    |          | `14`                                | Delete log files older than this                 |
 | `ENV_ENCRYPTION_KEY`         |          | —                                   | Opens an encrypted `.env`; see below             |
 
 The Docker image additionally needs `POSTGRES_HOST`, `POSTGRES_PORT` and `POSTGRES_USER` for its readiness loop, and docker-compose creates the database from `POSTGRES_USER`, `POSTGRES_PASSWORD` and `POSTGRES_DB`.
@@ -917,6 +1014,7 @@ kubectl logs job/manual-run -n finarthax
 
 ## Conventions
 
+- **Routes never catch their own errors.** Every handler is wrapped in `withApi`, which owns the request id, the logging, the maintenance gate and the error mapping. A `try`/`catch` inside a route means something genuinely local is being handled — like the PDF renderer in `users/export` — not routine error plumbing.
 - **Validation is shared.** A Zod schema in `src/types/validations` is the single definition of a payload; routes parse with it and return `validationErrorResponse` on failure.
 - **Money maths lives on the server.** `applyBalanceChange` and `applyBudgetChange` are the only places balances move, and they always run inside `prisma.$transaction`.
 - **Client bundles stay clean.** Anything a client component needs — interval lists, currency options, icons — lives in `src/static`, never in `src/lib`, which pulls in Prisma and NextAuth.

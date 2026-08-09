@@ -337,7 +337,7 @@ export const Dashboard: React.FC = () => {
                   </p>
                 </div>
               </div>
-              <Button variant="primary" size="sm" className="shrink-0" onClick={() => router.push("/admin/dashboard/recurring")}>
+              <Button variant="primary" size="sm" className="shrink-0" onClick={() => router.push("/admin/dashboard/transactions/recurring")}>
                 {t("recurring.action")} →
               </Button>
             </div>

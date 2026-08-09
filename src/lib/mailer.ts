@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { logger } from "./logger";
 
 const FROM = process.env.RESEND_EMAIL_FROM || "Finarthax <onboarding@resend.dev>";
 
@@ -93,7 +94,17 @@ export const renderEmail = (content: EmailContent): string => {
 export const sendEmail = async ({ to, subject, html }: { to: string; subject: string; html: string }): Promise<void> => {
   if (!isMailerConfigured()) throw new Error("Email is not configured");
 
-  const { error } = await getClient().emails.send({ from: FROM, to, subject, html });
+  const done = logger.time("mailer.send", { to, subject });
 
-  if (error) throw new Error(error.message || "Failed to send email");
+  const { data, error } = await getClient().emails.send({ from: FROM, to, subject, html });
+
+  done();
+
+  // Resend's provider-side id is what support needs to trace a "never arrived" report.
+  if (error) {
+    logger.error("mailer.send_failed", { to, subject, providerError: error.name, providerMessage: error.message });
+    throw new Error(error.message || "Failed to send email");
+  }
+
+  logger.debug("mailer.sent", { to, subject, providerMessageId: data?.id });
 };

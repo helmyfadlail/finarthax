@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { logger } from "./logger";
 import { Prisma } from "prisma-client/client";
 
 const DATABASE_TIMEOUT_MS = Number(process.env.DATABASE_TIMEOUT_MS) || 5_000;
@@ -142,6 +143,10 @@ export async function checkDatabaseConnection(): Promise<DatabaseCheckResult> {
     return { status: "up", latency: Date.now() - start };
   } catch (error) {
     const { message, code } = parseDatabaseError(error);
+
+    // parseDatabaseError produces a diagnosis the raw stack does not - keep both.
+    logger.error("db.health_check_failed", { errorCode: code, diagnosis: message, latency: Date.now() - start, err: error });
+
     return { status: "down", latency: Date.now() - start, error: message, errorCode: code };
   }
 }

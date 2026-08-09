@@ -1,29 +1,32 @@
-import { NextRequest } from "next/server";
-import { prisma, withMaintenanceGuard } from "@/lib";
-import { errorResponse, successResponse } from "@/utils";
+import { logger, prisma, withApi } from "@/lib";
+import { successResponse } from "@/utils";
 
-export async function GET(req: NextRequest) {
-  return withMaintenanceGuard(req, async () => {
+export const GET = withApi("settings.public", async () => {
+  const settings = await prisma.appSetting.findMany({
+    where: { isPublic: true },
+    orderBy: [{ category: "asc" }, { key: "asc" }, { sortOrder: "asc" }],
+    select: {
+      key: true,
+      value: true,
+      type: true,
+      category: true,
+      label: true,
+      description: true,
+    },
+  });
+
+  const parsed = settings.map((s) => {
+    if (s.type !== "json") return s;
+
     try {
-      const settings = await prisma.appSetting.findMany({
-        where: { isPublic: true },
-        orderBy: [{ category: "asc" }, { key: "asc" }, { sortOrder: "asc" }],
-        select: {
-          key: true,
-          value: true,
-          type: true,
-          category: true,
-          label: true,
-          description: true,
-        },
-      });
-
-      const parsed = settings.map((s) => ({ ...s, value: s.type === "json" ? JSON.parse(s.value) : s.value }));
-      return successResponse(parsed);
+      return { ...s, value: JSON.parse(s.value) };
     } catch (error) {
-      console.error("[GET /settings]", error);
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
-      return errorResponse(errorMessage, 500);
+      // One bad row used to blow up the whole endpoint. Name the key instead and
+      // fall back to the raw string so the rest of the settings still load.
+      logger.error("settings.invalid_json", { key: s.key, err: error });
+      return s;
     }
   });
-}
+
+  return successResponse(parsed);
+});

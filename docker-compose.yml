@@ -31,6 +31,20 @@ services:
       ENV_ENCRYPTION_KEY: ${ENV_ENCRYPTION_KEY:-}
     ports:
       - "3000:3000"
+    # The app logs to files, not to stdout, so `docker compose logs app` shows only
+    # the startup banner — read these instead. They survive `docker compose down`.
+    # (Set LOG_TO_CONSOLE=true in .env to mirror them to `docker compose logs`.)
+    #
+    #   tail -f ./logs/finarthax-$(date +%F).log
+    #   grep '"level":"error"' ./logs/finarthax-error-$(date +%F).log | jq .
+    #
+    # One-time setup: the app runs as uid 1001, so the host directory has to be
+    # writable by it, otherwise file logging switches itself off (the app keeps
+    # running and says so in `docker compose logs app`).
+    #
+    #   mkdir -p logs && sudo chown 1001:1001 logs
+    volumes:
+      - ./logs:/app/logs
     depends_on:
       postgres:
         condition: service_healthy

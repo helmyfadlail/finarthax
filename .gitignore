@@ -31,7 +31,10 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# covers .env, .env.bak and .env.key — the key must never be committed alongside the file it unlocks
+# application logs
+/logs/
+
+# covers .env, .env.bak and .env.key
 .env
 .env.bak
 .env.key
@@ -54,3 +57,6 @@ k8s/
 
 # deployment guide
 DEPLOYMENT.md
+
+# sql exclude
+*.sql

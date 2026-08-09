@@ -1,4 +1,5 @@
 import { BASE_CURRENCY, BASE_CURRENCY_SYMBOL, CURRENCY_LOCALE_MAP, CURRENCY_OPTIONS, EXCHANGE_RATE_URL, ZERO_DECIMAL_CURRENCIES } from "@/static";
+import { logger } from "./logger";
 
 const RATES_TTL_MS = 60 * 60 * 1000;
 
@@ -8,16 +9,27 @@ export const getExchangeRates = async (): Promise<Record<string, number> | null>
   if (cachedRates && Date.now() - cachedRates.fetchedAt < RATES_TTL_MS) return cachedRates.rates;
 
   try {
+    const done = logger.time("currency.fetch_rates");
     const response = await fetch(`${EXCHANGE_RATE_URL}/${BASE_CURRENCY}`);
-    if (!response.ok) return cachedRates?.rates ?? null;
+    done({ status: response.status });
+
+    // Every failure path here silently falls back to stale rates, which is exactly
+    // the kind of "wrong numbers, no error" problem that is invisible without a log.
+    if (!response.ok) {
+      logger.warn("currency.rates_unavailable", { status: response.status, servingStale: cachedRates !== null });
+      return cachedRates?.rates ?? null;
+    }
 
     const data = (await response.json()) as { rates?: Record<string, number> };
-    if (!data.rates || typeof data.rates !== "object") return cachedRates?.rates ?? null;
+    if (!data.rates || typeof data.rates !== "object") {
+      logger.warn("currency.rates_malformed", { servingStale: cachedRates !== null });
+      return cachedRates?.rates ?? null;
+    }
 
     cachedRates = { rates: data.rates, fetchedAt: Date.now() };
     return cachedRates.rates;
   } catch (error) {
-    console.error("[exchange-rates]", error);
+    logger.error("currency.rates_failed", { servingStale: cachedRates !== null, err: error });
     return cachedRates?.rates ?? null;
   }
 };

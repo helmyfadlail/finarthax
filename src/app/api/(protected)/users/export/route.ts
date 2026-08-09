@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import PDFDocument from "pdfkit";
 import fs from "fs";
 import path from "path";
-import { prisma, requireAuth, withMaintenanceGuard } from "@/lib";
+import { logger, prisma, requireAuth, withApi } from "@/lib";
 import { errorResponse, formattedCurrency } from "@/utils";
 
 const MARGIN = 50;
@@ -215,51 +215,55 @@ const buildPDF = (user: { name: string | null; email: string | null }, transacti
     doc.end();
   });
 
-export async function GET(req: NextRequest) {
-  return withMaintenanceGuard(req, async () => {
-    try {
-      const user = await requireAuth();
-      if (!user) return errorResponse("Unauthorized", 401);
+export const GET = withApi("users.export", async () => {
+  const user = await requireAuth();
 
-      const userData = await prisma.user.findUnique({
-        where: { id: user.id },
+  const userData = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: {
+      name: true,
+      email: true,
+      transactions: {
+        orderBy: { date: "desc" },
         select: {
-          name: true,
-          email: true,
-          transactions: {
-            orderBy: { date: "desc" },
-            select: {
-              id: true,
-              date: true,
-              type: true,
-              amount: true,
-              category: { select: { name: true } },
-              account: { select: { name: true } },
-            },
-          },
+          id: true,
+          date: true,
+          type: true,
+          amount: true,
+          category: { select: { name: true } },
+          account: { select: { name: true } },
         },
-      });
-
-      if (!userData) return errorResponse("User not found", 404);
-
-      const transactions: Transaction[] = userData.transactions.map((t) => ({ ...t, amount: Number(t.amount) }));
-
-      const pdf = await buildPDF(userData, transactions);
-      const filename = `report-${new Date().toISOString().split("T")[0]}.pdf`;
-
-      return new NextResponse(new Uint8Array(pdf), {
-        status: 200,
-        headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${filename}"`, "Cache-Control": "no-store" },
-      });
-    } catch (error) {
-      console.error("[PDF Export]", error);
-
-      if (error instanceof Error) {
-        if (error.message === "Unauthorized") return errorResponse("Unauthorized", 401);
-        if (error.message.startsWith("Font")) return errorResponse(error.message, 500);
-      }
-
-      return errorResponse("Failed to generate PDF report.", 500);
-    }
+      },
+    },
   });
-}
+
+  if (!userData) return errorResponse("User not found", 404);
+
+  const transactions: Transaction[] = userData.transactions.map((t) => ({ ...t, amount: Number(t.amount) }));
+
+  // PDF generation is the slow, memory-hungry part and it can fail on a missing
+  // font in a fresh deploy - keep its own boundary so the cause stays specific.
+  const done = logger.time("users.export.render_pdf", { transactions: transactions.length });
+
+  let pdf: Buffer;
+  try {
+    pdf = await buildPDF(userData, transactions);
+  } catch (error) {
+    logger.error("users.export_failed", { transactions: transactions.length, err: error });
+
+    if (error instanceof Error && error.message.startsWith("Font")) return errorResponse(error.message, 500);
+
+    return errorResponse("Failed to generate PDF report.", 500);
+  }
+
+  done({ bytes: pdf.byteLength });
+
+  const filename = `report-${new Date().toISOString().split("T")[0]}.pdf`;
+
+  logger.info("users.exported", { transactions: transactions.length, bytes: pdf.byteLength });
+
+  return new NextResponse(new Uint8Array(pdf), {
+    status: 200,
+    headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="${filename}"`, "Cache-Control": "no-store" },
+  });
+});

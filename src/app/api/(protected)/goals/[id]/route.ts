@@ -1,63 +1,51 @@
 import { NextRequest } from "next/server";
-import { prisma, requireAuth, withMaintenanceGuard } from "@/lib";
+import { logger, prisma, requireAuth, withApi } from "@/lib";
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
 import z from "zod";
 import { updateGoalSchema } from "@/types";
 
-export async function PUT(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  return withMaintenanceGuard(req, async () => {
-    try {
-      const user = await requireAuth();
-      const { id } = await params;
+export const PUT = withApi<{ id: string }>("goals.update", async (req: NextRequest, { params }) => {
+  const user = await requireAuth();
+  const { id } = await params;
 
-      const body = await req.json();
-      const validation = updateGoalSchema.safeParse(body);
+  const body = await req.json();
+  const validation = updateGoalSchema.safeParse(body);
 
-      if (!validation.success) {
-        const { fieldErrors } = z.flattenError(validation.error);
-        return validationErrorResponse(fieldErrors);
-      }
+  if (!validation.success) {
+    const { fieldErrors } = z.flattenError(validation.error);
+    return validationErrorResponse(fieldErrors);
+  }
 
-      const existing = await prisma.goal.findFirst({ where: { id, userId: user.id } });
+  const existing = await prisma.goal.findFirst({ where: { id, userId: user.id } });
 
-      if (!existing) return errorResponse("Goal not found", 404);
+  if (!existing) return errorResponse("Goal not found", 404);
 
-      const data = validation.data;
+  const data = validation.data;
 
-      const goal = await prisma.goal.update({
-        where: { id },
-        data: {
-          ...data,
-          ...(data.deadline && { deadline: new Date(data.deadline) }),
-        },
-      });
-
-      return successResponse(goal, "Goal updated successfully");
-    } catch (error) {
-      console.error(error);
-      if (error instanceof Error && error.message === "Unauthorized") return errorResponse("Unauthorized", 401);
-      return errorResponse(error instanceof Error ? error.message : "An unexpected error occurred", 500);
-    }
+  const goal = await prisma.goal.update({
+    where: { id },
+    data: {
+      ...data,
+      ...(data.deadline && { deadline: new Date(data.deadline) }),
+    },
   });
-}
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  return withMaintenanceGuard(req, async () => {
-    try {
-      const user = await requireAuth();
-      const { id } = await params;
+  logger.info("goals.updated", { goalId: id, fields: Object.keys(data), status: goal.status });
 
-      const goal = await prisma.goal.findFirst({ where: { id, userId: user.id } });
+  return successResponse(goal, "Goal updated successfully");
+});
 
-      if (!goal) return errorResponse("Goal not found", 404);
+export const DELETE = withApi<{ id: string }>("goals.delete", async (req: NextRequest, { params }) => {
+  const user = await requireAuth();
+  const { id } = await params;
 
-      await prisma.goal.delete({ where: { id } });
+  const goal = await prisma.goal.findFirst({ where: { id, userId: user.id } });
 
-      return successResponse(null, "Goal deleted successfully");
-    } catch (error) {
-      console.error(error);
-      if (error instanceof Error && error.message === "Unauthorized") return errorResponse("Unauthorized", 401);
-      return errorResponse(error instanceof Error ? error.message : "An unexpected error occurred", 500);
-    }
-  });
-}
+  if (!goal) return errorResponse("Goal not found", 404);
+
+  await prisma.goal.delete({ where: { id } });
+
+  logger.info("goals.deleted", { goalId: id });
+
+  return successResponse(null, "Goal deleted successfully");
+});

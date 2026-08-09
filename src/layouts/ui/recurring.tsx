@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useTranslations } from "next-intl";
+import { useRouter } from "@/i18n/navigation";
 import { usePreferences, useRecurring } from "@/hooks";
 import { useCurrency } from "@/providers";
 import { Badge, Button, Card, CardContent, Input, Modal, Select, Skeleton, useToast } from "@/components";
@@ -227,6 +228,7 @@ export const Recurring: React.FC = () => {
   const { addToast } = useToast();
 
   const { preferences } = usePreferences();
+  const router = useRouter();
 
   const {
     summary,
@@ -340,6 +342,14 @@ export const Recurring: React.FC = () => {
 
   return (
     <div className="space-y-3 sm:space-y-5 lg:space-y-6">
+      {/* This page sits under Transactions rather than in the sidebar, so it carries its own way back. */}
+      <button
+        onClick={() => router.push("/admin/dashboard/transactions")}
+        className="inline-flex items-center gap-1.5 text-xs transition-colors sm:text-sm text-primary-500 hover:text-primary-900 dark:text-primary-700 dark:hover:text-primary-900"
+      >
+        ← {t("backToTransactions")}
+      </button>
+
       <div>
         <h1 className="text-xl font-bold sm:text-2xl lg:text-3xl text-primary-900 dark:text-primary-900">{t("title")}</h1>
         <p className="mt-0.5 text-xs sm:text-sm text-primary-500 dark:text-primary-700">{t("subtitle")}</p>

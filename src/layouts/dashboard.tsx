@@ -82,7 +82,6 @@ const SidebarContent = ({ session, router, pathname, logout }: SidebarContentPro
   const navigation = [
     { name: t("nav.dashboard"), href: "/admin/dashboard", icon: "📊" },
     { name: t("nav.transactions"), href: "/admin/dashboard/transactions", icon: "💰" },
-    { name: t("nav.recurring"), href: "/admin/dashboard/recurring", icon: "🔁" },
     { name: t("nav.accounts"), href: "/admin/dashboard/accounts", icon: "💳" },
     { name: t("nav.categories"), href: "/admin/dashboard/categories", icon: "📁" },
     { name: t("nav.budgets"), href: "/admin/dashboard/budgets", icon: "📊" },

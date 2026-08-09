@@ -1,19 +1,17 @@
-import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib";
-import { errorResponse } from "@/utils";
+import { prisma } from "./prisma";
+import { logger } from "./logger";
 
-const SAFE_METHODS = ["GET", "HEAD", "OPTIONS"] as const;
-
-export async function withMaintenanceGuard(request: NextRequest, handler: () => Promise<NextResponse>): Promise<NextResponse> {
-  if (SAFE_METHODS.includes(request.method as (typeof SAFE_METHODS)[number])) {
-    return handler();
+/**
+ * Reads the `maintenance_mode` app setting. `withApi` calls this on every unsafe
+ * request, so a lookup failure must not take the whole API down with it: if the
+ * setting cannot be read the request is allowed through and the problem is logged.
+ */
+export const isMaintenanceModeEnabled = async (): Promise<boolean> => {
+  try {
+    const setting = await prisma.appSetting.findFirst({ where: { key: "maintenance_mode" } });
+    return setting?.value === "true";
+  } catch (error) {
+    logger.error("maintenance.check_failed", { err: error });
+    return false;
   }
-
-  const maintenanceSetting = await prisma.appSetting.findFirst({ where: { key: "maintenance_mode" } });
-
-  if (maintenanceSetting?.value === "true") {
-    return errorResponse("App is under maintenance. Please try again later.", 503);
-  }
-
-  return handler();
-}
+};

@@ -1,6 +1,7 @@
 import { createTranslator } from "next-intl";
-import { createAmountFormatter, getUserPreferences, isMailerConfigured, prisma, readBooleanPreference, readNumberPreference, renderEmail, sendEmail, appUrl } from "@/lib";
-import { BASE_CURRENCY, DEFAULT_LOCALE, isSupportedLocale } from "@/static";
+import { getTuning } from "./app-settings";
+import { createAmountFormatter, getUserPreferences, isMailerConfigured, logger, prisma, readBooleanPreference, readNumberPreference, renderEmail, sendEmail, appUrl } from "@/lib";
+import { BASE_CURRENCY, DEFAULT_LOCALE, isSupportedLocale, USER_SETTINGS } from "@/static";
 import { formattedDate } from "@/utils";
 import type { EmailContent } from "@/lib/mailer";
 
@@ -10,6 +11,9 @@ export interface NotificationOutcome {
   sent: boolean;
   reason?: "not-configured" | "no-recipient" | "master-disabled" | "preference-disabled" | "nothing-to-send" | "failed";
 }
+
+/** The default a preference ships with, so no number is restated here. */
+const catalogueNumber = (key: string): number => Number(USER_SETTINGS.find((setting) => setting.key === key)?.value ?? 0);
 
 type Translator = Awaited<ReturnType<typeof getEmailTranslator>>;
 
@@ -71,9 +75,10 @@ const dispatch = async (userId: string, kind: EmailNotificationKind, build: (con
 
   try {
     await sendEmail({ to: context.email, subject: message.subject, html: renderEmail(message.content) });
+    logger.info("notifications.sent", { kind, targetUserId: userId });
     return { sent: true };
   } catch (error) {
-    console.error(`[notifications:${kind}]`, error);
+    logger.error("notifications.send_failed", { kind, targetUserId: userId, err: error });
     return { sent: false, reason: "failed" };
   }
 };
@@ -132,7 +137,7 @@ export const notifyBudgetThresholdCrossed = async (userId: string, options: { ca
     if (limit <= 0) return null;
 
     const spent = Number(budget.spent);
-    const threshold = readNumberPreference(context.preferences, "budgetAlertThreshold", 80);
+    const threshold = readNumberPreference(context.preferences, "budgetAlertThreshold", catalogueNumber("budgetAlertThreshold"));
 
     const percentageNow = (spent / limit) * 100;
     const percentageBefore = ((spent - options.appliedAmount) / limit) * 100;
@@ -168,7 +173,7 @@ export const notifyRecurringDue = async (userId: string): Promise<NotificationOu
       where: { userId, nextOccurrence: { not: null, lte: endOfToday } },
       include: { category: { select: { name: true } } },
       orderBy: { nextOccurrence: "asc" },
-      take: 20,
+      take: (await getTuning()).recurringDueEmailLimit,
     });
 
     if (due.length === 0) return null;
@@ -188,7 +193,7 @@ export const notifyRecurringDue = async (userId: string): Promise<NotificationOu
             date: context.formatDate(item.nextOccurrence as Date),
           }),
         ),
-        cta: { label: t("recurring.cta"), url: `${appUrl()}/admin/dashboard/recurring` },
+        cta: { label: t("recurring.cta"), url: `${appUrl()}/admin/dashboard/transactions/recurring` },
       },
     };
   });
@@ -196,7 +201,8 @@ export const notifyRecurringDue = async (userId: string): Promise<NotificationOu
 export const sendWeeklyReport = async (userId: string): Promise<NotificationOutcome> =>
   dispatch(userId, "weeklyReports", async (context) => {
     const until = new Date();
-    const since = new Date(until.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const windowDays = (await getTuning()).weeklyReportDays;
+    const since = new Date(until.getTime() - windowDays * 24 * 60 * 60 * 1000);
 
     const transactions = await prisma.transaction.findMany({
       where: { userId, date: { gte: since, lte: until } },

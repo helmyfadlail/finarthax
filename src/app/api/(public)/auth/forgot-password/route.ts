@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { appUrl, prisma, sendEmail, withMaintenanceGuard } from "@/lib";
+import { appUrl, logger, prisma, sendEmail, withApi } from "@/lib";
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
 import z from "zod";
 import { forgotPasswordSchema } from "@/types";
@@ -216,44 +216,46 @@ const generatePasswordResetEmail = (resetUrl: string): string => {
   `.trim();
 };
 
-export async function POST(req: NextRequest) {
-  return withMaintenanceGuard(req, async () => {
-    try {
-      const body = await req.json();
-      const validation = forgotPasswordSchema.safeParse(body);
+export const POST = withApi("auth.forgot_password", async (req: NextRequest) => {
+  const body = await req.json();
+  const validation = forgotPasswordSchema.safeParse(body);
 
-      if (!validation.success) {
-        const { fieldErrors } = z.flattenError(validation.error);
-        return validationErrorResponse(fieldErrors);
-      }
+  if (!validation.success) {
+    const { fieldErrors } = z.flattenError(validation.error);
+    return validationErrorResponse(fieldErrors);
+  }
 
-      const { email } = validation.data;
+  const { email } = validation.data;
 
-      const user = await prisma.user.findUnique({ where: { email } });
+  const user = await prisma.user.findUnique({ where: { email } });
 
-      if (!user) return errorResponse("No account found for this email. Please sign up first.", 404);
+  if (!user) {
+    logger.warn("auth.forgot_password_unknown_email", { email });
+    return errorResponse("No account found for this email. Please sign up first.", 404);
+  }
 
-      if (!user.password) return errorResponse("This account is registered via Google. Please sign in with Google.", 400);
+  if (!user.password) return errorResponse("This account is registered via Google. Please sign in with Google.", 400);
 
-      const resetToken = crypto.randomBytes(32).toString("hex");
-      const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
-      const expires = new Date(Date.now() + 3600000);
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+  const expires = new Date(Date.now() + 3600000);
 
-      await prisma.verificationToken.create({ data: { identifier: email, token: hashedToken, expires } });
+  await prisma.verificationToken.create({ data: { identifier: email, token: hashedToken, expires } });
 
-      const resetUrl = `${url}/reset-password?token=${resetToken}`;
+  // Reset mail not arriving is a common support case - the send is logged
+  // separately from the token so you can tell which half failed. The token
+  // itself is never logged; only that one was issued and when it expires.
+  logger.info("auth.reset_token_issued", { targetUserId: user.id, expiresAt: expires.toISOString() });
 
-      await sendEmail({
-        to: email,
-        subject: "Reset Your Password - Finance Manager",
-        html: generatePasswordResetEmail(resetUrl),
-      });
+  const resetUrl = `${url}/reset-password?token=${resetToken}`;
 
-      return successResponse(null, "If the email exists, a reset link has been sent");
-    } catch (error) {
-      console.error(error);
-      const errorMessage = error instanceof Error ? error.message : "An unexpected error occurred";
-      return errorResponse(errorMessage, 500);
-    }
+  await sendEmail({
+    to: email,
+    subject: "Reset Your Password - Finance Manager",
+    html: generatePasswordResetEmail(resetUrl),
   });
-}
+
+  logger.info("auth.reset_email_sent", { targetUserId: user.id });
+
+  return successResponse(null, "If the email exists, a reset link has been sent");
+});

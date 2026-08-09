@@ -12,9 +12,11 @@ import {
   LANGUAGE_OPTIONS,
   RECURRING_LOOKAHEAD_DAYS_OPTIONS,
   THEME_OPTIONS,
+  USER_SETTINGS,
+  DEFAULT_LOCALE,
   isSupportedLocale,
 } from "@/static";
-import { toSnakeCase } from "@/utils";
+import { DEFAULT_DATE_FORMAT, toSnakeCase } from "@/utils";
 import type { SelectOption, TransactionType } from "@/types";
 
 export interface Preferences {
@@ -34,21 +36,35 @@ export interface Preferences {
   recurringLookaheadDays: number;
 }
 
+/**
+ * Derived from the USER_SETTINGS catalogue rather than restated here, so the default a new account
+ * is created with and the default the UI falls back to can never drift apart. Change the catalogue
+ * and both move together.
+ */
+const CATALOGUE = Object.fromEntries(USER_SETTINGS.map((setting) => [setting.key, setting.value]));
+
+const catalogueString = (key: keyof Preferences, fallback: string): string => CATALOGUE[key] ?? fallback;
+const catalogueBoolean = (key: keyof Preferences): boolean => CATALOGUE[key] === "true";
+const catalogueNumber = (key: keyof Preferences, fallback: number): number => {
+  const parsed = Number(CATALOGUE[key]);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
 export const PREFERENCE_DEFAULTS: Preferences = {
-  emailNotifications: true,
-  weeklyReports: true,
-  transactionAlerts: true,
-  budgetAlerts: true,
-  budgetAlertThreshold: 80,
-  recurringReminders: true,
-  language: "en",
-  currency: BASE_CURRENCY,
-  theme: "system",
-  dateFormat: "dd MMM yyyy",
-  hideAmounts: false,
-  itemsPerPage: 20,
-  defaultTransactionType: "EXPENSE",
-  recurringLookaheadDays: 14,
+  emailNotifications: catalogueBoolean("emailNotifications"),
+  weeklyReports: catalogueBoolean("weeklyReports"),
+  transactionAlerts: catalogueBoolean("transactionAlerts"),
+  budgetAlerts: catalogueBoolean("budgetAlerts"),
+  budgetAlertThreshold: catalogueNumber("budgetAlertThreshold", 80),
+  recurringReminders: catalogueBoolean("recurringReminders"),
+  language: catalogueString("language", DEFAULT_LOCALE),
+  currency: catalogueString("currency", BASE_CURRENCY),
+  theme: catalogueString("theme", "system"),
+  dateFormat: catalogueString("dateFormat", DEFAULT_DATE_FORMAT),
+  hideAmounts: catalogueBoolean("hideAmounts"),
+  itemsPerPage: catalogueNumber("itemsPerPage", 20),
+  defaultTransactionType: catalogueString("defaultTransactionType", "EXPENSE") as TransactionType,
+  recurringLookaheadDays: catalogueNumber("recurringLookaheadDays", 14),
 };
 
 const FALLBACK_OPTIONS: Record<string, SelectOption[]> = {
