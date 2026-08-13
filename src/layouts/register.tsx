@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Button, Input, Skeleton } from "@/components";
 import { useAuth, useSettings } from "@/hooks";
+import { QUICK_TRANSACTION_LINK_DEFAULT } from "@/static";
 
 const REGISTER = "register";
 
@@ -56,6 +57,7 @@ export const Register = () => {
       socialLoginSeparator: resolve("social_login_separator"),
       footerCopyright: resolve("footer_copyright"),
       signinText: resolve("signin_text"),
+      quickTransactionText: resolve("quick_transaction_link_text") || QUICK_TRANSACTION_LINK_DEFAULT,
     };
   }, [getAppSetting]);
 
@@ -144,6 +146,7 @@ export const Register = () => {
             <div className="flex justify-center mt-5 sm:mt-6">
               <Skeleton className="h-4 w-36 sm:w-48" />
             </div>
+            <Skeleton className="w-full h-10 mt-4 rounded-lg sm:h-11" />
           </div>
           <div className="flex justify-center mt-6 sm:mt-8">
             <Skeleton className="h-4 w-28 opacity-60 sm:w-40" />
@@ -292,6 +295,15 @@ export const Register = () => {
               {registerData.signinText}
             </Link>
           </p>
+
+          {/* The quick-entry page needs no account, so registering is never the only way forward. */}
+          <Link
+            href="/"
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary-200 px-4 py-2.5 text-sm font-medium text-primary-600 transition-colors hover:border-primary-400 hover:bg-primary-50 hover:text-primary-800"
+          >
+            <span aria-hidden="true">⚡</span>
+            {registerData.quickTransactionText}
+          </Link>
         </div>
 
         <p className="mt-8 text-sm text-center text-white/80">{registerData.footerCopyright}</p>

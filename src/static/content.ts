@@ -7,6 +7,14 @@ export const RESET_PASSWORD_SUCCESS_DEFAULTS = {
   reset_password_success_auto_redirect: "true",
 };
 
+/**
+ * Label for the link the auth pages carry back to the quick-entry home page.
+ *
+ * Also the value the seed stores, but the pages fall back to it: the setting only exists after the
+ * release that adds it has been seeded, and an unlabelled link is worse than a stale one.
+ */
+export const QUICK_TRANSACTION_LINK_DEFAULT = "Record a transaction without signing in";
+
 export const CONTENT_SETTINGS = [
   // general information settings
   {
@@ -56,6 +64,16 @@ export const CONTENT_SETTINGS = [
     category: "general_information",
     label: "Google Sign Up Button Text",
     description: "Text displayed on the Google sign up button",
+    sortOrder: 0,
+    isPublic: true,
+  },
+  {
+    key: "quick_transaction_link_text",
+    value: QUICK_TRANSACTION_LINK_DEFAULT,
+    type: "string",
+    category: "general_information",
+    label: "Quick Transaction Link Text",
+    description: "Text for the link from the login and register pages back to the quick-entry home page",
     sortOrder: 0,
     isPublic: true,
   },

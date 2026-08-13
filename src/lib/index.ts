@@ -6,6 +6,7 @@ export * from "./prisma";
 export * from "./get-user";
 export * from "./transaction";
 export * from "./recurring";
+export * from "./recurring-actions";
 export * from "./preferences";
 export * from "./app-settings";
 export * from "./rate-limit";

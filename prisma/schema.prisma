@@ -13,11 +13,17 @@ datasource db {
   provider = "postgresql"
 }
 
+enum Role {
+  USER
+  SUPERADMIN
+}
+
 model User {
   id                    String                    @id @default(cuid())
   email                 String                    @unique
   password              String?
   name                  String
+  role                  Role                      @default(USER)
   avatar                String?
   avatarFileId          String?
   passwordChangedAt     DateTime?
@@ -54,6 +60,21 @@ model UserSetting {
   @@index([userId])
   @@index([userId, category])
   @@map("user_settings")
+}
+
+model AppSettingAudit {
+  id                    String                    @id @default(cuid())
+  key                   String
+  action                String
+  previousValue         String?
+  newValue              String?
+  actorId               String?
+  actorEmail            String?
+  createdAt             DateTime                  @default(now())
+
+  @@index([key])
+  @@index([createdAt])
+  @@map("app_setting_audits")
 }
 
 model AppSetting {

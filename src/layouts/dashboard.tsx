@@ -87,6 +87,9 @@ const SidebarContent = ({ session, router, pathname, logout }: SidebarContentPro
     { name: t("nav.budgets"), href: "/admin/dashboard/budgets", icon: "📊" },
     { name: t("nav.goals"), href: "/admin/dashboard/goals", icon: "🎯" },
     { name: t("nav.reports"), href: "/admin/dashboard/reports", icon: "📈" },
+    // Instance-wide configuration, so it is only offered to the role allowed to change it. The
+    // API refuses it regardless of what is rendered here.
+    ...(session.user.role === "SUPERADMIN" ? [{ name: t("nav.appSettings"), href: "/admin/dashboard/app-settings", icon: "🛠️" }] : []),
   ];
 
   return (

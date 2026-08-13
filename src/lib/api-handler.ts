@@ -54,6 +54,12 @@ const mapError = (error: unknown): MappedError => {
     return { status: 401, message: "Unauthorized", level: "warn", kind: "unauthorized" };
   }
 
+  // Signed in, but not allowed here - kept apart from 401 so the client does not bounce a
+  // perfectly valid session to the login screen.
+  if (error instanceof Error && error.message === "Forbidden") {
+    return { status: 403, message: "You do not have permission to perform this action", level: "warn", kind: "forbidden" };
+  }
+
   if (error instanceof ZodError) {
     const { fieldErrors } = flattenError(error);
     return { status: 422, message: "Validation error", body: { errors: fieldErrors }, level: "warn", kind: "validation" };

@@ -12,5 +12,6 @@ export * from "./api/useTransactions";
 export * from "./api/useRecurring";
 export * from "./api/useAccounts";
 export * from "./api/useSettings";
+export * from "./api/useAppSettings";
 export * from "./api/useProfiles";
 export * from "./api/useQuickTransactions";

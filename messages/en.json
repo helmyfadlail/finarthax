@@ -11,7 +11,8 @@
       "categories": "Categories",
       "budgets": "Budgets",
       "goals": "Goals",
-      "reports": "Reports"
+      "reports": "Reports",
+      "appSettings": "App Settings"
     },
     "menu": {
       "settings": "Settings",
@@ -161,7 +162,12 @@
       "recurring": "Repeat this transaction",
       "recurringHint": "Finarthax will remind you when the next one is due — nothing is created automatically.",
       "recurrenceInterval": "Repeats",
-      "recurrenceEndDate": "Repeat until (optional)"
+      "recurrenceEndDate": "Repeat until (optional)",
+      "editTitle": "Edit Transaction",
+      "editHint": "Change any field — your account balances are recalculated to match.",
+      "update": "Save Changes",
+      "recurringLocked": "This transaction is part of a recurring series. Its schedule is managed on the Recurring page.",
+      "recurringUnavailable": "Repeat settings are added when a transaction is created, or from the Recurring page."
     },
     "deleteModal": {
       "title": "Delete Transaction",
@@ -187,11 +193,13 @@
     },
     "success": {
       "created": "Transaction created successfully! 🎉",
-      "deleted": "Transaction deleted successfully"
+      "deleted": "Transaction deleted successfully",
+      "updated": "Transaction updated successfully"
     },
     "error": {
       "create": "Failed to create transaction",
-      "delete": "Failed to delete transaction"
+      "delete": "Failed to delete transaction",
+      "update": "Failed to update transaction"
     },
     "interval": {
       "DAILY": "Daily",
@@ -200,7 +208,8 @@
       "MONTHLY": "Monthly",
       "YEARLY": "Yearly"
     },
-    "recurringButton": "Recurring"
+    "recurringButton": "Recurring",
+    "editButton": "Edit transaction"
   },
   "recurringPage": {
     "title": "Recurring",
@@ -1028,7 +1037,73 @@
       "publicQuickBalances": {
         "title": "Public balances",
         "description": "Show your account balances on the quick-entry page after entering your email"
+      },
+      "publicQuickActivity": {
+        "title": "Public activity",
+        "description": "Show your recent and due recurring transactions on the quick-entry page, and allow logging them from there"
       }
+    }
+  },
+  "appSettingsPage": {
+    "title": "App Settings",
+    "subtitle": "Instance-wide configuration. Changes take effect immediately — no redeploy.",
+    "liveHint": "These rows are what the server behaves by: feature flags, limits, detector tuning and the public page copy. Every change is recorded with who made it.",
+    "restricted": {
+      "title": "Superadmin only",
+      "description": "This screen manages the whole instance, so it is limited to superadmin accounts. Ask a superadmin if you need a value changed."
+    },
+    "summary": {
+      "total": "Settings",
+      "public": "Public",
+      "internal": "Internal",
+      "custom": "Custom"
+    },
+    "filters": {
+      "searchPlaceholder": "Search by key, label or description…",
+      "allCategories": "All categories"
+    },
+    "actions": {
+      "new": "New setting",
+      "edit": "Edit",
+      "cancel": "Cancel",
+      "save": "Save changes",
+      "create": "Create setting"
+    },
+    "empty": {
+      "title": "No settings match",
+      "description": "Try a different search, or clear the category filter."
+    },
+    "badges": {
+      "public": "Public",
+      "internal": "Internal",
+      "builtIn": "Built-in"
+    },
+    "builtInHint": "Built-in settings are rewritten by the seed on every deploy and are read by name inside the app. Their value can be changed, but they cannot be deleted.",
+    "modal": {
+      "createTitle": "New setting",
+      "editTitle": "Edit setting",
+      "key": "Key",
+      "keyHint": "Lower snake_case, e.g. recurring_history_days",
+      "label": "Label",
+      "category": "Category",
+      "type": "Type",
+      "value": "Value",
+      "valueHintJson": "Stored as text and parsed as JSON when read. Must parse, or the change is refused.",
+      "description": "Description",
+      "sortOrder": "Sort order",
+      "isPublic": "Public setting",
+      "isPublicHint": "Public rows are served to signed-out visitors by /api/settings. Leave off for flags, limits and tuning."
+    },
+    "delete": {
+      "title": "Delete this setting?",
+      "description": "Anything reading this key falls back to its built-in default, or stops working if it has none. This cannot be undone.",
+      "confirm": "Delete setting"
+    },
+    "toast": {
+      "created": "{key} created ✓",
+      "updated": "{key} updated ✓",
+      "deleted": "{key} deleted",
+      "error": "Something went wrong. Please try again."
     }
   },
   "notFoundPage": {

@@ -60,3 +60,7 @@ DEPLOYMENT.md
 
 # sql exclude
 *.sql
+
+# ...except migrations. `prisma migrate deploy` applies only what is committed, so an ignored
+# migration.sql is a schema change that never reaches the server.
+!prisma/migrations/**/*.sql

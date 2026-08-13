@@ -28,16 +28,17 @@ async function main() {
   const passwordExpiresAt = calculatePasswordExpiresAt(now, maxPasswordAgeDays);
   const demoUser = await prisma.user.upsert({
     where: { email: "demo@finance.com" },
-    update: {},
+    update: { role: "SUPERADMIN" },
     create: {
       email: "demo@finance.com",
       password: hashedPassword,
       name: "Demo User",
+      role: "SUPERADMIN",
       passwordChangedAt: now,
       passwordExpiresAt,
     },
   });
-  console.log("✅ Demo user created: demo@finance.com / password123\n");
+  console.log("✅ Demo user created: demo@finance.com / password123 (SUPERADMIN)\n");
 
   // ============================================
   // 3. CREATE DEFAULT CATEGORIES

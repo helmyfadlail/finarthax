@@ -31,6 +31,7 @@ interface SelectOption {
 interface TransactionItemProps {
   transaction: Transaction;
   dateFormat: string;
+  onEdit: (transaction: Transaction) => void;
   onDelete: (id: string) => void;
   isDeleting: boolean;
 }
@@ -76,7 +77,7 @@ const getTransactionHint = (
   return null;
 };
 
-const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, dateFormat, onDelete, isDeleting }) => {
+const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, dateFormat, onEdit, onDelete, isDeleting }) => {
   const t = useTranslations("transactionsPage");
   const { format } = useCurrency();
   const config = TYPE_CONFIG[transaction.type as TransactionType] ?? TYPE_CONFIG.EXPENSE;
@@ -139,9 +140,14 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, dateForm
             {badgeLabel}
           </Badge>
         </div>
-        <Button variant="danger" size="sm" onClick={() => onDelete(transaction.id)} disabled={isDeleting} aria-label={t("deleteButton")} className="px-2 sm:px-3">
-          🗑️
-        </Button>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <Button variant="outline" size="sm" onClick={() => onEdit(transaction)} aria-label={t("editButton")} title={t("editButton")} className="px-2 sm:px-3">
+            ✏️
+          </Button>
+          <Button variant="danger" size="sm" onClick={() => onDelete(transaction.id)} disabled={isDeleting} aria-label={t("deleteButton")} className="px-2 sm:px-3">
+            🗑️
+          </Button>
+        </div>
       </div>
     </div>
   );
@@ -185,7 +191,7 @@ export const Transactions: React.FC = () => {
   const { addToast } = useToast();
   const { preferences } = usePreferences();
   const router = useRouter();
-  const { createTransaction, isCreating } = useTransactions();
+  const { createTransaction, isCreating, updateTransaction, isUpdating } = useTransactions();
 
   // Recurring lives under this page now rather than in the sidebar, so the entry point carries the
   // due count — otherwise nothing would tell you something is waiting. Same query as the dashboard,
@@ -234,6 +240,9 @@ export const Transactions: React.FC = () => {
   const [formData, setFormData] = React.useState<FormData>(INITIAL_FORM_DATA);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
+  /** Set while the modal is editing an existing row; null means it is adding a new one. */
+  const [editingTransaction, setEditingTransaction] = React.useState<Transaction | null>(null);
+  const isEditing = editingTransaction !== null;
 
   const sourceAccount = React.useMemo(() => accounts.find((a) => a.id === formData.accountId) ?? null, [accounts, formData.accountId]);
   const destAccount = React.useMemo(() => accounts.find((a) => a.id === formData.toAccountId) ?? null, [accounts, formData.toAccountId]);
@@ -279,10 +288,34 @@ export const Transactions: React.FC = () => {
   }, [preferences.defaultTransactionType, getDefaultCategory]);
   const openModal = React.useCallback(() => {
     resetForm();
+    setEditingTransaction(null);
     setIsModalOpen(true);
   }, [resetForm]);
+
+  const openEditModal = React.useCallback((transaction: Transaction) => {
+    const type = transaction.type as TransactionType;
+
+    setFormData({
+      accountId: transaction.accountId,
+      toAccountId: transaction.toAccountId ?? "",
+      categoryId: transaction.categoryId ?? "",
+      amount: String(transaction.amount),
+      type,
+      description: transaction.description ?? "",
+      date: toDateTimeInputValue(new Date(transaction.date)),
+      // The schedule is not editable here - see the note in the modal.
+      isRecurring: transaction.isRecurring,
+      recurrenceInterval: (transaction.recurrenceInterval as RecurrenceInterval) ?? "MONTHLY",
+      recurrenceEndDate: transaction.recurrenceEndDate ? toDateTimeInputValue(new Date(transaction.recurrenceEndDate)) : "",
+    });
+
+    setEditingTransaction(transaction);
+    setIsModalOpen(true);
+  }, []);
+
   const closeModal = React.useCallback(() => {
     setIsModalOpen(false);
+    setEditingTransaction(null);
     resetForm();
   }, [resetForm]);
 
@@ -344,7 +377,7 @@ export const Transactions: React.FC = () => {
         recurrenceEndDate: formData.isRecurring && formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate).toISOString() : undefined,
       };
 
-      const payload =
+      const fields =
         formData.type === "TRANSFER"
           ? {
               type: formData.type,
@@ -353,7 +386,6 @@ export const Transactions: React.FC = () => {
               amount: parseFloat(formData.amount),
               description: formData.description.trim(),
               date: new Date(formData.date).toISOString(),
-              ...recurrence,
             }
           : {
               type: formData.type,
@@ -362,19 +394,40 @@ export const Transactions: React.FC = () => {
               amount: parseFloat(formData.amount),
               description: formData.description.trim(),
               date: new Date(formData.date).toISOString(),
-              ...recurrence,
             };
-      createTransaction(payload, {
-        onSuccess: () => {
-          notifySuccess(t("success.created"));
-          closeModal();
+
+      if (editingTransaction) {
+        // No recurrence fields on the way out: the schedule is owned by the recurring screen, and
+        // sending them here would silently rewrite a whole series from a form that never showed it.
+        updateTransaction(
+          { id: editingTransaction.id, data: fields },
+          {
+            onSuccess: () => {
+              notifySuccess(t("success.updated"));
+              closeModal();
+            },
+            onError: (error: Error) => {
+              addToast({ message: error.message || t("error.update"), type: "error" });
+            },
+          },
+        );
+        return;
+      }
+
+      createTransaction(
+        { ...fields, ...recurrence },
+        {
+          onSuccess: () => {
+            notifySuccess(t("success.created"));
+            closeModal();
+          },
+          onError: (error: Error) => {
+            addToast({ message: error.message || t("error.create"), type: "error" });
+          },
         },
-        onError: (error: Error) => {
-          addToast({ message: error.message || t("error.create"), type: "error" });
-        },
-      });
+      );
     },
-    [formData, createTransaction, addToast, notifySuccess, closeModal, t, isSourceCreditCard],
+    [formData, createTransaction, updateTransaction, editingTransaction, addToast, notifySuccess, closeModal, t, isSourceCreditCard],
   );
 
   const handleDeleteClick = React.useCallback((id: string) => setDeleteId(id), []);
@@ -529,7 +582,7 @@ export const Transactions: React.FC = () => {
             <>
               <div className="space-y-2 sm:space-y-3">
                 {transactions.map((tx) => (
-                  <TransactionItem key={tx.id} transaction={tx} dateFormat={preferences.dateFormat} onDelete={handleDeleteClick} isDeleting={isDeleting} />
+                  <TransactionItem key={tx.id} transaction={tx} dateFormat={preferences.dateFormat} onEdit={openEditModal} onDelete={handleDeleteClick} isDeleting={isDeleting} />
                 ))}
               </div>
               {pagination && pagination.totalPages > 1 && (
@@ -551,10 +604,10 @@ export const Transactions: React.FC = () => {
         </CardContent>
       </Card>
 
-      <Modal isOpen={isModalOpen} onClose={closeModal} title={`➕ ${t("modal.addTitle")}`} size="lg">
+      <Modal isOpen={isModalOpen} onClose={closeModal} title={isEditing ? `✏️ ${t("modal.editTitle")}` : `➕ ${t("modal.addTitle")}`} size="lg">
         <div className="space-y-3 sm:space-y-4">
           <div className="p-2.5 sm:p-3 rounded-lg border bg-primary-50 dark:bg-primary-300 border-primary-100 dark:border-primary-400">
-            <p className="text-xs font-medium sm:text-sm text-primary-700 dark:text-primary-800">💡 {t("modal.hint")}</p>
+            <p className="text-xs font-medium sm:text-sm text-primary-700 dark:text-primary-800">💡 {isEditing ? t("modal.editHint") : t("modal.hint")}</p>
           </div>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
             <Select label={`${t("modal.type")} *`} options={allowedTypes} value={formData.type} onChange={(e) => handleChangeForm("type", e.target.value)} />
@@ -619,32 +672,40 @@ export const Transactions: React.FC = () => {
             required
           />
 
-          <div className="p-3 border rounded-lg sm:p-4 border-primary-100 dark:border-primary-400 bg-primary-50 dark:bg-primary-300">
-            <label className="flex items-start gap-2.5 cursor-pointer sm:gap-3">
-              <input
-                type="checkbox"
-                checked={formData.isRecurring}
-                onChange={(e) => handleToggleRecurring(e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded cursor-pointer accent-primary-500 dark:accent-secondary-400"
-              />
-              <span className="min-w-0">
-                <span className="block text-xs font-medium sm:text-sm text-primary-900 dark:text-primary-900">🔁 {t("modal.recurring")}</span>
-                <span className="block mt-0.5 text-xs text-primary-500 dark:text-primary-700">{t("modal.recurringHint")}</span>
-              </span>
-            </label>
-
-            {formData.isRecurring && (
-              <div className="grid grid-cols-1 gap-3 mt-3 sm:grid-cols-2 sm:gap-4">
-                <Select
-                  label={t("modal.recurrenceInterval")}
-                  options={RECURRENCE_INTERVALS.map((interval) => ({ value: interval, label: `${RECURRENCE_ICONS[interval]} ${t(`interval.${interval}`)}` }))}
-                  value={formData.recurrenceInterval}
-                  onChange={(e) => handleChangeForm("recurrenceInterval", e.target.value)}
+          {isEditing ? (
+            // The update endpoint deliberately ignores recurrence, and a series is rewritten across
+            // every row that belongs to it - that lives on one screen, not two.
+            <div className="p-3 border rounded-lg sm:p-4 border-primary-100 dark:border-primary-400 bg-primary-50 dark:bg-primary-300">
+              <p className="text-xs sm:text-sm text-primary-600 dark:text-primary-700">{formData.isRecurring ? `🔁 ${t("modal.recurringLocked")}` : `🔁 ${t("modal.recurringUnavailable")}`}</p>
+            </div>
+          ) : (
+            <div className="p-3 border rounded-lg sm:p-4 border-primary-100 dark:border-primary-400 bg-primary-50 dark:bg-primary-300">
+              <label className="flex items-start gap-2.5 cursor-pointer sm:gap-3">
+                <input
+                  type="checkbox"
+                  checked={formData.isRecurring}
+                  onChange={(e) => handleToggleRecurring(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded cursor-pointer accent-primary-500 dark:accent-secondary-400"
                 />
-                <Input type="datetime-local" label={t("modal.recurrenceEndDate")} value={formData.recurrenceEndDate} onChange={(e) => handleChangeForm("recurrenceEndDate", e.target.value)} />
-              </div>
-            )}
-          </div>
+                <span className="min-w-0">
+                  <span className="block text-xs font-medium sm:text-sm text-primary-900 dark:text-primary-900">🔁 {t("modal.recurring")}</span>
+                  <span className="block mt-0.5 text-xs text-primary-500 dark:text-primary-700">{t("modal.recurringHint")}</span>
+                </span>
+              </label>
+
+              {formData.isRecurring && (
+                <div className="grid grid-cols-1 gap-3 mt-3 sm:grid-cols-2 sm:gap-4">
+                  <Select
+                    label={t("modal.recurrenceInterval")}
+                    options={RECURRENCE_INTERVALS.map((interval) => ({ value: interval, label: `${RECURRENCE_ICONS[interval]} ${t(`interval.${interval}`)}` }))}
+                    value={formData.recurrenceInterval}
+                    onChange={(e) => handleChangeForm("recurrenceInterval", e.target.value)}
+                  />
+                  <Input type="datetime-local" label={t("modal.recurrenceEndDate")} value={formData.recurrenceEndDate} onChange={(e) => handleChangeForm("recurrenceEndDate", e.target.value)} />
+                </div>
+              )}
+            </div>
+          )}
           {formData.amount && formData.description && (
             <div className="p-3 border rounded-lg sm:p-4 bg-primary-50 dark:bg-primary-300 border-primary-100 dark:border-primary-400">
               <p className="mb-2 text-xs font-medium sm:mb-3 sm:text-sm text-primary-600 dark:text-primary-700">{t("modal.preview")}:</p>
@@ -669,11 +730,17 @@ export const Transactions: React.FC = () => {
             </div>
           )}
           <div className="flex justify-end gap-2 pt-3 border-t border-primary-100 dark:border-primary-400 sm:gap-3 sm:pt-4">
-            <Button type="button" variant="ghost" onClick={closeModal} disabled={isCreating} className="text-xs sm:text-sm">
+            <Button type="button" variant="ghost" onClick={closeModal} disabled={isCreating || isUpdating} className="text-xs sm:text-sm">
               {t("modal.cancel")}
             </Button>
-            <Button onClick={handleSubmitForm} variant="primary" isLoading={isCreating} disabled={isSourceCreditCard && formData.type === "INCOME"} className="text-xs sm:text-sm">
-              {t("modal.create")}
+            <Button
+              onClick={handleSubmitForm}
+              variant="primary"
+              isLoading={isEditing ? isUpdating : isCreating}
+              disabled={isSourceCreditCard && formData.type === "INCOME"}
+              className="text-xs sm:text-sm"
+            >
+              {isEditing ? t("modal.update") : t("modal.create")}
             </Button>
           </div>
         </div>

@@ -11,7 +11,8 @@
       "categories": "类别",
       "budgets": "预算",
       "goals": "目标",
-      "reports": "报告"
+      "reports": "报告",
+      "appSettings": "应用设置"
     },
     "menu": {
       "settings": "设置",
@@ -161,7 +162,12 @@
       "recurring": "重复此交易",
       "recurringHint": "Finarthax 会在下次到期时提醒您——不会自动创建任何交易。",
       "recurrenceInterval": "重复频率",
-      "recurrenceEndDate": "重复至（可选）"
+      "recurrenceEndDate": "重复至（可选）",
+      "editTitle": "编辑交易",
+      "editHint": "可修改任意字段，账户余额会随之重新计算。",
+      "update": "保存修改",
+      "recurringLocked": "该交易属于定期系列，其排程在「定期」页面管理。",
+      "recurringUnavailable": "重复设置在创建交易时添加，或在「定期」页面设置。"
     },
     "deleteModal": {
       "title": "删除交易",
@@ -187,11 +193,13 @@
     },
     "success": {
       "created": "交易创建成功！🎉",
-      "deleted": "交易删除成功"
+      "deleted": "交易删除成功",
+      "updated": "交易更新成功"
     },
     "error": {
       "create": "创建交易失败",
-      "delete": "删除交易失败"
+      "delete": "删除交易失败",
+      "update": "更新交易失败"
     },
     "interval": {
       "DAILY": "每天",
@@ -200,7 +208,8 @@
       "MONTHLY": "每月",
       "YEARLY": "每年"
     },
-    "recurringButton": "定期交易"
+    "recurringButton": "定期交易",
+    "editButton": "编辑交易"
   },
   "recurringPage": {
     "title": "定期交易",
@@ -1028,7 +1037,73 @@
       "publicQuickBalances": {
         "title": "公开余额",
         "description": "输入邮箱后在快速记账页面显示您的账户余额"
+      },
+      "publicQuickActivity": {
+        "title": "公开动态",
+        "description": "在快速记账页面显示最近交易和到期的定期交易，并允许从那里记账"
       }
+    }
+  },
+  "appSettingsPage": {
+    "title": "应用设置",
+    "subtitle": "全实例配置。修改立即生效，无需重新部署。",
+    "liveHint": "这些条目决定服务器的行为：功能开关、限额、检测器调优以及公开页面文案。每次修改都会记录操作人。",
+    "restricted": {
+      "title": "仅限超级管理员",
+      "description": "此页面管理整个实例，因此仅对超级管理员开放。如需修改某个值，请联系超级管理员。"
+    },
+    "summary": {
+      "total": "设置项",
+      "public": "公开",
+      "internal": "内部",
+      "custom": "自定义"
+    },
+    "filters": {
+      "searchPlaceholder": "按键名、标签或说明搜索…",
+      "allCategories": "全部分类"
+    },
+    "actions": {
+      "new": "新建设置",
+      "edit": "编辑",
+      "cancel": "取消",
+      "save": "保存修改",
+      "create": "创建设置"
+    },
+    "empty": {
+      "title": "没有匹配的设置",
+      "description": "换个关键词，或清除分类筛选。"
+    },
+    "badges": {
+      "public": "公开",
+      "internal": "内部",
+      "builtIn": "内置"
+    },
+    "builtInHint": "内置设置会在每次部署时由 seed 重写，并在应用内按名称读取。可以修改其值，但不能删除。",
+    "modal": {
+      "createTitle": "新建设置",
+      "editTitle": "编辑设置",
+      "key": "键名",
+      "keyHint": "小写下划线格式，例如 recurring_history_days",
+      "label": "标签",
+      "category": "分类",
+      "type": "类型",
+      "value": "值",
+      "valueHintJson": "以文本存储，读取时解析为 JSON。必须能解析，否则修改会被拒绝。",
+      "description": "说明",
+      "sortOrder": "排序",
+      "isPublic": "公开设置",
+      "isPublicHint": "公开条目会通过 /api/settings 提供给未登录访客。功能开关、限额与调优请保持关闭。"
+    },
+    "delete": {
+      "title": "删除该设置？",
+      "description": "读取此键的功能将回退到内置默认值；若没有默认值则会停止工作。此操作无法撤销。",
+      "confirm": "删除设置"
+    },
+    "toast": {
+      "created": "{key} 已创建 ✓",
+      "updated": "{key} 已更新 ✓",
+      "deleted": "{key} 已删除",
+      "error": "出了点问题，请重试。"
     }
   },
   "notFoundPage": {

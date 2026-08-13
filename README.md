@@ -309,6 +309,14 @@ Two further guards on this endpoint, both because it is unauthenticated:
 
 Credit cards read correctly here too: a negative balance is shown as a positive "owed" figure, and a card in credit is shown as an ordinary balance rather than as debt.
 
+### Repeats from the quick form
+
+The quick form carries the same **Repeat this transaction** control as the dashboard: an interval, and an optional date to repeat until. A subscription paid at a till is the very thing you want tracked, and having to sign in later to say so is how it gets forgotten.
+
+It writes exactly what `POST /api/transactions` writes — `isRecurring`, `recurrenceInterval`, a fresh `recurrenceKey` and the computed `nextOccurrence` — so the series shows up on the recurring screen with a schedule rather than as an unexplained one-off. Nothing is posted on your behalf here either: the repeat is a reminder, and the next occurrence still waits for you to confirm it.
+
+Worth knowing before you enable this on a public instance: the endpoint is unauthenticated and keyed by email, so it now accepts *schedules* and not only single entries. The same rate limits apply (`quick_create_rate_limit`), and every write is logged with the account it landed on.
+
 ---
 
 ## Recurring transactions
@@ -497,6 +505,28 @@ A boolean renders as a toggle, a key with options renders as a select, and anyth
 | `recurring_*`, `weekly_report_days`, `quick_*_rate_limit`, `quick_rate_limit_window_seconds`              | The numbers the server behaves by — see [Tuning](#tuning) |
 
 Rows flagged `isPublic` are exposed unauthenticated at `GET /api/settings`, which is how the landing and login pages get their text before anyone signs in. Values of type `json` are parsed before being returned.
+
+### Editing them — the App Settings screen
+
+`app_settings` decides how the whole instance behaves, so it is edited from **/admin/dashboard/app-settings** ([src/layouts/ui/app-settings.tsx](src/layouts/ui/app-settings.tsx)) and only by a **superadmin**. The screen groups every row by category, shows the internal ones the public endpoint hides, and creates, edits and deletes them live — the tuning cache is dropped on write, so a change takes effect on the next request rather than within the minute.
+
+**The role.** `User.role` is `USER` or `SUPERADMIN`, and nothing in the UI grants it — there is deliberately no "make admin" button to find. The first one comes from the deploy:
+
+```bash
+# 1. register the account normally
+# 2. name it in the environment
+SUPERADMIN_EMAIL="you@example.com"
+# 3. the seed promotes it (it runs on every deploy)
+npm run db:seed
+```
+
+`requireSuperAdmin()` ([src/lib/get-user.ts](src/lib/get-user.ts)) re-reads the role from the database on every request instead of trusting the session, so a demotion takes effect immediately even though the JWT it was minted into is still valid. A signed-in non-superadmin gets `403`, kept distinct from `401` so a valid session is never bounced to the login screen. The sidebar entry is hidden for everyone else, but that is cosmetic — the API is the guard.
+
+**What the screen will not let you do.** Keys in the seed catalogue ([src/static/app-settings.ts](src/static/app-settings.ts)) are marked *Built-in* and cannot be deleted: a feature reads each one by name, and the seed would recreate it on the next deploy anyway. Their values are freely editable. Values are validated against their declared type before they are stored, so a `number` row cannot come to hold `"abc"` and a `json` row must parse.
+
+**Everything is audited.** `app_setting_audits` records the key, the action, the previous and new value, and who made the change — these rows are the behaviour of the instance, changed from a screen rather than a redeploy, so `git log` cannot answer "who set this to 0". `GET /api/app-settings/{key}` returns the last ten entries alongside the row.
+
+> The production seed is **additive**: it creates keys a release added and leaves existing values exactly as configured. It used to wipe the table first, which would have silently undone every edit made here on every deploy.
 
 ### Tuning
 
@@ -785,6 +815,18 @@ Validation failures return `422` with an `errors` map keyed by field name. Non-`
 | `GET`           | `/api/imagekit/upload-auth`     | Signed upload credentials                         |
 | `DELETE`        | `/api/imagekit/delete/{fileId}` | Remove an uploaded file                           |
 
+### Superadmin
+
+Every route below answers `403` to a signed-in account whose `role` is not `SUPERADMIN`. See [the App Settings screen](#editing-them--the-app-settings-screen).
+
+| Method          | Endpoint                    | Description                                                             |
+| --------------- | --------------------------- | ----------------------------------------------------------------------- |
+| `GET`           | `/api/app-settings`         | Every `app_settings` row, internal ones included. Query: `category`, `search` |
+| `POST`          | `/api/app-settings`         | Create a setting                                                        |
+| `GET`           | `/api/app-settings/{key}`   | One setting plus its last ten audit entries                             |
+| `PATCH`         | `/api/app-settings/{key}`   | Update value, type, category, label, description, order or visibility   |
+| `DELETE`        | `/api/app-settings/{key}`   | Delete a custom setting — `409` for a built-in one                      |
+
 #### `GET /api/recurring`
 
 Query: `lookaheadDays` (1–90, default 14), `historyDays` (30–1095, default 365), `minOccurrences` (2–12, default 3).
@@ -822,9 +864,10 @@ Pass `due[].transactionId` or `detected[].transactionId` as `{id}` to the other 
 
 | Model               | Purpose                                                                                   |
 | ------------------- | ----------------------------------------------------------------------------------------- |
-| `User`              | Account holder, password policy timestamps, avatar                                        |
+| `User`              | Account holder, `role` (`USER` / `SUPERADMIN`), password policy timestamps, avatar        |
 | `UserSetting`       | Per-user preferences, unique on `(userId, key)`                                           |
 | `AppSetting`        | Instance-wide flags, limits and public copy, unique on `key`                              |
+| `AppSettingAudit`   | Who changed which `app_settings` row, and what it held before                             |
 | `VerificationToken` | Hashed password-reset tokens with an expiry                                               |
 | `Account`           | Cash / bank / e-wallet / credit card / investment, with balance and optional credit limit |
 | `Transaction`       | Income, expense or transfer, plus the recurrence fields above                             |
@@ -853,6 +896,7 @@ Start from [`.env.example`](.env.example) — it carries this same list with pla
 | `RESEND_API_KEY`             |          | —                                   | Enables email; without it every send is skipped  |
 | `RESEND_EMAIL_FROM`          |          | `Finarthax <onboarding@resend.dev>` | Sender address                                   |
 | `CRON_SECRET`                |          | —                                   | Bearer token required by the digest endpoint     |
+| `SUPERADMIN_EMAIL`           |          | —                                   | Account the seed promotes to `SUPERADMIN`, the only role that can open App Settings |
 | `IMAGEKIT_PUBLIC_KEY`        |          | —                                   | Avatar uploads                                   |
 | `IMAGEKIT_PRIVATE_KEY`       |          | —                                   | Avatar uploads                                   |
 | `IMAGEKIT_UPLOAD_EXPIRE_SEC` |          | —                                   | Upload token lifetime, capped at 3600            |
@@ -932,7 +976,9 @@ Two practical notes: `encrypt`/`decrypt` leave a `.env.bak` holding the previous
 | `npm run build`       | Production build             |
 | `npm run start`       | Serve the production build   |
 | `npm run lint`        | ESLint                       |
+| `npm run typecheck`   | `tsc --noEmit`               |
 | `npm run db:migrate`  | Create and apply a migration |
+| `npm run db:validate` | Check the migration history is safe to deploy |
 | `npm run db:generate` | Regenerate the Prisma client |
 | `npm run db:seed`     | Seed the database            |
 | `npm run db:studio`   | Open Prisma Studio           |
@@ -1005,6 +1051,65 @@ Both use `concurrencyPolicy: Forbid` so a slow run is never overlapped, and both
 kubectl create job --from=cronjob/finarthax-digest-recurring manual-run -n finarthax
 kubectl logs job/manual-run -n finarthax
 ```
+
+### Continuous deployment to a VPS (native Node + systemd)
+
+Two workflows in [.github/workflows/](.github/workflows/) cover the path DEPLOYMENT.md calls Path B. The runner never builds the artifact that gets served and never touches the database: it verifies the commit, then asks the server to deploy that exact SHA. The server builds, migrates, restarts and health-checks itself.
+
+| Workflow | Runs on | Does |
+| --- | --- | --- |
+| [ci.yml](.github/workflows/ci.yml) | every push and PR | lint, typecheck, build, and the migration checks below |
+| [deploy.yml](.github/workflows/deploy.yml) | push to `main`, or manually | calls `ci.yml`, then runs [scripts/deploy.sh](scripts/deploy.sh) on the server over SSH |
+
+**Migration validation.** `migrate deploy` applies whatever it finds and records a checksum per migration, which makes two edits quietly fatal: changing a migration that has already run (every later deploy then fails with P3009), and changing `schema.prisma` without generating one (the deploy succeeds, the column is missing, the failure lands at runtime). `npm run db:validate` ([scripts/validate-migrations.ts](scripts/validate-migrations.ts)) refuses both, plus:
+
+| Check | Why |
+| --- | --- |
+| A committed migration was modified, renamed or deleted | Its checksum no longer matches what the database recorded |
+| `schema.prisma` changed with no new migration | `migrate deploy` only applies what is committed |
+| A `migration.sql` that `.gitignore` would swallow | The folder exists locally and never reaches the server — this repo's `*.sql` rule did exactly that until `!prisma/migrations/**/*.sql` was added |
+| Destructive SQL — `DROP TABLE`/`COLUMN`, `TRUNCATE`, a type change, `SET NOT NULL` | Unrecoverable without a restore. Allowed deliberately with the `allow-destructive-migration` PR label or `ALLOW_DESTRUCTIVE_MIGRATIONS=true` |
+| `ADD COLUMN … NOT NULL` with no default | Fails outright on a table that already holds rows |
+| Duplicate timestamps, malformed names, empty migrations | Two branches generating in the same second order arbitrarily on the server |
+| The migrations do not replay into `schema.prisma` | The definitive check — needs `SHADOW_DATABASE_URL`, which CI provides |
+
+CI then replays the whole history onto an empty database exactly as the server will, runs the seed **twice** to prove it is idempotent, and diffs the result against the schema.
+
+**Deploying.** [scripts/deploy.sh](scripts/deploy.sh) runs on the VPS as the service user:
+
+```
+fetch → checkout SHA → npm ci → prisma generate → build
+      → pg_dump (only if migrations are pending) → migrate deploy → db seed
+      → systemctl restart → wait for /api/health → roll back if it never comes up
+```
+
+Build first, restart last: the old version keeps serving for the minute or two the build takes, so the only downtime is the restart. If the new version fails its health check the script rebuilds the previous commit and restarts it. Migrations are **not** reversed — that is what the pre-deploy dump in `/var/backups/finarthax` is for, and the failure message points at it.
+
+Run it by hand for a manual release or a rollback:
+
+```bash
+sudo -u finarthax APP_DIR=/opt/finarthax/app scripts/deploy.sh main
+sudo -u finarthax APP_DIR=/opt/finarthax/app scripts/deploy.sh --rollback-to <sha>
+```
+
+**Setting it up.** The service user needs a passwordless rule for the one privileged step:
+
+```bash
+echo 'finarthax ALL=(root) NOPASSWD: /bin/systemctl restart finarthax' | sudo tee /etc/sudoers.d/finarthax-deploy
+sudo chmod 440 /etc/sudoers.d/finarthax-deploy
+```
+
+Then add the repository secrets:
+
+| Secret | Required | Value |
+| --- | --- | --- |
+| `VPS_HOST`, `VPS_USER` | ✅ | Server and the service user that owns the checkout |
+| `VPS_SSH_KEY` | ✅ | Private key whose public half is in that user's `authorized_keys` |
+| `VPS_SSH_KNOWN_HOSTS` | ✅ | `ssh-keyscan -H <host>` — pinned from a secret, never scanned at run time, so the host key is not trusted sight unseen |
+| `VPS_PORT`, `VPS_APP_DIR`, `VPS_SERVICE_NAME` | | Default to `22`, `/opt/finarthax/app`, `finarthax` |
+| `APP_PUBLIC_URL` | | Smoke-tested from the runner after the deploy — the health endpoint itself is loopback-only |
+
+A manual run (**Actions → Deploy → Run workflow**) takes a `ref` to deploy, or a `rollback_to` SHA which skips verification.
 
 ### Releasing
 

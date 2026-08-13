@@ -1,16 +1,23 @@
 import { NextRequest, after } from "next/server";
+import { createId } from "@paralleldrive/cuid2";
 import {
   getTuning,
+  addRecurrence,
   applyBalanceChange,
   applyBudgetChange,
   clientKey,
+  diffInDays,
+  DETECTION_DEFAULTS,
   getUserPreferences,
+  listScheduledRecurrences,
   logger,
   notifyBudgetThresholdCrossed,
   notifyTransactionRecorded,
   prisma,
   rateLimit,
   readBooleanPreference,
+  readNumberPreference,
+  SERIES_INCLUDE,
   TRANSACTION_INCLUDE,
   validateAccount,
   validateCategory,
@@ -19,6 +26,10 @@ import {
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
 import z from "zod";
 import { quickTransactionSchema } from "@/types";
+import type { PublicTransaction, RecurrenceInterval, TransactionType } from "@/types";
+
+/** How much history the quick-entry page shows when the owner has opted in. */
+const RECENT_LIMIT = 8;
 
 export const GET = withApi("quick_transactions.lookup", async (req: NextRequest) => {
   const tuning = await getTuning();
@@ -72,19 +83,62 @@ export const GET = withApi("quick_transactions.lookup", async (req: NextRequest)
 
   const preferences = await getUserPreferences(userData.id);
   const showsBalances = readBooleanPreference(preferences, "publicQuickBalances");
+  // Two separate opt-ins: what you own (balances) and what you spend it on (history and schedule).
+  // Neither implies the other, and both default to off.
+  const showsActivity = readBooleanPreference(preferences, "publicQuickActivity");
 
-  logger.info("quick_transactions.lookup", { targetUserId: userData.id, showsBalances });
+  const { recentTransactions, dueRecurring } = showsActivity ? await readActivity(userData.id, preferences) : { recentTransactions: [], dueRecurring: [] };
+
+  logger.info("quick_transactions.lookup", { targetUserId: userData.id, showsBalances, showsActivity });
 
   return successResponse({
     email: userData.email,
     name: userData.name,
     categories: userData.categories,
     showsBalances,
+    showsActivity,
+    recentTransactions,
+    dueRecurring,
     accounts: userData.accounts.map(({ balance, creditLimit, ...account }) =>
       showsBalances ? { ...account, balance: Number(balance), creditLimit: creditLimit === null ? null : Number(creditLimit) } : account,
     ),
   });
 });
+
+/** The history and schedule half of the lookup, read only when the owner has opted in. */
+const readActivity = async (userId: string, preferences: Record<string, string>) => {
+  const now = new Date();
+  const lookaheadDays = readNumberPreference(preferences, "recurringLookaheadDays", DETECTION_DEFAULTS.lookaheadDays);
+
+  const [rows, scheduled] = await Promise.all([
+    prisma.transaction.findMany({
+      where: { userId },
+      include: SERIES_INCLUDE,
+      orderBy: { date: "desc" },
+      take: RECENT_LIMIT,
+    }),
+    listScheduledRecurrences(userId, now),
+  ]);
+
+  const recentTransactions: PublicTransaction[] = rows.map((row) => ({
+    id: row.id,
+    type: row.type as TransactionType,
+    amount: Number(row.amount),
+    description: row.description,
+    date: row.date.toISOString(),
+    isRecurring: row.isRecurring,
+    recurrenceInterval: row.recurrenceInterval as RecurrenceInterval | null,
+    account: row.account,
+    toAccount: row.toAccount,
+    category: row.category,
+  }));
+
+  // Due first, then what lands inside the owner's own lookahead window - the same split the
+  // dashboard's recurring screen makes.
+  const dueRecurring = scheduled.filter((item) => item.status !== "UPCOMING" || item.daysUntil <= lookaheadDays);
+
+  return { recentTransactions, dueRecurring };
+};
 
 export const POST = withApi("quick_transactions.create", async (req: NextRequest) => {
   const tuning = await getTuning();
@@ -114,6 +168,15 @@ export const POST = withApi("quick_transactions.create", async (req: NextRequest
   const { error: categoryError } = await validateCategory(user.id, "categoryId" in data ? data.categoryId : undefined);
   if (categoryError) return errorResponse(categoryError, 404);
 
+  // Same recurrence handling as the dashboard's POST /transactions, so a series started from the
+  // public page appears on the recurring screen with a schedule rather than as a one-off.
+  const transactionDate = new Date(data.date);
+  const isRecurring = data.isRecurring === true && !!data.recurrenceInterval;
+  const recurrenceInterval = isRecurring ? data.recurrenceInterval : null;
+  const recurrenceEndDate = isRecurring && data.recurrenceEndDate ? new Date(data.recurrenceEndDate) : null;
+  const nextOccurrence = recurrenceInterval ? addRecurrence(transactionDate, recurrenceInterval) : null;
+  const isFinished = recurrenceEndDate !== null && nextOccurrence !== null && diffInDays(recurrenceEndDate, nextOccurrence) > 0;
+
   const quickTransaction = await prisma.$transaction(async (tx) => {
     const created = await tx.transaction.create({
       data: {
@@ -124,8 +187,13 @@ export const POST = withApi("quick_transactions.create", async (req: NextRequest
         amount: data.amount,
         type: data.type,
         description: data.description,
-        date: new Date(data.date),
+        date: transactionDate,
         attachment: data.attachment,
+        isRecurring,
+        recurrenceInterval,
+        recurrenceKey: isRecurring ? createId() : null,
+        recurrenceEndDate,
+        nextOccurrence: isFinished ? null : nextOccurrence,
       },
       include: TRANSACTION_INCLUDE,
     });
@@ -164,6 +232,8 @@ export const POST = withApi("quick_transactions.create", async (req: NextRequest
     type: quickTransaction.type,
     amount: Number(quickTransaction.amount),
     accountId: quickTransaction.accountId,
+    isRecurring,
+    ...(isRecurring && { recurrenceInterval }),
   });
 
   after(async () => {

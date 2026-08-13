@@ -4,8 +4,9 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { useQuickTransactions, useSettings } from "@/hooks";
 import { useCurrency } from "@/providers";
-import { Card, CardContent, Button, Input, Select, Badge, useToast, Skeleton, Img } from "@/components";
-import type { Category, PublicAccount, TransactionType } from "@/types";
+import { Card, CardContent, Button, Input, Select, Badge, Modal, useToast, Skeleton, Img } from "@/components";
+import { RECURRENCE_ICONS, RECURRENCE_INTERVALS, RECURRENCE_LABELS } from "@/static";
+import type { Category, PublicAccount, PublicTransaction, QuickTransactionResources, RecurrenceInterval, ScheduledRecurrence, Transaction, TransactionType } from "@/types";
 
 interface FormData {
   categoryId: string;
@@ -15,7 +16,13 @@ interface FormData {
   type: TransactionType;
   description: string;
   date: string;
+  isRecurring: boolean;
+  recurrenceInterval: RecurrenceInterval;
+  recurrenceEndDate: string;
 }
+
+/** Every field the two-argument change handler can set; `isRecurring` has its own toggle. */
+type FormTextField = Exclude<keyof FormData, "isRecurring">;
 
 const INITIAL_FORM_DATA: FormData = {
   amount: "",
@@ -25,6 +32,9 @@ const INITIAL_FORM_DATA: FormData = {
   categoryId: "",
   accountId: "",
   toAccountId: "",
+  isRecurring: false,
+  recurrenceInterval: "MONTHLY",
+  recurrenceEndDate: "",
 };
 
 const TYPE_CONFIG: Record<
@@ -76,6 +86,95 @@ const balanceAfter = (account: PublicAccount, formData: FormData): number | null
   return null;
 };
 
+/** What POST /quick-transactions hands back, trimmed to the shape the two lists render. */
+const toPublicTransaction = (transaction: Transaction): PublicTransaction => ({
+  id: transaction.id,
+  type: transaction.type,
+  amount: Number(transaction.amount),
+  description: transaction.description ?? null,
+  date: transaction.date,
+  isRecurring: transaction.isRecurring,
+  recurrenceInterval: transaction.recurrenceInterval ?? null,
+  account: transaction.account ? { id: transaction.account.id, name: transaction.account.name, icon: transaction.account.icon ?? null, type: transaction.account.type } : null,
+  toAccount: transaction.toAccount ? { id: transaction.toAccount.id, name: transaction.toAccount.name, icon: transaction.toAccount.icon ?? null, type: transaction.toAccount.type } : null,
+  category: transaction.category ? { id: transaction.category.id, name: transaction.category.name, icon: transaction.category.icon ?? null, color: transaction.category.color ?? null } : null,
+});
+
+const shortDateTime = (value: string): string => new Date(value).toLocaleString(undefined, { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" });
+
+const relativeDue = (daysUntil: number): string => (daysUntil < 0 ? `${Math.abs(daysUntil)} days overdue` : daysUntil === 0 ? "Due today" : `In ${daysUntil} days`);
+
+/** One recorded transaction. Renders the same whether it came from the server or from this session. */
+const ActivityRow: React.FC<{ transaction: PublicTransaction; onTrack?: (transaction: PublicTransaction) => void; isBusy?: boolean }> = ({ transaction, onTrack, isBusy = false }) => {
+  const { format } = useCurrency();
+
+  const config = TYPE_CONFIG[transaction.type] ?? TYPE_CONFIG.EXPENSE;
+  const isTransfer = transaction.type === "TRANSFER";
+  const subtitle = isTransfer
+    ? [transaction.account?.name, transaction.toAccount?.name].filter(Boolean).join(" → ") || "—"
+    : [transaction.category?.name, transaction.account?.name].filter(Boolean).join(" • ") || "—";
+
+  return (
+    <div className="flex items-center justify-between gap-2 p-2.5 bg-white rounded-lg sm:gap-3 sm:p-3 ring-1 ring-primary-100">
+      <div className="flex items-center flex-1 min-w-0 gap-2 sm:gap-3">
+        <div className={`flex items-center justify-center shrink-0 w-8 h-8 text-base rounded-full sm:w-10 sm:h-10 sm:text-lg ${config.bg}`}>
+          {isTransfer ? "🔄" : (transaction.category?.icon ?? config.icon)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="flex items-center gap-1.5 text-xs font-medium truncate sm:text-sm text-primary-900">
+            <span className="truncate">{transaction.description || "No description"}</span>
+            {transaction.isRecurring && <span className="shrink-0">🔁</span>}
+          </p>
+          <p className="text-xs truncate text-primary-500">
+            {subtitle} · {shortDateTime(transaction.date)}
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <p className={`text-xs sm:text-sm font-bold tabular-nums ${config.text}`}>
+          {config.prefix} {format(transaction.amount)}
+        </p>
+        {/* Only what is not already a series can be turned into one. */}
+        {onTrack && !transaction.isRecurring && (
+          <Button variant="outline" size="sm" onClick={() => onTrack(transaction)} disabled={isBusy} className="px-2 text-xs">
+            🔁 Track
+          </Button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+/** A tracked series waiting to be confirmed — one tap records it with the amount it always has. */
+const DueRow: React.FC<{ item: ScheduledRecurrence; onLog: (item: ScheduledRecurrence) => void; isBusy: boolean }> = ({ item, onLog, isBusy }) => {
+  const { format } = useCurrency();
+
+  const config = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.EXPENSE;
+  const isDue = item.status !== "UPCOMING";
+
+  return (
+    <div className={`flex items-center justify-between gap-2 p-2.5 rounded-lg sm:gap-3 sm:p-3 ${isDue ? "bg-white ring-1 ring-amber-200" : "bg-white ring-1 ring-primary-100"}`}>
+      <div className="flex items-center flex-1 min-w-0 gap-2 sm:gap-3">
+        <div className={`flex items-center justify-center shrink-0 w-8 h-8 text-base rounded-full sm:w-10 sm:h-10 sm:text-lg ${config.bg}`}>{item.category?.icon ?? RECURRENCE_ICONS[item.interval]}</div>
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-medium truncate sm:text-sm text-primary-900">{item.description || "No description"}</p>
+          <p className="text-xs truncate text-primary-500">
+            {RECURRENCE_LABELS[item.interval]} · {item.account?.name} · <span className={isDue ? "font-medium text-amber-600" : ""}>{relativeDue(item.daysUntil)}</span>
+          </p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <p className={`text-xs sm:text-sm font-bold tabular-nums ${config.text}`}>
+          {config.prefix} {format(item.amount)}
+        </p>
+        <Button variant="primary" size="sm" onClick={() => onLog(item)} disabled={isBusy} className="px-2 text-xs">
+          ✓ Log now
+        </Button>
+      </div>
+    </div>
+  );
+};
+
 const validateEmail = (email: string): string | null => {
   if (!email.trim()) return "Please enter your email address";
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return "Please enter a valid email address";
@@ -91,6 +190,9 @@ const validateForm = (formData: FormData): string | null => {
     if (!formData.categoryId) return "Please select a category";
   }
   if (!formData.description.trim()) return "Please add a description";
+  if (formData.isRecurring && formData.recurrenceEndDate && new Date(formData.recurrenceEndDate) <= new Date(formData.date)) {
+    return "The repeat end date must be after the transaction date";
+  }
   return null;
 };
 
@@ -98,7 +200,7 @@ export const Home: React.FC = () => {
   const { addToast } = useToast();
   const router = useRouter();
 
-  const { createTransaction, searchEmail, isCreating, isSearchingEmail } = useQuickTransactions();
+  const { createTransaction, searchEmail, runRecurringAction, isCreating, isSearchingEmail, isRunningRecurringAction } = useQuickTransactions();
   const { getAppSetting, isLoadingAppSettings } = useSettings();
   const { format } = useCurrency();
 
@@ -125,7 +227,45 @@ export const Home: React.FC = () => {
   const [accounts, setAccounts] = React.useState<PublicAccount[]>([]);
   const [categories, setCategories] = React.useState<Category[]>([]);
   const [showsBalances, setShowsBalances] = React.useState(false);
+  const [showsActivity, setShowsActivity] = React.useState(false);
+  const [recentTransactions, setRecentTransactions] = React.useState<PublicTransaction[]>([]);
+  const [dueRecurring, setDueRecurring] = React.useState<ScheduledRecurrence[]>([]);
+  /**
+   * What this browser recorded since the email was verified.
+   *
+   * The server list is only sent when the account owner allows it; this one always works, because
+   * you cannot be shown anything here you did not just enter yourself.
+   */
+  const [sessionLog, setSessionLog] = React.useState<PublicTransaction[]>([]);
+  const [trackTarget, setTrackTarget] = React.useState<PublicTransaction | null>(null);
+  const [trackForm, setTrackForm] = React.useState<{ interval: RecurrenceInterval; endDate: string }>({ interval: "MONTHLY", endDate: "" });
   const [formData, setFormData] = React.useState<FormData>(INITIAL_FORM_DATA);
+
+  const applyResources = (resources: QuickTransactionResources) => {
+    setCategories(resources.categories);
+    setAccounts(resources.accounts);
+    setShowsBalances(resources.showsBalances);
+    setShowsActivity(resources.showsActivity);
+    setRecentTransactions(resources.recentTransactions ?? []);
+    setDueRecurring(resources.dueRecurring ?? []);
+  };
+
+  /**
+   * Re-reads the lookup after a write. Every balance on this page moves when a transaction is
+   * recorded, and so does the schedule - without this the numbers on screen quietly go stale.
+   * Failures are left silent on purpose: the write itself already reported its own outcome.
+   */
+  const refreshResources = () => {
+    if (!email) return;
+    searchEmail(email, { onSuccess: (data) => applyResources(data.data) });
+  };
+
+  /** Newest first, and what this session recorded is never dropped while the refresh is in flight. */
+  const activity = React.useMemo(() => {
+    if (!showsActivity) return sessionLog;
+    const known = new Set(recentTransactions.map((transaction) => transaction.id));
+    return [...sessionLog.filter((transaction) => !known.has(transaction.id)), ...recentTransactions];
+  }, [showsActivity, sessionLog, recentTransactions]);
 
   const getFilteredCategories = React.useCallback(
     (type: TransactionType) => {
@@ -192,9 +332,7 @@ export const Home: React.FC = () => {
 
     searchEmail(email, {
       onSuccess: (data) => {
-        setCategories(data.data.categories);
-        setAccounts(data.data.accounts);
-        setShowsBalances(data.data.showsBalances);
+        applyResources(data.data);
         setEmailVerified(true);
         addToast({ message: "Email verified! Ready to record transactions.", type: "success" });
       },
@@ -206,7 +344,7 @@ export const Home: React.FC = () => {
   };
 
   const handleChangeForm = React.useCallback(
-    (field: keyof FormData, value: string) => {
+    (field: FormTextField, value: string) => {
       setFormData((prev) => {
         const updated = { ...prev, [field]: value };
         if (field === "type") {
@@ -221,12 +359,25 @@ export const Home: React.FC = () => {
     [getDefaultCategory],
   );
 
+  // Turning the repeat off clears the end date with it, so a date left over from a previous
+  // toggle cannot ride along on the next submit.
+  const handleToggleRecurring = React.useCallback(
+    (isRecurring: boolean) => setFormData((prev) => ({ ...prev, isRecurring, recurrenceEndDate: isRecurring ? prev.recurrenceEndDate : "" })),
+    [],
+  );
+
   const handleSubmitForm = () => {
     const error = validateForm(formData);
     if (error) {
       addToast({ message: error, type: "error" });
       return;
     }
+
+    const recurrence = {
+      isRecurring: formData.isRecurring,
+      recurrenceInterval: formData.isRecurring ? formData.recurrenceInterval : undefined,
+      recurrenceEndDate: formData.isRecurring && formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate).toISOString() : undefined,
+    };
 
     const payload =
       formData.type === "TRANSFER"
@@ -238,6 +389,7 @@ export const Home: React.FC = () => {
             amount: parseFloat(formData.amount),
             description: formData.description.trim(),
             date: new Date(formData.date).toISOString(),
+            ...recurrence,
           }
         : {
             email,
@@ -247,17 +399,63 @@ export const Home: React.FC = () => {
             amount: parseFloat(formData.amount),
             description: formData.description.trim(),
             date: new Date(formData.date).toISOString(),
+            ...recurrence,
           };
 
     createTransaction(payload, {
-      onSuccess: () => {
-        addToast({ message: "Transaction recorded! 🎉", type: "success" });
+      onSuccess: (response) => {
+        const message = formData.isRecurring ? `Transaction recorded — repeating ${RECURRENCE_LABELS[formData.recurrenceInterval].toLowerCase()} 🔁` : "Transaction recorded! 🎉";
+        addToast({ message, type: "success" });
+        setSessionLog((previous) => [toPublicTransaction(response.data), ...previous]);
         resetForm();
+        refreshResources();
       },
       onError: (error: Error) => {
         addToast({ message: error.message || "Failed to record transaction", type: "error" });
       },
     });
+  };
+
+  /** One tap: records the occurrence with the amount and account the series already carries. */
+  const handleLogNow = (item: ScheduledRecurrence) => {
+    runRecurringAction(
+      { email, action: "log", transactionId: item.transactionId },
+      {
+        onSuccess: (response) => {
+          addToast({ message: `Logged “${item.description || "transaction"}” 🎉`, type: "success" });
+          setSessionLog((previous) => [toPublicTransaction(response.data), ...previous]);
+          refreshResources();
+        },
+        onError: (error: Error) => addToast({ message: error.message || "Could not log this one. Please try again.", type: "error" }),
+      },
+    );
+  };
+
+  const openTrackModal = (transaction: PublicTransaction) => {
+    setTrackTarget(transaction);
+    setTrackForm({ interval: "MONTHLY", endDate: "" });
+  };
+
+  const handleTrackConfirm = () => {
+    if (!trackTarget) return;
+
+    runRecurringAction(
+      {
+        email,
+        action: "track",
+        transactionId: trackTarget.id,
+        interval: trackForm.interval,
+        endDate: trackForm.endDate ? new Date(trackForm.endDate).toISOString() : null,
+      },
+      {
+        onSuccess: () => {
+          addToast({ message: `Now tracking “${trackTarget.description || "transaction"}” ${RECURRENCE_LABELS[trackForm.interval].toLowerCase()} 🔁`, type: "success" });
+          setTrackTarget(null);
+          refreshResources();
+        },
+        onError: (error: Error) => addToast({ message: error.message || "Could not track this one. Please try again.", type: "error" }),
+      },
+    );
   };
 
   const config = TYPE_CONFIG[formData.type];
@@ -350,6 +548,11 @@ export const Home: React.FC = () => {
                       setAccounts([]);
                       setCategories([]);
                       setShowsBalances(false);
+                      // Another person's email must not inherit the previous one's activity.
+                      setShowsActivity(false);
+                      setRecentTransactions([]);
+                      setDueRecurring([]);
+                      setSessionLog([]);
                     }}
                     className="ml-2 text-xs text-green-700 hover:text-green-900 shrink-0"
                   >
@@ -466,6 +669,38 @@ export const Home: React.FC = () => {
                     required
                   />
 
+                  <div className="p-3 border rounded-lg sm:p-4 border-primary-100 bg-primary-50">
+                    <label className="flex items-start gap-2.5 cursor-pointer sm:gap-3">
+                      <input
+                        type="checkbox"
+                        checked={formData.isRecurring}
+                        onChange={(e) => handleToggleRecurring(e.target.checked)}
+                        className="mt-0.5 w-4 h-4 rounded cursor-pointer accent-primary-500"
+                      />
+                      <span className="min-w-0">
+                        <span className="block text-xs font-medium sm:text-sm text-primary-900">🔁 Repeat this transaction</span>
+                        <span className="block mt-0.5 text-xs text-primary-500">Finarthax will remind you when the next one is due — nothing is created automatically.</span>
+                      </span>
+                    </label>
+
+                    {formData.isRecurring && (
+                      <div className="grid grid-cols-1 gap-3 mt-3 sm:grid-cols-2 sm:gap-4">
+                        <Select
+                          label="Repeats"
+                          options={RECURRENCE_INTERVALS.map((interval) => ({ value: interval, label: `${RECURRENCE_ICONS[interval]} ${RECURRENCE_LABELS[interval]}` }))}
+                          value={formData.recurrenceInterval}
+                          onChange={(e) => handleChangeForm("recurrenceInterval", e.target.value)}
+                        />
+                        <Input
+                          type="datetime-local"
+                          label="Repeat until (optional)"
+                          value={formData.recurrenceEndDate}
+                          onChange={(e) => handleChangeForm("recurrenceEndDate", e.target.value)}
+                        />
+                      </div>
+                    )}
+                  </div>
+
                   {showPreview && (
                     <div className={`p-3 sm:p-4 border rounded-xl ${config.bg} border-primary-200`}>
                       <p className="mb-2 text-xs font-medium sm:mb-3 sm:text-sm text-primary-700">Preview:</p>
@@ -484,6 +719,12 @@ export const Home: React.FC = () => {
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-medium truncate sm:text-sm md:text-base text-primary-900">{formData.description}</p>
                             <p className="text-xs truncate text-primary-600">{previewSubtitle}</p>
+                            {formData.isRecurring && (
+                              <p className="text-xs truncate text-primary-500">
+                                {RECURRENCE_ICONS[formData.recurrenceInterval]} Repeats {RECURRENCE_LABELS[formData.recurrenceInterval].toLowerCase()}
+                                {formData.recurrenceEndDate ? ` until ${new Date(formData.recurrenceEndDate).toLocaleDateString()}` : ""}
+                              </p>
+                            )}
                           </div>
                         </div>
                         <div className="text-right shrink-0">
@@ -507,6 +748,58 @@ export const Home: React.FC = () => {
           </CardContent>
         </Card>
 
+        {emailVerified && dueRecurring.length > 0 && (
+          <Card>
+            <CardContent className="pt-3 sm:pt-4 md:pt-6">
+              <div className="flex items-baseline justify-between mb-2 sm:mb-3">
+                <h2 className="text-sm font-bold sm:text-base text-primary-900">🔁 Waiting for you</h2>
+                <span className="text-xs text-primary-500">{dueRecurring.filter((item) => item.status !== "UPCOMING").length} due</span>
+              </div>
+              <div className="space-y-1.5 sm:space-y-2">
+                {dueRecurring.map((item) => (
+                  <DueRow key={item.transactionId} item={item} onLog={handleLogNow} isBusy={isRunningRecurringAction} />
+                ))}
+              </div>
+              <p className="mt-2 text-xs text-primary-400">Logging one records it with the amount it always has and moves the reminder to the next date.</p>
+            </CardContent>
+          </Card>
+        )}
+
+        {emailVerified && (activity.length > 0 || showsActivity) && (
+          <Card>
+            <CardContent className="pt-3 sm:pt-4 md:pt-6">
+              <div className="flex items-baseline justify-between mb-2 sm:mb-3">
+                <h2 className="text-sm font-bold sm:text-base text-primary-900">🧾 Recent transactions</h2>
+                {!showsActivity && sessionLog.length > 0 && <span className="text-xs text-primary-500">this session</span>}
+              </div>
+
+              {activity.length === 0 ? (
+                <p className="py-4 text-xs text-center text-primary-500 sm:text-sm">Nothing recorded yet — the transactions you add appear here.</p>
+              ) : (
+                <div className="space-y-1.5 sm:space-y-2">
+                  {activity.map((transaction) => (
+                    <ActivityRow
+                      key={transaction.id}
+                      transaction={transaction}
+                      // Tracking rewrites a whole series, so it is only offered where the owner
+                      // has opened this page up; a session-only row has no such permission.
+                      onTrack={showsActivity ? openTrackModal : undefined}
+                      isBusy={isRunningRecurringAction}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {!showsActivity && (
+                <p className="mt-2 text-xs text-primary-400">
+                  Only what you recorded here is shown. Turn on <span className="font-medium">Public activity</span> in Settings → Privacy to see your full recent history and everything that is
+                  due.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         <Card>
           <CardContent className="pt-4 sm:pt-6">
             <div className="p-4 text-center border-2 border-dashed sm:p-6 rounded-xl border-primary-300 bg-primary-50">
@@ -525,6 +818,30 @@ export const Home: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      <Modal isOpen={!!trackTarget} onClose={() => setTrackTarget(null)} title="🔁 Track as recurring" size="md">
+        <div className="space-y-3 sm:space-y-4">
+          <div className="p-2.5 sm:p-3 border rounded-lg bg-primary-50 border-primary-100">
+            <p className="text-xs font-medium sm:text-sm text-primary-700">“{trackTarget?.description || "This transaction"}” will be scheduled and suggested to you every period.</p>
+          </div>
+          <Select
+            label="Repeats *"
+            options={RECURRENCE_INTERVALS.map((interval) => ({ value: interval, label: `${RECURRENCE_ICONS[interval]} ${RECURRENCE_LABELS[interval]}` }))}
+            value={trackForm.interval}
+            onChange={(e) => setTrackForm((previous) => ({ ...previous, interval: e.target.value as RecurrenceInterval }))}
+          />
+          <Input type="datetime-local" label="Repeat until (optional)" value={trackForm.endDate} onChange={(e) => setTrackForm((previous) => ({ ...previous, endDate: e.target.value }))} />
+          <p className="text-xs text-primary-500">Leave empty to keep the series running until it is stopped from the dashboard.</p>
+          <div className="flex justify-end gap-2 pt-3 border-t border-primary-100 sm:gap-3">
+            <Button variant="ghost" onClick={() => setTrackTarget(null)} disabled={isRunningRecurringAction} className="text-xs sm:text-sm">
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleTrackConfirm} isLoading={isRunningRecurringAction} className="text-xs sm:text-sm">
+              Start tracking
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

@@ -27,6 +27,28 @@ export const confirmRecurringSchema = z.object({
   keepTracking: z.boolean().optional(),
 });
 
+/**
+ * What the public quick-entry page may do to a series: log the occurrence that is due, and start
+ * tracking one. Stopping, skipping and dismissing are deliberately absent - they silence a
+ * reminder, and nothing on an unauthenticated page should be able to do that.
+ */
+export const quickRecurringActionSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("log"),
+    email: z.string().email("Invalid email address"),
+    transactionId: z.string().min(1, "Transaction is required"),
+    amount: z.number().positive("Amount must be positive").optional(),
+    date: z.string().optional(),
+  }),
+  z.object({
+    action: z.literal("track"),
+    email: z.string().email("Invalid email address"),
+    transactionId: z.string().min(1, "Transaction is required"),
+    interval: recurrenceIntervalSchema,
+    endDate: z.string().optional().nullable(),
+  }),
+]);
+
 export const recurringFilterSchema = z.object({
   lookaheadDays: z.number().int().min(1).max(90).default(14),
   historyDays: z.number().int().min(30).max(1095).default(365),

@@ -53,19 +53,26 @@ export const updateTransactionSchema = z.discriminatedUnion("type", [
     }),
 ]);
 
+/**
+ * The quick-entry form is the same transaction the dashboard writes, so it carries the same
+ * recurrence fields - a subscription entered from the public page is tracked like any other.
+ */
 export const quickTransactionSchema = z.discriminatedUnion("type", [
   incomeExpenseSchema.extend({
+    ...recurrenceFields,
     email: z.string().email("Invalid email address"),
     type: z.literal("INCOME"),
   }),
 
   incomeExpenseSchema.extend({
+    ...recurrenceFields,
     email: z.string().email("Invalid email address"),
     type: z.literal("EXPENSE"),
   }),
 
   transferBaseSchema
     .extend({
+      ...recurrenceFields,
       email: z.string().email("Invalid email address"),
     })
     .refine((d) => !d.toAccountId || d.toAccountId !== d.accountId, {

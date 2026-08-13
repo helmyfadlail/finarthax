@@ -53,6 +53,7 @@ export const authOptions: NextAuthOptions = {
           id: user.id,
           name: user.name,
           email: user.email,
+          role: user.role,
           image: user.avatar,
           avatarFileId: user.avatarFileId,
           passwordChangedAt: user.passwordChangedAt,
@@ -73,6 +74,7 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.name = user.name;
         token.email = user.email;
+        token.role = user.role ?? "USER";
         token.avatar = user.avatar;
         token.avatarFileId = user.avatarFileId;
         token.passwordChangedAt = user.passwordChangedAt;
@@ -95,6 +97,9 @@ export const authOptions: NextAuthOptions = {
           session.user.id = user.id;
           session.user.name = user.name;
           session.user.email = user.email;
+          // Read from the row rather than the token: a demotion has to take effect on the next
+          // request, not whenever the JWT happens to expire.
+          session.user.role = user.role;
           session.user.avatar = user.avatar;
           session.user.avatarFileId = user.avatarFileId;
           session.user.passwordChangedAt = user.passwordChangedAt;

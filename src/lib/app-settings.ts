@@ -1,5 +1,6 @@
 import { prisma } from "@/lib";
-import { TUNING_SETTINGS } from "@/static";
+import { APP_SETTINGS, TUNING_SETTINGS } from "@/static";
+import { logger } from "./logger";
 
 /**
  * The numbers the server behaves by, read from `app_settings` with the catalogue in
@@ -80,4 +81,34 @@ export const getTuning = async (): Promise<Tuning> => {
 /** Drops the cache so a change takes effect immediately, rather than within the minute. */
 export const clearTuningCache = (): void => {
   cache = null;
+};
+
+/** Keys the seed owns. They can be retuned, but not deleted - a feature reads each one by name. */
+export const CATALOGUE_KEYS: ReadonlySet<string> = new Set(APP_SETTINGS.map((setting) => setting.key));
+
+export const isCatalogueKey = (key: string): boolean => CATALOGUE_KEYS.has(key);
+
+interface AuditEntry {
+  key: string;
+  action: "create" | "update" | "delete";
+  previousValue?: string | null;
+  newValue?: string | null;
+  actor: { id: string; email: string };
+}
+
+/**
+ * Records who changed a setting and what it held before.
+ *
+ * These rows are the behaviour of the whole instance, changed from a screen rather than a
+ * redeploy, so `git log` cannot answer "who set this to 0" - this table is what answers it.
+ * A failure to write the audit must not fail the change itself; it is logged and dropped.
+ */
+export const recordAppSettingAudit = async ({ key, action, previousValue = null, newValue = null, actor }: AuditEntry): Promise<void> => {
+  try {
+    await prisma.appSettingAudit.create({
+      data: { key, action, previousValue, newValue, actorId: actor.id, actorEmail: actor.email },
+    });
+  } catch (error) {
+    logger.error("app_settings.audit_failed", { key, action, err: error });
+  }
 };

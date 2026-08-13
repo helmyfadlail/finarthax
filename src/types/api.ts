@@ -61,6 +61,59 @@ export interface AppSetting {
   updatedAt: string;
 }
 
+export type UserRole = "USER" | "SUPERADMIN";
+
+export type AppSettingType = "string" | "number" | "boolean" | "json";
+
+/**
+ * An `app_settings` row as the superadmin screen sees it: the value stays the raw string it is
+ * stored as, rather than the parsed shape `/api/settings` hands the rest of the app.
+ */
+export interface ManagedAppSetting {
+  id: string;
+  key: string;
+  value: string;
+  type: AppSettingType;
+  category: string;
+  label: string;
+  description: string | null;
+  sortOrder: number;
+  isPublic: boolean;
+  /** Owned by the seed catalogue: retunable, but not deletable. */
+  isCatalogue: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AppSettingAudit {
+  id: string;
+  key: string;
+  action: "create" | "update" | "delete";
+  previousValue: string | null;
+  newValue: string | null;
+  actorId: string | null;
+  actorEmail: string | null;
+  createdAt: string;
+}
+
+export interface ManagedAppSettingList {
+  data: ManagedAppSetting[];
+  categories: string[];
+}
+
+export interface AppSettingInput {
+  key: string;
+  value: string;
+  type: AppSettingType;
+  category: string;
+  label: string;
+  description?: string | null;
+  sortOrder: number;
+  isPublic: boolean;
+}
+
+export type AppSettingUpdate = Partial<Omit<AppSettingInput, "key">>;
+
 export interface Transaction {
   id: string;
   userId: string;
@@ -146,13 +199,53 @@ export interface PublicAccount {
   creditLimit?: number | null;
 }
 
+/**
+ * A transaction as the public quick-entry page is allowed to see it: no ids beyond the ones an
+ * action needs, no attachment, no audit fields.
+ */
+export interface PublicTransaction {
+  id: string;
+  type: TransactionType;
+  amount: number;
+  description: string | null;
+  date: string;
+  isRecurring: boolean;
+  recurrenceInterval: RecurrenceInterval | null;
+  account: RecurrenceAccountRef | null;
+  toAccount: RecurrenceAccountRef | null;
+  category: RecurrenceCategoryRef | null;
+}
+
 export interface QuickTransactionResources {
   email: string;
   name: string;
   categories: Category[];
   accounts: PublicAccount[];
   showsBalances: boolean;
+  /** The owner's `publicQuickActivity` preference: with it off, the two lists below are empty and the actions are refused. */
+  showsActivity: boolean;
+  recentTransactions: PublicTransaction[];
+  /** Tracked series that are due, plus those falling inside the owner's lookahead window. */
+  dueRecurring: ScheduledRecurrence[];
 }
+
+export interface QuickRecurringLogData {
+  email: string;
+  action: "log";
+  transactionId: string;
+  amount?: number;
+  date?: string;
+}
+
+export interface QuickRecurringTrackData {
+  email: string;
+  action: "track";
+  transactionId: string;
+  interval: RecurrenceInterval;
+  endDate?: string | null;
+}
+
+export type QuickRecurringActionData = QuickRecurringLogData | QuickRecurringTrackData;
 
 export interface QuickTransactionData {
   email: string;
@@ -164,6 +257,9 @@ export interface QuickTransactionData {
   description?: string;
   date: string;
   attachment?: string;
+  isRecurring?: boolean;
+  recurrenceInterval?: RecurrenceInterval | null;
+  recurrenceEndDate?: string | null;
 }
 
 export interface DetectedPattern {
@@ -185,14 +281,14 @@ export interface DetectedPattern {
   dismissed: boolean;
 }
 
-interface RecurrenceAccountRef {
+export interface RecurrenceAccountRef {
   id: string;
   name: string;
   icon: string | null;
   type: Account["type"];
 }
 
-interface RecurrenceCategoryRef {
+export interface RecurrenceCategoryRef {
   id: string;
   name: string;
   icon: string | null;

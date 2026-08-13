@@ -1,6 +1,8 @@
 import "next-auth";
 import "next-auth/jwt";
 
+type UserRole = "USER" | "SUPERADMIN";
+
 declare module "next-auth" {
   /**
    * Extend Session to include user.id
@@ -10,6 +12,7 @@ declare module "next-auth" {
       id: string;
       email: string;
       name: string | null;
+      role: UserRole;
       avatar?: string | null;
       avatarFileId?: string | null;
       email_verified?: string | null;
@@ -25,6 +28,7 @@ declare module "next-auth" {
     id: string;
     email: string;
     name: string | null;
+    role?: UserRole;
     avatar?: string | null;
     avatarFileId?: string | null;
     email_verified?: string | null;
@@ -41,6 +45,7 @@ declare module "next-auth/jwt" {
     id: string;
     email: string;
     name: string | null;
+    role?: UserRole;
     avatar?: string | null;
     avatarFileId?: string | null;
     email_verified?: string | null;

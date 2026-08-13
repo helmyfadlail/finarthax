@@ -11,7 +11,8 @@
       "categories": "Kategori",
       "budgets": "Anggaran",
       "goals": "Tujuan",
-      "reports": "Laporan"
+      "reports": "Laporan",
+      "appSettings": "Pengaturan Aplikasi"
     },
     "menu": {
       "settings": "Pengaturan",
@@ -161,7 +162,12 @@
       "recurring": "Ulangi transaksi ini",
       "recurringHint": "Finarthax akan mengingatkan saat jatuh tempo berikutnya — tidak ada yang dibuat otomatis.",
       "recurrenceInterval": "Perulangan",
-      "recurrenceEndDate": "Ulangi sampai (opsional)"
+      "recurrenceEndDate": "Ulangi sampai (opsional)",
+      "editTitle": "Ubah Transaksi",
+      "editHint": "Ubah bidang mana pun — saldo akun Anda dihitung ulang agar sesuai.",
+      "update": "Simpan Perubahan",
+      "recurringLocked": "Transaksi ini bagian dari seri berulang. Jadwalnya dikelola di halaman Berulang.",
+      "recurringUnavailable": "Pengaturan pengulangan ditambahkan saat transaksi dibuat, atau dari halaman Berulang."
     },
     "deleteModal": {
       "title": "Hapus Transaksi",
@@ -187,11 +193,13 @@
     },
     "success": {
       "created": "Transaksi berhasil dibuat! 🎉",
-      "deleted": "Transaksi berhasil dihapus"
+      "deleted": "Transaksi berhasil dihapus",
+      "updated": "Transaksi berhasil diperbarui"
     },
     "error": {
       "create": "Gagal membuat transaksi",
-      "delete": "Gagal menghapus transaksi"
+      "delete": "Gagal menghapus transaksi",
+      "update": "Gagal memperbarui transaksi"
     },
     "interval": {
       "DAILY": "Harian",
@@ -200,7 +208,8 @@
       "MONTHLY": "Bulanan",
       "YEARLY": "Tahunan"
     },
-    "recurringButton": "Berulang"
+    "recurringButton": "Berulang",
+    "editButton": "Ubah transaksi"
   },
   "recurringPage": {
     "title": "Transaksi Berulang",
@@ -1028,7 +1037,73 @@
       "publicQuickBalances": {
         "title": "Saldo publik",
         "description": "Tampilkan saldo akun Anda di halaman catat cepat setelah memasukkan email"
+      },
+      "publicQuickActivity": {
+        "title": "Aktivitas publik",
+        "description": "Tampilkan transaksi terbaru dan transaksi berulang yang jatuh tempo di halaman catat cepat, serta izinkan pencatatannya dari sana"
       }
+    }
+  },
+  "appSettingsPage": {
+    "title": "Pengaturan Aplikasi",
+    "subtitle": "Konfigurasi seluruh instance. Perubahan langsung berlaku — tanpa deploy ulang.",
+    "liveHint": "Baris-baris ini menentukan perilaku server: feature flag, batasan, penyetelan detektor, dan teks halaman publik. Setiap perubahan dicatat beserta pelakunya.",
+    "restricted": {
+      "title": "Khusus superadmin",
+      "description": "Halaman ini mengatur seluruh instance, jadi hanya untuk akun superadmin. Hubungi superadmin bila ada nilai yang perlu diubah."
+    },
+    "summary": {
+      "total": "Pengaturan",
+      "public": "Publik",
+      "internal": "Internal",
+      "custom": "Kustom"
+    },
+    "filters": {
+      "searchPlaceholder": "Cari berdasarkan key, label, atau deskripsi…",
+      "allCategories": "Semua kategori"
+    },
+    "actions": {
+      "new": "Pengaturan baru",
+      "edit": "Ubah",
+      "cancel": "Batal",
+      "save": "Simpan perubahan",
+      "create": "Buat pengaturan"
+    },
+    "empty": {
+      "title": "Tidak ada yang cocok",
+      "description": "Coba kata kunci lain, atau hapus filter kategori."
+    },
+    "badges": {
+      "public": "Publik",
+      "internal": "Internal",
+      "builtIn": "Bawaan"
+    },
+    "builtInHint": "Pengaturan bawaan ditulis ulang oleh seed pada setiap deploy dan dibaca berdasarkan nama di dalam aplikasi. Nilainya boleh diubah, tetapi tidak bisa dihapus.",
+    "modal": {
+      "createTitle": "Pengaturan baru",
+      "editTitle": "Ubah pengaturan",
+      "key": "Key",
+      "keyHint": "Huruf kecil snake_case, misalnya recurring_history_days",
+      "label": "Label",
+      "category": "Kategori",
+      "type": "Tipe",
+      "value": "Nilai",
+      "valueHintJson": "Disimpan sebagai teks dan dibaca sebagai JSON. Harus valid, atau perubahan ditolak.",
+      "description": "Deskripsi",
+      "sortOrder": "Urutan",
+      "isPublic": "Pengaturan publik",
+      "isPublicHint": "Baris publik disajikan ke pengunjung yang belum masuk lewat /api/settings. Matikan untuk flag, batasan, dan tuning."
+    },
+    "delete": {
+      "title": "Hapus pengaturan ini?",
+      "description": "Apa pun yang membaca key ini akan memakai nilai bawaan, atau berhenti bekerja bila tidak punya. Tindakan ini tidak bisa dibatalkan.",
+      "confirm": "Hapus pengaturan"
+    },
+    "toast": {
+      "created": "{key} dibuat ✓",
+      "updated": "{key} diperbarui ✓",
+      "deleted": "{key} dihapus",
+      "error": "Terjadi kesalahan. Silakan coba lagi."
     }
   },
   "notFoundPage": {

@@ -15,4 +15,5 @@ export * from "./ui/categories";
 export * from "./ui/goals";
 export * from "./ui/reports";
 export * from "./ui/settings";
+export * from "./ui/app-settings";
 export * from "./ui/profiles";

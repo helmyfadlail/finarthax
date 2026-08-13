@@ -10,6 +10,18 @@ export const RECURRENCE_DAYS: Record<RecurrenceInterval, number> = {
   YEARLY: 365,
 };
 
+/**
+ * Plain-English interval names, for the surfaces that render outside next-intl - the public
+ * quick-entry page has no locale of its own to translate against.
+ */
+export const RECURRENCE_LABELS: Record<RecurrenceInterval, string> = {
+  DAILY: "Daily",
+  WEEKLY: "Weekly",
+  BIWEEKLY: "Every 2 weeks",
+  MONTHLY: "Monthly",
+  YEARLY: "Yearly",
+};
+
 export const RECURRENCE_ICONS: Record<RecurrenceInterval, string> = {
   DAILY: "☀️",
   WEEKLY: "🗓️",

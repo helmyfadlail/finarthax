@@ -1,0 +1,8 @@
+# Shell scripts run on Linux. Checked out with CRLF (the Windows default) the kernel reads the
+# shebang as "/usr/bin/env bash\r" and the deploy fails with "bad interpreter".
+*.sh text eol=lf
+entrypoint.sh text eol=lf
+
+# Applied by `prisma migrate deploy` as-is; keep them byte-identical across platforms so the
+# checksum Prisma records does not depend on who committed them.
+prisma/migrations/**/*.sql text eol=lf

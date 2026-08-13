@@ -1,6 +1,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "./auth";
 import { logger } from "./logger";
+import { prisma } from "./prisma";
 import { setRequestUser } from "./request-context";
 
 export const getCurrentUser = async () => {
@@ -32,4 +33,23 @@ export const requireAuth = async () => {
 export const getUserId = async (): Promise<string> => {
   const user = await requireAuth();
   return user.id;
+};
+
+/**
+ * The guard for anything that changes the instance itself rather than one account's data.
+ *
+ * The role is re-read from the database instead of trusted from the session, so a demotion takes
+ * effect on the next request even though the JWT it was minted into is still valid.
+ */
+export const requireSuperAdmin = async () => {
+  const user = await requireAuth();
+
+  const current = await prisma.user.findUnique({ where: { id: user.id }, select: { id: true, email: true, name: true, role: true } });
+
+  if (current?.role !== "SUPERADMIN") {
+    logger.warn("auth.forbidden", { targetUserId: user.id, required: "SUPERADMIN", actual: current?.role ?? "unknown" });
+    throw new Error("Forbidden");
+  }
+
+  return current;
 };

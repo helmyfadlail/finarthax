@@ -12,5 +12,8 @@ export default defineConfig({
   },
   datasource: {
     url: env("DATABASE_URL"),
+    // Only needed to diff the migrations directory against the schema - the drift check CI runs
+    // (`npm run db:validate`) points this at a scratch database. Unset everywhere else.
+    ...(process.env.SHADOW_DATABASE_URL ? { shadowDatabaseUrl: env("SHADOW_DATABASE_URL") } : {}),
   },
 });

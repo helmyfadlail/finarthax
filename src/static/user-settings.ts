@@ -100,6 +100,14 @@ export const USER_SETTINGS = [
     description: "Show your account balances on the public quick-entry page after entering your email",
     icon: "👁️",
   },
+  {
+    key: "publicQuickActivity",
+    value: "false",
+    type: "boolean",
+    category: "privacy",
+    description: "Show your recent transactions and due recurring transactions on the public quick-entry page, and allow logging them from there",
+    icon: "🧾",
+  },
 
   // general
   {
