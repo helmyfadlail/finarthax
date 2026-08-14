@@ -1,8 +1,7 @@
 name: CI
 
-# Everything a deploy depends on, run before the deploy can start. `deploy.yml` calls this same
-# workflow (workflow_call) rather than duplicating the steps, so nothing reaches the server that has
-# not been through exactly these checks.
+# Everything a deploy depends on. deploy.yml calls this workflow (workflow_call) so nothing reaches
+# the server without going through these checks first.
 
 on:
   push:
@@ -19,7 +18,7 @@ env:
 
 jobs:
   quality:
-    name: Lint, types and build
+    name: Lint, types, tests and build
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -32,7 +31,7 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm install
 
       - name: Generate the Prisma client
         run: npx prisma generate
@@ -43,9 +42,12 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+      - name: Test
+        run: npm test
+
       - name: Build
-        # The build imports src/lib/prisma.ts, which reads DATABASE_URL at module load. It never
-        # connects during a build, so a syntactically valid URL is enough.
+        # Imports src/lib/prisma.ts, which reads DATABASE_URL at module load but never connects
+        # during a build, so a syntactically valid URL is enough.
         env:
           DATABASE_URL: postgresql://finarthax:finarthax@127.0.0.1:5432/finarthax
           NEXTAUTH_SECRET: build-time-placeholder
@@ -74,16 +76,14 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://finarthax:finarthax@127.0.0.1:5432/finarthax
-      # A scratch database, created below. `prisma migrate diff` replays the migrations into it to
-      # prove they add up to schema.prisma.
+      # Prisma migrate diff replays the migrations into this scratch DB to prove they add up to
+      # schema.prisma.
       SHADOW_DATABASE_URL: postgresql://finarthax:finarthax@127.0.0.1:5432/finarthax_shadow
 
     steps:
       - uses: actions/checkout@v4
         with:
-          # The history check compares this branch against its base; a shallow clone has no base to
-          # compare against.
-          fetch-depth: 0
+          fetch-depth: 0 # needed to diff this branch against its base
 
       - uses: actions/setup-node@v4
         with:
@@ -91,37 +91,32 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm install
 
       - name: Create the shadow database
         run: PGPASSWORD=finarthax psql -h 127.0.0.1 -U finarthax -d finarthax -c 'CREATE DATABASE finarthax_shadow;'
 
       - name: Validate the migration history
-        # Refuses a modified or deleted migration, a schema change with no migration, a migration
-        # that .gitignore would swallow, and destructive SQL that has not been explicitly allowed.
+        # Refuses a modified/deleted migration, a schema change with no migration, a migration
+        # .gitignore would swallow, and destructive SQL that hasn't been explicitly allowed.
         env:
           MIGRATION_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.event.pull_request.base.ref) || 'HEAD~1' }}
           ALLOW_DESTRUCTIVE_MIGRATIONS: ${{ contains(github.event.pull_request.labels.*.name, 'allow-destructive-migration') }}
         run: npm run db:validate
 
       - name: Apply the migrations from scratch
-        # The history is replayed onto an empty database exactly as `migrate deploy` will on the
-        # server. A migration that only works against *your* database fails here instead of there.
         run: npx prisma migrate deploy
 
       - name: Seed
-        # The seed runs on every deploy, so a seed that breaks is a deploy that breaks.
         env:
           NODE_ENV: production
         run: npx prisma db seed
 
       - name: Re-run the seed
-        # It runs again on the next deploy too: this proves it is idempotent, and in particular that
-        # it no longer wipes settings edited from the admin screen.
+        # Proves the seed is idempotent - it runs again on every deploy too.
         env:
           NODE_ENV: production
         run: npx prisma db seed
 
       - name: Confirm the database matches the schema
-        # Belt and braces after the replay: the live database and schema.prisma must agree.
         run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code

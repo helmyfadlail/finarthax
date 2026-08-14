@@ -2,21 +2,20 @@ name: Deploy
 
 # Native Node + systemd deployment to a Linux VPS (Path B in DEPLOYMENT.md).
 #
-# This workflow *updates an install that already exists*. The checkout, the systemd unit, the sealed
-# .env and the database are provisioned once, by hand, per DEPLOYMENT.md; from then on a push to
-# main is the only thing needed to ship. If the server is not provisioned the preflight step below
-# says so and stops, rather than trying to bootstrap a half-configured host.
+# This updates an install that already exists. The checkout, systemd unit, sealed .env and database
+# are provisioned once by hand per DEPLOYMENT.md; after that, a push to main is all that's needed.
+# If the server isn't provisioned, the preflight step below says so and stops.
 #
 # The runner never touches the database and never builds the artifact that gets served: it verifies
 # the commit, works out whether the release carries new migrations, then asks the server to deploy
 # that exact SHA with scripts/deploy.sh. The server builds, migrates, restarts and health-checks
-# itself, and rolls back on its own if the new version does not come up.
+# itself, and rolls back on its own if the new version doesn't come up.
 #
 # Required repository secrets:
 #   VPS_HOST             host or IP of the server
 #   VPS_USER             the service user (finarthax), the one with the checkout
 #   VPS_SSH_KEY          private key whose public half is in that user's authorized_keys
-#   VPS_SSH_KNOWN_HOSTS  output of `ssh-keyscan -H <host>` — pins the host key, no TOFU
+#   VPS_SSH_KNOWN_HOSTS  output of `ssh-keyscan -H <host>` - pins the host key, no TOFU
 # Optional:
 #   VPS_PORT             SSH port (default 22)
 #   VPS_APP_DIR          checkout path (default /opt/finarthax/app)
@@ -41,7 +40,6 @@ on:
         default: ""
 
 concurrency:
-  # Never two deploys at once: the second would checkout and rebuild underneath the first.
   group: deploy-production
   cancel-in-progress: false
 
@@ -54,15 +52,13 @@ jobs:
   deploy:
     name: Deploy to VPS
     needs: [verify]
-    # A rollback has to be able to run when verification is skipped - that is the situation it
-    # exists for.
+    # A rollback must be able to run when verification is skipped - that's the situation it exists for.
     if: ${{ always() && (needs.verify.result == 'success' || github.event.inputs.rollback_to != '') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     env:
-      # At job level so the smoke-test step can test it in `if:` — the secrets context is not
-      # available there, and a step's own env is not either.
+      # At job level so the smoke-test step can read it in `if:` (secrets aren't available there).
       APP_PUBLIC_URL: ${{ secrets.APP_PUBLIC_URL }}
       VPS_HOST: ${{ secrets.VPS_HOST }}
       VPS_USER: ${{ secrets.VPS_USER }}
@@ -87,9 +83,9 @@ jobs:
 
       - uses: actions/checkout@v4
         with:
-          # The workspace is the commit being deployed, so the migration check below compares the
-          # right two trees. Full history: the server can be several pushes behind, and the diff is
-          # taken against *its* commit, not against HEAD~1.
+          # Checkout the commit being deployed so the migration diff below compares the right trees.
+          # Full history: the server can be several pushes behind, and the diff is against *its*
+          # commit, not HEAD~1.
           ref: ${{ steps.target.outputs.sha }}
           fetch-depth: 0
 
@@ -109,15 +105,15 @@ jobs:
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
-          # Pinned from a secret rather than scanned at run time: a scanned key would be trusted
-          # sight unseen, which is the whole attack.
+          # Pinned from a secret, not scanned at run time - a scanned key would be trusted sight
+          # unseen, which is the whole attack.
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
           chmod 644 ~/.ssh/known_hosts
 
       - name: Preflight
         id: preflight
-        # Confirms the install this workflow assumes, and reports which commit is live. Read-only:
-        # nothing on the server has changed yet if any of this fails.
+        # Confirms the install this workflow assumes and reports which commit is live. Read-only:
+        # nothing on the server changes if any of this fails.
         run: |
           set -euo pipefail
 
@@ -140,8 +136,8 @@ jobs:
 
           case "$OUTPUT" in
             *INACTIVE=1*)
-              # Not fatal: shipping a fix onto a unit that has crashed is exactly when a deploy is
-              # most wanted. The restart at the end of deploy.sh brings it back either way.
+              # Not fatal: shipping a fix onto a crashed unit is exactly when a deploy is wanted.
+              # deploy.sh restarts it either way.
               echo "::warning::$SERVICE_NAME is not running on $VPS_HOST - deploying anyway." ;;
           esac
 
@@ -151,9 +147,8 @@ jobs:
 
       - name: Check for new migrations
         id: migrations
-        # The question this answers is "does this release touch the database?", and it is answered
-        # against what the server is actually running - not against the previous commit, which is
-        # wrong the moment two pushes land while a deploy is in flight.
+        # Answers "does this release touch the database?" against what the server is actually
+        # running, not against the previous commit (which is wrong once two pushes land mid-deploy).
         run: |
           set -euo pipefail
 
@@ -172,8 +167,7 @@ jobs:
             exit 0
           fi
 
-          # Added migration.sql files only: a *modified* one is a different problem, and
-          # scripts/validate-migrations.ts is what refuses it.
+          # Added migration.sql files only - a *modified* one is caught by db:validate instead.
           NEW="$(git diff --name-only --diff-filter=A "$BASE" "$TARGET" -- 'prisma/migrations/*/migration.sql' | cut -d/ -f3 | sort -u)"
 
           if [ -z "$NEW" ]; then
@@ -195,19 +189,19 @@ jobs:
       - uses: actions/setup-node@v4
         if: ${{ steps.migrations.outputs.has == 'true' }}
         with:
-          node-version: "24"
+          node-version: "20"
           cache: npm
 
       - name: Validate the migrations against what is live
-        if: ${{ steps.migrations.outputs.has == 'true' }}
         # CI already ran this against the pushed range; this runs it against the range the server is
-        # actually about to apply, which is what matters when the server is several commits behind.
-        # Only when there is something new to check - a code-only release pays nothing for it.
+        # actually about to apply, which matters when the server is several commits behind. Only
+        # when there's something new to check - a code-only release pays nothing for it.
+        if: ${{ steps.migrations.outputs.has == 'true' }}
         env:
           MIGRATION_BASE_REF: ${{ steps.preflight.outputs.current_sha }}
         run: |
           set -euo pipefail
-          npm ci --no-audit --no-fund
+          npm install
           npm run db:validate
 
       - name: Deploy
@@ -224,10 +218,10 @@ jobs:
             DEPLOY_ARGS="$TARGET"
           fi
 
-          # scripts/deploy.sh is taken from the commit being deployed, not from whatever the server
-          # happens to have checked out - otherwise a fix to the deploy script could never ship.
-          # EXPECT_MIGRATIONS is what this workflow worked out from git; the server still asks
-          # Prisma, and says so when the two disagree.
+          # scripts/deploy.sh is taken from the commit being deployed, not whatever the server has
+          # checked out - otherwise a fix to the deploy script could never ship. EXPECT_MIGRATIONS is
+          # what this workflow worked out from git; the server still asks Prisma, and flags any
+          # disagreement.
           ssh -i ~/.ssh/id_deploy -p "$VPS_PORT" -o BatchMode=yes -o ConnectTimeout=15 "$VPS_USER@$VPS_HOST" \
             "set -e; cd '$APP_DIR'; git fetch --prune --tags origin; git checkout '$TARGET' -- scripts/deploy.sh; APP_DIR='$APP_DIR' SERVICE_NAME='$SERVICE_NAME' EXPECT_MIGRATIONS='$EXPECT_MIGRATIONS' bash scripts/deploy.sh $DEPLOY_ARGS"
 
