@@ -9,7 +9,8 @@
 !.yarn/plugins
 !.yarn/releases
 !.yarn/versions
-package-lock.json
+# package-lock.json is committed on purpose. `npm ci` in CI, scripts/deploy.sh and the Dockerfile
+# all require it, and it is the only thing that makes a deploy install the same tree that was tested.
 
 # testing
 /coverage

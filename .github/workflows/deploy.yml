@@ -81,7 +81,7 @@ jobs:
             echo "mode=deploy" >> "$GITHUB_OUTPUT"
           fi
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           # Checkout the commit being deployed so the migration diff below compares the right trees.
           # Full history: the server can be several pushes behind, and the diff is against *its*
@@ -186,10 +186,10 @@ jobs:
           echo "New migrations in this release:"
           echo "$NEW" | sed 's/^/  • /'
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         if: ${{ steps.migrations.outputs.has == 'true' }}
         with:
-          node-version: "20"
+          node-version: "22"
           cache: npm
 
       - name: Validate the migrations against what is live
@@ -201,7 +201,7 @@ jobs:
           MIGRATION_BASE_REF: ${{ steps.preflight.outputs.current_sha }}
         run: |
           set -euo pipefail
-          npm install
+          npm ci --no-audit --no-fund
           npm run db:validate
 
       - name: Deploy
