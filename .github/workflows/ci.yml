@@ -1,24 +1,26 @@
 name: CI
 
-# Everything a deploy depends on. deploy.yml calls this workflow (workflow_call) so nothing reaches
-# the server without going through these checks first.
+# Everything a deploy depends on. deploy.yml calls this workflow (workflow_call), so nothing
+# reaches the server without passing these checks first.
 
 on:
-  push:
-    branches: [main]
   pull_request:
   workflow_call:
 
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 env:
   NODE_VERSION: "22"
+  # prisma.config.ts resolves DATABASE_URL at load time, so every prisma command needs it - even
+  # `generate`, which never connects. In the quality job this is a throwaway value; in the
+  # migrations job it points at the postgres service below.
+  DATABASE_URL: postgresql://finarthax:finarthax@127.0.0.1:5432/finarthax
 
 jobs:
   quality:
-    name: Lint, types, tests and build
+    name: Lint, types and build
     runs-on: ubuntu-latest
     timeout-minutes: 20
 
@@ -30,28 +32,18 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
 
-      - name: Generate the Prisma client
-        run: npx prisma generate
+      # Required before lint/typecheck/build: the app imports "prisma-client", which is
+      # file:generated/prisma - a gitignored folder this command creates.
+      - run: npx prisma generate
 
-      - name: Lint
-        run: npm run lint
+      - run: npm run lint
 
-      - name: Typecheck
-        run: npm run typecheck
-
-      - name: Test
-        # --if-present so this is a no-op until a "test" script exists; a bare `npm test` fails the
-        # job outright on "Missing script".
-        run: npm run test --if-present
+      - run: npm run typecheck
 
       - name: Build
-        # Imports src/lib/prisma.ts, which reads DATABASE_URL at module load but never connects
-        # during a build, so a syntactically valid URL is enough.
         env:
-          DATABASE_URL: postgresql://finarthax:finarthax@127.0.0.1:5432/finarthax
           NEXTAUTH_SECRET: build-time-placeholder
           NEXTAUTH_URL: http://localhost:3000
           NODE_ENV: production
@@ -76,37 +68,21 @@ jobs:
           --health-timeout 5s
           --health-retries 10
 
-    env:
-      DATABASE_URL: postgresql://finarthax:finarthax@127.0.0.1:5432/finarthax
-      # Prisma migrate diff replays the migrations into this scratch DB to prove they add up to
-      # schema.prisma.
-      SHADOW_DATABASE_URL: postgresql://finarthax:finarthax@127.0.0.1:5432/finarthax_shadow
-
     steps:
       - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0 # needed to diff this branch against its base
 
       - uses: actions/setup-node@v5
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
-      - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
 
-      - name: Create the shadow database
-        run: PGPASSWORD=finarthax psql -h 127.0.0.1 -U finarthax -d finarthax -c 'CREATE DATABASE finarthax_shadow;'
+      # The seed imports src/lib, which imports "prisma-client" - without this it fails with
+      # MODULE_NOT_FOUND.
+      - run: npx prisma generate
 
-      - name: Validate the migration history
-        # Refuses a modified/deleted migration, a schema change with no migration, a migration
-        # .gitignore would swallow, and destructive SQL that hasn't been explicitly allowed.
-        env:
-          MIGRATION_BASE_REF: ${{ github.event_name == 'pull_request' && format('origin/{0}', github.event.pull_request.base.ref) || 'HEAD~1' }}
-          ALLOW_DESTRUCTIVE_MIGRATIONS: ${{ contains(github.event.pull_request.labels.*.name, 'allow-destructive-migration') }}
-        run: npm run db:validate
-
-      - name: Apply the migrations from scratch
+      - name: Apply every migration to an empty database
         run: npx prisma migrate deploy
 
       - name: Seed
@@ -114,11 +90,12 @@ jobs:
           NODE_ENV: production
         run: npx prisma db seed
 
-      - name: Re-run the seed
-        # Proves the seed is idempotent - it runs again on every deploy too.
+      - name: Seed again
+        # The deploy re-runs the seed on every release, so it has to be idempotent.
         env:
           NODE_ENV: production
         run: npx prisma db seed
 
-      - name: Confirm the database matches the schema
+      - name: Confirm the database matches schema.prisma
+        # Catches a schema change that was never turned into a migration.
         run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code

@@ -1,26 +1,23 @@
 name: Deploy
 
-# Native Node + systemd deployment to a Linux VPS (Path B in DEPLOYMENT.md).
+# Updates the install that is already running on the VPS. The checkout, the systemd unit and the
+# sealed .env were provisioned once by hand (DEPLOYMENT.md) - this workflow never creates anything
+# on the server, it only asks it to move to a newer commit.
 #
-# This updates an install that already exists. The checkout, systemd unit, sealed .env and database
-# are provisioned once by hand per DEPLOYMENT.md; after that, a push to main is all that's needed.
-# If the server isn't provisioned, the preflight step below says so and stops.
-#
-# The runner never touches the database and never builds the artifact that gets served: it verifies
-# the commit, works out whether the release carries new migrations, then asks the server to deploy
-# that exact SHA with scripts/deploy.sh. The server builds, migrates, restarts and health-checks
-# itself, and rolls back on its own if the new version doesn't come up.
+# All the real work happens in scripts/deploy.sh, on the server: it checks out the commit, installs,
+# builds, asks Prisma whether any migration is pending (backing the database up first if so),
+# restarts the unit and rolls itself back if the new version does not come up healthy.
 #
 # Required repository secrets:
-#   VPS_HOST             host or IP of the server
-#   VPS_USER             the service user (finarthax), the one with the checkout
+#   VPS_HOST             host or IP
+#   VPS_USER             the service user that owns the checkout
 #   VPS_SSH_KEY          private key whose public half is in that user's authorized_keys
-#   VPS_SSH_KNOWN_HOSTS  output of `ssh-keyscan -H <host>` - pins the host key, no TOFU
+#   VPS_SSH_KNOWN_HOSTS  output of `ssh-keyscan -H <host>`
 # Optional:
-#   VPS_PORT             SSH port (default 22)
-#   VPS_APP_DIR          checkout path (default /opt/finarthax/app)
-#   VPS_SERVICE_NAME     systemd unit (default finarthax)
-#   APP_PUBLIC_URL       public URL, smoke-tested from the runner after the deploy
+#   VPS_PORT (22)  VPS_APP_DIR (/opt/finarthax/app)  VPS_SERVICE_NAME (finarthax)
+#   APP_PUBLIC_URL - smoke-tested from the runner after the deploy
+#
+# To roll back: run this workflow manually with `ref` set to the last good commit SHA.
 
 on:
   push:
@@ -34,10 +31,6 @@ on:
         description: "Commit, branch or tag to deploy"
         required: false
         default: "main"
-      rollback_to:
-        description: "Commit SHA to roll back to (skips verification and migrations)"
-        required: false
-        default: ""
 
 concurrency:
   group: deploy-production
@@ -46,187 +39,52 @@ concurrency:
 jobs:
   verify:
     name: Verify
-    if: ${{ github.event.inputs.rollback_to == '' }}
     uses: ./.github/workflows/ci.yml
 
   deploy:
     name: Deploy to VPS
     needs: [verify]
-    # A rollback must be able to run when verification is skipped - that's the situation it exists for.
-    if: ${{ always() && (needs.verify.result == 'success' || github.event.inputs.rollback_to != '') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
     env:
-      # At job level so the smoke-test step can read it in `if:` (secrets aren't available there).
+      TARGET: ${{ github.event.inputs.ref || github.sha }}
       APP_PUBLIC_URL: ${{ secrets.APP_PUBLIC_URL }}
       VPS_HOST: ${{ secrets.VPS_HOST }}
       VPS_USER: ${{ secrets.VPS_USER }}
-      VPS_PORT: ${{ secrets.VPS_PORT }}
-      APP_DIR: ${{ secrets.VPS_APP_DIR }}
-      SERVICE_NAME: ${{ secrets.VPS_SERVICE_NAME }}
+      VPS_PORT: ${{ secrets.VPS_PORT || '22' }}
+      APP_DIR: ${{ secrets.VPS_APP_DIR || '/opt/finarthax/app' }}
+      SERVICE_NAME: ${{ secrets.VPS_SERVICE_NAME || 'finarthax' }}
 
     steps:
-      - name: Resolve what to deploy
-        id: target
-        run: |
-          if [ -n "${{ github.event.inputs.rollback_to }}" ]; then
-            echo "sha=${{ github.event.inputs.rollback_to }}" >> "$GITHUB_OUTPUT"
-            echo "mode=rollback" >> "$GITHUB_OUTPUT"
-          elif [ -n "${{ github.event.inputs.ref }}" ]; then
-            echo "sha=${{ github.event.inputs.ref }}" >> "$GITHUB_OUTPUT"
-            echo "mode=deploy" >> "$GITHUB_OUTPUT"
-          else
-            echo "sha=${{ github.sha }}" >> "$GITHUB_OUTPUT"
-            echo "mode=deploy" >> "$GITHUB_OUTPUT"
-          fi
-
-      - uses: actions/checkout@v5
-        with:
-          # Checkout the commit being deployed so the migration diff below compares the right trees.
-          # Full history: the server can be several pushes behind, and the diff is against *its*
-          # commit, not HEAD~1.
-          ref: ${{ steps.target.outputs.sha }}
-          fetch-depth: 0
-
       - name: Configure SSH
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
         run: |
           set -euo pipefail
-
-          if [ -z "${SSH_KEY:-}" ] || [ -z "${KNOWN_HOSTS:-}" ]; then
-            echo "::error::VPS_SSH_KEY and VPS_SSH_KNOWN_HOSTS must both be set."
-            echo "Generate the host key entry with: ssh-keyscan -H <your-host>"
-            exit 1
-          fi
-
           mkdir -p ~/.ssh && chmod 700 ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/id_deploy
           chmod 600 ~/.ssh/id_deploy
-          # Pinned from a secret, not scanned at run time - a scanned key would be trusted sight
-          # unseen, which is the whole attack.
+          # Pinned from a secret rather than ssh-keyscan'd here: a key scanned at run time would be
+          # trusted sight unseen.
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
-          chmod 644 ~/.ssh/known_hosts
-
-      - name: Preflight
-        id: preflight
-        # Confirms the install this workflow assumes and reports which commit is live. Read-only:
-        # nothing on the server changes if any of this fails.
-        run: |
-          set -euo pipefail
-
-          if ! OUTPUT="$(ssh -i ~/.ssh/id_deploy -p "$VPS_PORT" -o BatchMode=yes -o ConnectTimeout=15 "$VPS_USER@$VPS_HOST" "
-            [ -d '$APP_DIR/.git' ] || { echo 'ERR=no_checkout'; exit 10; }
-            systemctl cat '$SERVICE_NAME' >/dev/null 2>&1 || { echo 'ERR=no_unit'; exit 11; }
-            systemctl is-active --quiet '$SERVICE_NAME' || echo 'INACTIVE=1'
-            echo \"CURRENT_SHA=\$(git -C '$APP_DIR' rev-parse HEAD)\"
-          " 2>&1)"; then
-            case "$OUTPUT" in
-              *ERR=no_checkout*)
-                echo "::error::$APP_DIR on $VPS_HOST is not a git checkout. This workflow updates an existing install - provision the server once, following DEPLOYMENT.md, then re-run." ;;
-              *ERR=no_unit*)
-                echo "::error::systemd unit '$SERVICE_NAME' does not exist on $VPS_HOST. Install the unit (DEPLOYMENT.md) or set the VPS_SERVICE_NAME secret to the right name." ;;
-              *)
-                echo "::error::Preflight over SSH failed: $OUTPUT" ;;
-            esac
-            exit 1
-          fi
-
-          case "$OUTPUT" in
-            *INACTIVE=1*)
-              # Not fatal: shipping a fix onto a crashed unit is exactly when a deploy is wanted.
-              # deploy.sh restarts it either way.
-              echo "::warning::$SERVICE_NAME is not running on $VPS_HOST - deploying anyway." ;;
-          esac
-
-          CURRENT_SHA="$(printf '%s\n' "$OUTPUT" | sed -n 's/^CURRENT_SHA=//p' | tail -n 1)"
-          echo "current_sha=$CURRENT_SHA" >> "$GITHUB_OUTPUT"
-          echo "Live on $VPS_HOST: $CURRENT_SHA"
-
-      - name: Check for new migrations
-        id: migrations
-        # Answers "does this release touch the database?" against what the server is actually
-        # running, not against the previous commit (which is wrong once two pushes land mid-deploy).
-        run: |
-          set -euo pipefail
-
-          BASE="${{ steps.preflight.outputs.current_sha }}"
-          TARGET="$(git rev-parse HEAD)"
-
-          if [ "${{ steps.target.outputs.mode }}" = "rollback" ]; then
-            echo "has=unknown" >> "$GITHUB_OUTPUT"
-            echo "A rollback never reverses migrations - the schema stays where the newer release left it."
-            exit 0
-          fi
-
-          if [ -z "$BASE" ] || ! git cat-file -e "${BASE}^{commit}" 2>/dev/null; then
-            echo "::warning::The server's commit ($BASE) is not in this repository's history - falling back to the server's own 'prisma migrate status'."
-            echo "has=unknown" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-
-          # Added migration.sql files only - a *modified* one is caught by db:validate instead.
-          NEW="$(git diff --name-only --diff-filter=A "$BASE" "$TARGET" -- 'prisma/migrations/*/migration.sql' | cut -d/ -f3 | sort -u)"
-
-          if [ -z "$NEW" ]; then
-            echo "has=false" >> "$GITHUB_OUTPUT"
-            echo "No new migrations between $BASE and $TARGET - this release is code only."
-            exit 0
-          fi
-
-          echo "has=true" >> "$GITHUB_OUTPUT"
-          {
-            echo "list<<EOF"
-            echo "$NEW"
-            echo "EOF"
-          } >> "$GITHUB_OUTPUT"
-
-          echo "New migrations in this release:"
-          echo "$NEW" | sed 's/^/  • /'
-
-      - uses: actions/setup-node@v5
-        if: ${{ steps.migrations.outputs.has == 'true' }}
-        with:
-          node-version: "22"
-          cache: npm
-
-      - name: Validate the migrations against what is live
-        # CI already ran this against the pushed range; this runs it against the range the server is
-        # actually about to apply, which matters when the server is several commits behind. Only
-        # when there's something new to check - a code-only release pays nothing for it.
-        if: ${{ steps.migrations.outputs.has == 'true' }}
-        env:
-          MIGRATION_BASE_REF: ${{ steps.preflight.outputs.current_sha }}
-        run: |
-          set -euo pipefail
-          npm ci --no-audit --no-fund
-          npm run db:validate
 
       - name: Deploy
-        env:
-          TARGET: ${{ steps.target.outputs.sha }}
-          MODE: ${{ steps.target.outputs.mode }}
-          EXPECT_MIGRATIONS: ${{ steps.migrations.outputs.has }}
         run: |
           set -euo pipefail
-
-          if [ "$MODE" = "rollback" ]; then
-            DEPLOY_ARGS="--rollback-to $TARGET"
-          else
-            DEPLOY_ARGS="$TARGET"
-          fi
-
-          # scripts/deploy.sh is taken from the commit being deployed, not whatever the server has
-          # checked out - otherwise a fix to the deploy script could never ship. EXPECT_MIGRATIONS is
-          # what this workflow worked out from git; the server still asks Prisma, and flags any
-          # disagreement.
-          ssh -i ~/.ssh/id_deploy -p "$VPS_PORT" -o BatchMode=yes -o ConnectTimeout=15 "$VPS_USER@$VPS_HOST" \
-            "set -e; cd '$APP_DIR'; git fetch --prune --tags origin; git checkout '$TARGET' -- scripts/deploy.sh; APP_DIR='$APP_DIR' SERVICE_NAME='$SERVICE_NAME' EXPECT_MIGRATIONS='$EXPECT_MIGRATIONS' bash scripts/deploy.sh $DEPLOY_ARGS"
+          # scripts/deploy.sh is taken from the commit being deployed, not from whatever the server
+          # currently has checked out - otherwise a fix to the deploy script could never ship.
+          ssh -i ~/.ssh/id_deploy -p "$VPS_PORT" -o BatchMode=yes -o ConnectTimeout=15 \
+            "$VPS_USER@$VPS_HOST" \
+            "set -e
+             cd '$APP_DIR'
+             git fetch --prune --tags origin
+             git checkout '$TARGET' -- scripts/deploy.sh
+             APP_DIR='$APP_DIR' SERVICE_NAME='$SERVICE_NAME' bash scripts/deploy.sh '$TARGET'"
 
       - name: Smoke-test the public URL
-        # The health endpoint itself is loopback-only, so this checks what a user actually reaches:
+        # /api/health is loopback-only on the server, so this checks what a user actually reaches:
         # Nginx, TLS and the app behind them.
         if: ${{ success() && env.APP_PUBLIC_URL != '' }}
         run: |
@@ -239,35 +97,5 @@ jobs:
             echo "attempt $attempt failed, retrying…"
             sleep 5
           done
-          echo "::error::$APP_PUBLIC_URL did not answer. The server rolled itself back only if its own health check failed - check Nginx and the unit."
+          echo "::error::$APP_PUBLIC_URL did not answer. The server only rolled itself back if its own health check failed - check Nginx and the unit."
           exit 1
-
-      - name: Summary
-        if: ${{ always() }}
-        env:
-          PREVIOUS_SHA: ${{ steps.preflight.outputs.current_sha }}
-          HAS_MIGRATIONS: ${{ steps.migrations.outputs.has }}
-          NEW_MIGRATIONS: ${{ steps.migrations.outputs.list }}
-        run: |
-          {
-            echo "### ${{ steps.target.outputs.mode == 'rollback' && 'Rollback' || 'Deploy' }}: \`${{ steps.target.outputs.sha }}\`"
-            echo ""
-            echo "- host: \`${{ secrets.VPS_HOST }}\`"
-            echo "- unit: \`${{ secrets.VPS_SERVICE_NAME }}\`"
-            echo "- was running: \`${PREVIOUS_SHA:-unknown}\`"
-            echo "- result: **${{ job.status }}**"
-            echo ""
-
-            case "${HAS_MIGRATIONS:-unknown}" in
-              true)
-                echo "#### Migrations in this release"
-                echo ""
-                printf '%s\n' "$NEW_MIGRATIONS" | sed 's/^/- `/; s/$/`/'
-                echo ""
-                echo "Migrations are never rolled back automatically. If a release's schema change is the problem, restore the pre-deploy dump the script wrote to \`/var/backups/finarthax\`." ;;
-              false)
-                echo "No new migrations — code-only release, the database was left untouched." ;;
-              *)
-                echo "Migrations were left to the server's own \`prisma migrate status\` (rollback, or the live commit was not in this repository's history)." ;;
-            esac
-          } >> "$GITHUB_STEP_SUMMARY"
