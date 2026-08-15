@@ -57,6 +57,25 @@ jobs:
       SERVICE_NAME: ${{ secrets.VPS_SERVICE_NAME || 'finarthax' }}
 
     steps:
+      - name: Check the required secrets are present
+        # Without this, a missing VPS_HOST/VPS_USER reaches ssh as an empty destination and the only
+        # clue in the log is ssh's usage screen and exit 255.
+        env:
+          SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+        run: |
+          set -uo pipefail
+          missing=()
+          [ -n "$VPS_HOST" ] || missing+=(VPS_HOST)
+          [ -n "$VPS_USER" ] || missing+=(VPS_USER)
+          [ -n "$SSH_KEY" ] || missing+=(VPS_SSH_KEY)
+          [ -n "$KNOWN_HOSTS" ] || missing+=(VPS_SSH_KNOWN_HOSTS)
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing repository secret(s): ${missing[*]}. Set them under Settings → Secrets and variables → Actions → Repository secrets. Secrets scoped to a GitHub Environment are not visible here unless this job declares that environment."
+            exit 1
+          fi
+          echo "All required secrets are set."
+
       - name: Configure SSH
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
