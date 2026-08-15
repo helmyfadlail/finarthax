@@ -8,7 +8,7 @@ name: Deploy
 # builds, asks Prisma whether any migration is pending (backing the database up first if so),
 # restarts the unit and rolls itself back if the new version does not come up healthy.
 #
-# Required repository secrets:
+# Required secrets, held by the `finarthax` environment (see `environment:` on the deploy job):
 #   VPS_HOST             host or IP
 #   VPS_USER             the service user that owns the checkout
 #   VPS_SSH_KEY          private key whose public half is in that user's authorized_keys
@@ -47,6 +47,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    # The secrets below are Environment secrets, not repository ones. Without this line the job
+    # cannot see them and every `secrets.VPS_*` silently resolves to an empty string.
+    environment: finarthax
+
     env:
       TARGET: ${{ github.event.inputs.ref || github.sha }}
       APP_PUBLIC_URL: ${{ secrets.APP_PUBLIC_URL }}
@@ -71,7 +75,7 @@ jobs:
           [ -n "$SSH_KEY" ] || missing+=(VPS_SSH_KEY)
           [ -n "$KNOWN_HOSTS" ] || missing+=(VPS_SSH_KNOWN_HOSTS)
           if [ ${#missing[@]} -gt 0 ]; then
-            echo "::error::Missing repository secret(s): ${missing[*]}. Set them under Settings → Secrets and variables → Actions → Repository secrets. Secrets scoped to a GitHub Environment are not visible here unless this job declares that environment."
+            echo "::error::Missing secret(s): ${missing[*]}. They should live in the 'finarthax' environment (Settings → Environments), which this job declares via 'environment:'. Check the names match exactly, and that the job's 'environment:' still names the environment they are stored in."
             exit 1
           fi
           echo "All required secrets are set."
