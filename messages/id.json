@@ -208,7 +208,10 @@
       "MONTHLY": "Bulanan",
       "YEARLY": "Tahunan"
     },
-    "recurringButton": "Berulang",
+    "tabs": {
+      "all": "Semua transaksi",
+      "recurring": "Berulang"
+    },
     "editButton": "Ubah transaksi"
   },
   "recurringPage": {
@@ -341,7 +344,13 @@
       "dismiss": "Gagal mengabaikan rekomendasi",
       "restore": "Gagal memulihkan rekomendasi"
     },
-    "backToTransactions": "Kembali ke transaksi"
+    "duePanel": {
+      "title": "Jatuh tempo",
+      "description": "Konfirmasi atau lewati tanpa meninggalkan halaman transaksi",
+      "viewAll": "Buka tab berulang",
+      "more": "{count} lainnya menunggu",
+      "hide": "Sembunyikan sampai kunjungan berikutnya"
+    }
   },
   "accountsPage": {
     "title": "Akun",

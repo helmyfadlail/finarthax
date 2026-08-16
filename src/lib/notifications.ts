@@ -193,7 +193,7 @@ export const notifyRecurringDue = async (userId: string): Promise<NotificationOu
             date: context.formatDate(item.nextOccurrence as Date),
           }),
         ),
-        cta: { label: t("recurring.cta"), url: `${appUrl()}/admin/dashboard/transactions/recurring` },
+        cta: { label: t("recurring.cta"), url: `${appUrl()}/admin/dashboard/transactions?view=recurring` },
       },
     };
   });

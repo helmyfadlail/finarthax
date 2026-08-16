@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/navigation";
 import { usePreferences, useRecurring } from "@/hooks";
 import { useCurrency } from "@/providers";
 import { Badge, Button, Card, CardContent, Input, Modal, Select, Skeleton, useToast } from "@/components";
@@ -222,13 +221,211 @@ const SuggestionRow: React.FC<{
   );
 };
 
+/**
+ * Logging an occurrence asks the same two questions wherever it is triggered from - the full
+ * recurring view and the due panel on the transactions list both mount this, so the fields and the
+ * validation cannot drift apart. The mutation stays with the caller: each one reports success
+ * differently.
+ */
+const LogOccurrenceForm: React.FC<{
+  target: LogTarget;
+  isSubmitting: boolean;
+  onClose: () => void;
+  onSubmit: (amount: number, date: string) => void;
+}> = ({ target, isSubmitting, onClose, onSubmit }) => {
+  const t = useTranslations("recurringPage");
+  const { addToast } = useToast();
+  // Seeded once, on mount. The modal below mounts this per target and unmounts it on close, so an
+  // amount edited for one row can never be inherited by the next.
+  const [form, setForm] = React.useState<{ amount: string; date: string }>(() => ({ amount: String(target.amount), date: toDateTimeInputValue(target.date) }));
+
+  const handleSubmit = React.useCallback(() => {
+    const amount = parseFloat(form.amount);
+    if (!form.amount || Number.isNaN(amount) || amount <= 0) {
+      addToast({ message: t("validation.amount"), type: "error" });
+      return;
+    }
+    if (!form.date) {
+      addToast({ message: t("validation.date"), type: "error" });
+      return;
+    }
+    onSubmit(amount, new Date(form.date).toISOString());
+  }, [form, onSubmit, addToast, t]);
+
+  return (
+    <div className="space-y-3 sm:space-y-4">
+      <div className="p-2.5 sm:p-3 rounded-lg border bg-primary-50 dark:bg-primary-300 border-primary-100 dark:border-primary-400">
+        <p className="text-xs font-medium sm:text-sm text-primary-700 dark:text-primary-800">💡 {t("logModal.hint", { name: target.label || t("noDescription") })}</p>
+      </div>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
+        <Input
+          type="number"
+          label={`${t("logModal.amount")} *`}
+          value={form.amount}
+          onChange={(e) => setForm((previous) => ({ ...previous, amount: e.target.value }))}
+          icon={<span className="text-primary-500 dark:text-primary-700">Rp</span>}
+          min="1"
+          step="1000"
+          required
+        />
+        <Input type="datetime-local" label={`${t("logModal.date")} *`} value={form.date} onChange={(e) => setForm((previous) => ({ ...previous, date: e.target.value }))} required />
+      </div>
+      <div className="flex justify-end gap-2 pt-3 border-t border-primary-100 dark:border-primary-400 sm:gap-3 sm:pt-4">
+        <Button variant="ghost" onClick={onClose} disabled={isSubmitting} className="text-xs sm:text-sm">
+          {t("logModal.cancel")}
+        </Button>
+        <Button variant="primary" onClick={handleSubmit} isLoading={isSubmitting} className="text-xs sm:text-sm">
+          {t("logModal.submit")}
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+const LogOccurrenceModal: React.FC<{
+  target: LogTarget | null;
+  isSubmitting: boolean;
+  onClose: () => void;
+  onSubmit: (amount: number, date: string) => void;
+}> = ({ target, isSubmitting, onClose, onSubmit }) => {
+  const t = useTranslations("recurringPage");
+
+  return (
+    <Modal isOpen={!!target} onClose={onClose} title={`✅ ${t("logModal.title")}`} size="md">
+      {target && <LogOccurrenceForm key={target.transactionId} target={target} isSubmitting={isSubmitting} onClose={onClose} onSubmit={onSubmit} />}
+    </Modal>
+  );
+};
+
+/** How many due rows the panel shows before it stops and points at the full view. */
+const DUE_PANEL_LIMIT = 3;
+
+/**
+ * The one thing someone opens the recurring view for on most days is confirming or skipping what is
+ * due, so that much is surfaced on the transactions list itself. Everything else - detection,
+ * upcoming, dismissed - stays on the Recurring tab, which is the only place with room for it.
+ */
+export const RecurringDuePanel: React.FC<{ onViewAll: () => void }> = ({ onViewAll }) => {
+  const t = useTranslations("recurringPage");
+  const { format } = useCurrency();
+  const { addToast } = useToast();
+  const { preferences } = usePreferences();
+
+  // Same filter as the tab beside it, so TanStack serves both from one cache entry.
+  const { due, confirmRecurring, isConfirming, skipRecurring, isSkipping } = useRecurring({ lookaheadDays: preferences.recurringLookaheadDays });
+
+  const [logTarget, setLogTarget] = React.useState<LogTarget | null>(null);
+  const [isHidden, setIsHidden] = React.useState(false);
+
+  const notify = React.useCallback(
+    (successKey: string, errorKey: string, onDone?: () => void, silenceable = false) => ({
+      onSuccess: () => {
+        if (!silenceable || preferences.transactionAlerts) addToast({ message: t(successKey), type: "success" });
+        onDone?.();
+      },
+      onError: (error: Error) => addToast({ message: error.message || t(errorKey), type: "error" }),
+    }),
+    [addToast, t, preferences.transactionAlerts],
+  );
+
+  const handleLogSubmit = React.useCallback(
+    (amount: number, date: string) => {
+      if (!logTarget) return;
+      confirmRecurring({ id: logTarget.transactionId, data: { amount, date } }, notify("success.logged", "error.log", () => setLogTarget(null), true));
+    },
+    [logTarget, confirmRecurring, notify],
+  );
+
+  // Everything here is already tracked - the panel only ever renders `due`, which is the scheduled
+  // side of the overview - so `interval` never has to be re-sent on confirm.
+  const openLog = React.useCallback(
+    (item: ScheduledRecurrence) => setLogTarget({ transactionId: item.transactionId, label: item.description ?? "", amount: item.amount, date: item.nextOccurrence, interval: item.interval, isTracked: true }),
+    [],
+  );
+
+  if (!preferences.recurringReminders || due.length === 0 || isHidden) return null;
+
+  const isBusy = isConfirming || isSkipping;
+  const overflow = due.length - DUE_PANEL_LIMIT;
+
+  return (
+    <Card className="border-amber-200 dark:border-amber-900/40 bg-amber-50/70 dark:bg-amber-950/20">
+      <CardContent className="pt-4 sm:pt-5">
+        <div className="flex items-start justify-between gap-2 mb-3">
+          <div className="min-w-0">
+            <h2 className="flex items-center gap-2 text-sm font-bold sm:text-base text-amber-900 dark:text-amber-300">
+              🔔 {t("duePanel.title")}
+              <Badge variant="warning" className="text-xs">
+                {due.length}
+              </Badge>
+            </h2>
+            <p className="mt-0.5 text-xs sm:text-sm text-amber-700 dark:text-amber-400">{t("duePanel.description")}</p>
+          </div>
+          <button
+            onClick={() => setIsHidden(true)}
+            aria-label={t("duePanel.hide")}
+            title={t("duePanel.hide")}
+            className="px-1 text-sm transition-colors shrink-0 text-amber-700/70 hover:text-amber-900 dark:text-amber-400/70 dark:hover:text-amber-300"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="space-y-2">
+          {due.slice(0, DUE_PANEL_LIMIT).map((item) => {
+            const config = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.EXPENSE;
+            const timing = item.status === "OVERDUE" ? t("relative.overdue", { days: Math.abs(item.daysUntil) }) : t("relative.today");
+
+            return (
+              <div key={item.transactionId} className="flex flex-wrap items-center gap-2 p-2.5 bg-white rounded-lg sm:p-3 sm:gap-3 dark:bg-primary-200">
+                <div className={`flex items-center justify-center shrink-0 w-8 h-8 text-base sm:w-9 sm:h-9 sm:text-lg rounded-full ${config.bg}`}>{item.category?.icon ?? config.icon}</div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate text-primary-900 dark:text-primary-900" title={item.description ?? ""}>
+                    {item.description || t("noDescription")}
+                  </p>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <Badge variant={STATUS_BADGE[item.status]} className="text-xs">
+                      {RECURRENCE_STATUS_ICONS[item.status]} {timing}
+                    </Badge>
+                    <span className="text-xs truncate text-primary-400 dark:text-primary-600">
+                      {item.account.icon} {item.account.name}
+                    </span>
+                  </div>
+                </div>
+                <p className={`text-sm font-bold tabular-nums shrink-0 sm:text-base ${config.color}`}>
+                  {config.prefix} {format(item.amount)}
+                </p>
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button variant="ghost" size="sm" onClick={() => skipRecurring(item.transactionId, notify("success.skipped", "error.skip"))} disabled={isBusy} className="text-xs">
+                    ⏭️ {t("actions.skip")}
+                  </Button>
+                  <Button variant="primary" size="sm" onClick={() => openLog(item)} disabled={isBusy} className="text-xs">
+                    ✅ {t("actions.log")}
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex justify-end pt-2 mt-2 border-t border-amber-200/70 dark:border-amber-900/40">
+          <Button variant="ghost" size="sm" onClick={onViewAll} className="text-xs text-amber-800 dark:text-amber-300">
+            {overflow > 0 ? t("duePanel.more", { count: overflow }) : t("duePanel.viewAll")} →
+          </Button>
+        </div>
+      </CardContent>
+
+      <LogOccurrenceModal target={logTarget} isSubmitting={isConfirming} onClose={() => setLogTarget(null)} onSubmit={handleLogSubmit} />
+    </Card>
+  );
+};
+
 export const Recurring: React.FC = () => {
   const t = useTranslations("recurringPage");
   const { format } = useCurrency();
   const { addToast } = useToast();
 
   const { preferences } = usePreferences();
-  const router = useRouter();
 
   const {
     summary,
@@ -257,7 +454,6 @@ export const Recurring: React.FC = () => {
   const [showDismissed, setShowDismissed] = React.useState(false);
 
   const [trackForm, setTrackForm] = React.useState<{ interval: RecurrenceInterval; endDate: string }>({ interval: "MONTHLY", endDate: "" });
-  const [logForm, setLogForm] = React.useState<{ amount: string; date: string }>({ amount: "", date: "" });
 
   const intervalOptions = React.useMemo(() => RECURRENCE_INTERVALS.map((interval) => ({ value: interval, label: `${RECURRENCE_ICONS[interval]} ${t(`interval.${interval}`)}` })), [t]);
 
@@ -277,10 +473,7 @@ export const Recurring: React.FC = () => {
     setTrackTarget({ transactionId: pattern.transactionId, label: pattern.description ?? "", interval: pattern.interval });
   }, []);
 
-  const openLogModal = React.useCallback((target: LogTarget) => {
-    setLogForm({ amount: String(target.amount), date: toDateTimeInputValue(target.date) });
-    setLogTarget(target);
-  }, []);
+  const openLogModal = React.useCallback((target: LogTarget) => setLogTarget(target), []);
 
   const handleTrackSubmit = React.useCallback(() => {
     if (!trackTarget) return;
@@ -290,27 +483,20 @@ export const Recurring: React.FC = () => {
     );
   }, [trackTarget, trackForm, trackRecurring, notify]);
 
-  const handleLogSubmit = React.useCallback(() => {
-    if (!logTarget) return;
-
-    const amount = parseFloat(logForm.amount);
-    if (!logForm.amount || Number.isNaN(amount) || amount <= 0) {
-      addToast({ message: t("validation.amount"), type: "error" });
-      return;
-    }
-    if (!logForm.date) {
-      addToast({ message: t("validation.date"), type: "error" });
-      return;
-    }
-
-    confirmRecurring(
-      {
-        id: logTarget.transactionId,
-        data: { amount, date: new Date(logForm.date).toISOString(), ...(logTarget.isTracked ? {} : { interval: logTarget.interval }) },
-      },
-      notify("success.logged", "error.log", () => setLogTarget(null), true),
-    );
-  }, [logTarget, logForm, confirmRecurring, notify, addToast, t]);
+  const handleLogSubmit = React.useCallback(
+    (amount: number, date: string) => {
+      if (!logTarget) return;
+      confirmRecurring(
+        {
+          id: logTarget.transactionId,
+          // A detected pattern is not tracked yet, so confirming it has to say how often it repeats.
+          data: { amount, date, ...(logTarget.isTracked ? {} : { interval: logTarget.interval }) },
+        },
+        notify("success.logged", "error.log", () => setLogTarget(null), true),
+      );
+    },
+    [logTarget, confirmRecurring, notify],
+  );
 
   const handleStopConfirm = React.useCallback(() => {
     if (!stopTarget) return;
@@ -341,20 +527,8 @@ export const Recurring: React.FC = () => {
   const hasNothingAtAll = summary.trackedCount === 0 && detected.length === 0 && dismissed.length === 0;
 
   return (
+    // The title, the tab bar and the way back all belong to the workspace this renders inside of.
     <div className="space-y-3 sm:space-y-5 lg:space-y-6">
-      {/* This page sits under Transactions rather than in the sidebar, so it carries its own way back. */}
-      <button
-        onClick={() => router.push("/admin/dashboard/transactions")}
-        className="inline-flex items-center gap-1.5 text-xs transition-colors sm:text-sm text-primary-500 hover:text-primary-900 dark:text-primary-700 dark:hover:text-primary-900"
-      >
-        ← {t("backToTransactions")}
-      </button>
-
-      <div>
-        <h1 className="text-xl font-bold sm:text-2xl lg:text-3xl text-primary-900 dark:text-primary-900">{t("title")}</h1>
-        <p className="mt-0.5 text-xs sm:text-sm text-primary-500 dark:text-primary-700">{t("subtitle")}</p>
-      </div>
-
       <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4 lg:gap-4">
         <SummaryTile icon="🔔" label={t("summary.due")} value={String(summary.dueCount)} hint={t("summary.dueHint")} accent="text-rose-600 dark:text-rose-400" />
         <SummaryTile
@@ -481,34 +655,7 @@ export const Recurring: React.FC = () => {
         </div>
       </Modal>
 
-      <Modal isOpen={!!logTarget} onClose={() => setLogTarget(null)} title={`✅ ${t("logModal.title")}`} size="md">
-        <div className="space-y-3 sm:space-y-4">
-          <div className="p-2.5 sm:p-3 rounded-lg border bg-primary-50 dark:bg-primary-300 border-primary-100 dark:border-primary-400">
-            <p className="text-xs font-medium sm:text-sm text-primary-700 dark:text-primary-800">💡 {t("logModal.hint", { name: logTarget?.label || t("noDescription") })}</p>
-          </div>
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
-            <Input
-              type="number"
-              label={`${t("logModal.amount")} *`}
-              value={logForm.amount}
-              onChange={(e) => setLogForm((previous) => ({ ...previous, amount: e.target.value }))}
-              icon={<span className="text-primary-500 dark:text-primary-700">Rp</span>}
-              min="1"
-              step="1000"
-              required
-            />
-            <Input type="datetime-local" label={`${t("logModal.date")} *`} value={logForm.date} onChange={(e) => setLogForm((previous) => ({ ...previous, date: e.target.value }))} required />
-          </div>
-          <div className="flex justify-end gap-2 pt-3 border-t border-primary-100 dark:border-primary-400 sm:gap-3 sm:pt-4">
-            <Button variant="ghost" onClick={() => setLogTarget(null)} disabled={isConfirming} className="text-xs sm:text-sm">
-              {t("logModal.cancel")}
-            </Button>
-            <Button variant="primary" onClick={handleLogSubmit} isLoading={isConfirming} className="text-xs sm:text-sm">
-              {t("logModal.submit")}
-            </Button>
-          </div>
-        </div>
-      </Modal>
+      <LogOccurrenceModal target={logTarget} isSubmitting={isConfirming} onClose={() => setLogTarget(null)} onSubmit={handleLogSubmit} />
 
       <Modal isOpen={!!stopTarget} onClose={() => setStopTarget(null)} title={t("stopModal.title")} size="sm">
         <div className="space-y-3 sm:space-y-4">

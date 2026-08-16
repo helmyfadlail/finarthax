@@ -8,6 +8,7 @@ export * from "./reset-password-success";
 
 export * from "./ui/dashboard";
 export * from "./ui/transactions";
+export * from "./ui/transactions-workspace";
 export * from "./ui/recurring";
 export * from "./ui/accounts";
 export * from "./ui/budgets";

@@ -208,7 +208,10 @@
       "MONTHLY": "Monthly",
       "YEARLY": "Yearly"
     },
-    "recurringButton": "Recurring",
+    "tabs": {
+      "all": "All transactions",
+      "recurring": "Recurring"
+    },
     "editButton": "Edit transaction"
   },
   "recurringPage": {
@@ -341,7 +344,13 @@
       "dismiss": "Failed to dismiss the suggestion",
       "restore": "Failed to restore the suggestion"
     },
-    "backToTransactions": "Back to transactions"
+    "duePanel": {
+      "title": "Due now",
+      "description": "Confirm or skip these without leaving your transactions",
+      "viewAll": "Open the recurring tab",
+      "more": "{count} more waiting",
+      "hide": "Hide until next visit"
+    }
   },
   "accountsPage": {
     "title": "Accounts",

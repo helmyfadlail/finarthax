@@ -1,5 +1,5 @@
-import { Transactions } from "@/layouts";
+import { TransactionsWorkspace } from "@/layouts";
 
 export default function TransactionPage() {
-  return <Transactions />;
+  return <TransactionsWorkspace />;
 }

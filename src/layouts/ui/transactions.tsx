@@ -2,8 +2,7 @@
 
 import * as React from "react";
 import { useTranslations } from "next-intl";
-import { useRouter } from "@/i18n/navigation";
-import { useTransactions, useCategories, useAccounts, useSearchPagination, usePreferences, useRecurring } from "@/hooks";
+import { useTransactions, useCategories, useAccounts, useSearchPagination, usePreferences } from "@/hooks";
 import { useCurrency } from "@/providers";
 import { Card, CardContent, Button, Input, Select, Badge, Modal, Skeleton, useToast } from "@/components";
 import { RECURRENCE_ICONS, RECURRENCE_INTERVALS } from "@/static";
@@ -190,14 +189,7 @@ export const Transactions: React.FC = () => {
   const { format } = useCurrency();
   const { addToast } = useToast();
   const { preferences } = usePreferences();
-  const router = useRouter();
   const { createTransaction, isCreating, updateTransaction, isUpdating } = useTransactions();
-
-  // Recurring lives under this page now rather than in the sidebar, so the entry point carries the
-  // due count — otherwise nothing would tell you something is waiting. Same query as the dashboard,
-  // so TanStack serves it from cache rather than fetching twice.
-  const { due: recurringDue } = useRecurring({ lookaheadDays: preferences.recurringLookaheadDays });
-  const recurringDueCount = preferences.recurringReminders ? recurringDue.length : 0;
 
   const notifySuccess = React.useCallback(
     (message: string) => {
@@ -467,24 +459,11 @@ export const Transactions: React.FC = () => {
 
   return (
     <div className="space-y-3 sm:space-y-5 lg:space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-4">
-        <div>
-          <h1 className="text-xl font-bold sm:text-2xl lg:text-3xl text-primary-900 dark:text-primary-900">{t("title")}</h1>
-          <p className="mt-0.5 text-xs sm:text-sm text-primary-500 dark:text-primary-700">{t("subtitle")}</p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <Button variant="outline" size="lg" onClick={() => router.push("/admin/dashboard/transactions/recurring")} className="w-full sm:w-auto">
-            🔁 {t("recurringButton")}
-            {recurringDueCount > 0 && (
-              <Badge variant="warning" className="ml-1.5 text-xs">
-                {recurringDueCount}
-              </Badge>
-            )}
-          </Button>
-          <Button variant="primary" size="lg" onClick={openModal} className="w-full sm:w-auto">
-            + {t("addButton")}
-          </Button>
-        </div>
+      {/* The title and the tab bar belong to the workspace around this - only the action is left. */}
+      <div className="flex sm:justify-end">
+        <Button variant="primary" size="lg" onClick={openModal} className="w-full sm:w-auto">
+          + {t("addButton")}
+        </Button>
       </div>
 
       <Card className="dark:bg-primary-200 dark:border-primary-400">

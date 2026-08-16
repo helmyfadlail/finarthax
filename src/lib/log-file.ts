@@ -23,7 +23,15 @@ const enabled = (process.env.LOG_TO_FILE ?? "true") === "true";
 // `path.resolve` on a relative value already resolves against the working
 // directory. Naming `process.cwd()` explicitly makes the build tracer assume the
 // entire project is a runtime dependency and warn, so it is left out.
-const directory = path.resolve(process.env.LOG_DIR ?? "logs");
+//
+// The `turbopackIgnore` comments on this and the other filesystem calls below are
+// the sanctioned way to tell the build tracer to stop following a path it cannot
+// resolve statically. LOG_DIR is chosen at run time by design, so no amount of
+// rewriting would make these paths knowable at build time. Nothing here is traced
+// in the first place - the app is served by `next start` from a full checkout and
+// the Dockerfile copies explicit paths - so the warnings were noise, not a
+// symptom.
+const directory = path.resolve(/*turbopackIgnore: true*/ process.env.LOG_DIR ?? "logs");
 const maxBytes = Math.max(1, Number(process.env.LOG_FILE_MAX_SIZE_MB ?? 10)) * 1024 * 1024;
 const retentionDays = Math.max(1, Number(process.env.LOG_FILE_RETENTION_DAYS ?? 14));
 
@@ -61,7 +69,7 @@ class RotatingLogFile {
   constructor(private readonly prefix: string) {}
 
   private pathFor(date: string, index: number): string {
-    return path.join(directory, index === 0 ? `${this.prefix}-${date}.log` : `${this.prefix}-${date}.${index}.log`);
+    return path.join(/*turbopackIgnore: true*/ directory, index === 0 ? `${this.prefix}-${date}.log` : `${this.prefix}-${date}.${index}.log`);
   }
 
   /** First file for `date` that still has room — used when opening, never mid-run. */
@@ -137,12 +145,12 @@ export const purgeExpiredLogs = (): void => {
   const cutoff = Date.now() - retentionDays * 24 * 60 * 60 * 1000;
 
   try {
-    for (const name of fs.readdirSync(directory)) {
+    for (const name of fs.readdirSync(/*turbopackIgnore: true*/ directory)) {
       if (!name.startsWith(serviceName) || !name.endsWith(".log")) continue;
 
-      const file = path.join(directory, name);
+      const file = path.join(/*turbopackIgnore: true*/ directory, name);
       try {
-        if (fs.statSync(file).mtimeMs < cutoff) fs.unlinkSync(file);
+        if (fs.statSync(/*turbopackIgnore: true*/ file).mtimeMs < cutoff) fs.unlinkSync(file);
       } catch {
         // Another process may have removed it already - nothing to do.
       }

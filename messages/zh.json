@@ -208,7 +208,10 @@
       "MONTHLY": "每月",
       "YEARLY": "每年"
     },
-    "recurringButton": "定期交易",
+    "tabs": {
+      "all": "全部交易",
+      "recurring": "定期交易"
+    },
     "editButton": "编辑交易"
   },
   "recurringPage": {
@@ -341,7 +344,13 @@
       "dismiss": "忽略建议失败",
       "restore": "恢复建议失败"
     },
-    "backToTransactions": "返回交易"
+    "duePanel": {
+      "title": "待确认",
+      "description": "无需离开交易页面即可确认或跳过",
+      "viewAll": "打开定期交易标签页",
+      "more": "还有 {count} 项等待处理",
+      "hide": "本次访问内隐藏"
+    }
   },
   "accountsPage": {
     "title": "账户",
