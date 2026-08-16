@@ -6,7 +6,7 @@ name: Deploy
 #
 # All the real work happens in scripts/deploy.sh, on the server: it checks out the commit, installs,
 # builds, asks Prisma whether any migration is pending (backing the database up first if so),
-# restarts the unit and rolls itself back if the new version does not come up healthy.
+# restarts the unit and waits for it to answer its health check.
 #
 # Required secrets, held by the `finarthax` environment (see `environment:` on the deploy job):
 #   VPS_HOST             host or IP
@@ -30,7 +30,8 @@ name: Deploy
 #     git checkout origin/main -- scripts/deploy.sh
 #     APP_DIR=/opt/finarthax/app SERVICE_NAME=finarthax bash scripts/deploy.sh origin/main'
 #
-# To roll back: run this workflow manually with `ref` set to the last good commit SHA.
+# To roll back: run this workflow manually with `ref` set to the last good commit SHA - deploying an
+# older commit is all a rollback is. The same works by hand with the block above.
 
 on:
   push:
@@ -93,12 +94,6 @@ jobs:
           fi
           echo "All required secrets are set."
 
-      # Needed only to work out whether this release carries a migration - see the step below. Full
-      # history, because that compares against whatever commit the server happens to be sitting on.
-      - uses: actions/checkout@v5
-        with:
-          fetch-depth: 0
-
       - name: Configure SSH
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
@@ -112,47 +107,7 @@ jobs:
           # trusted sight unseen.
           printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
 
-      - name: Ask the server which commit it is on
-        id: server
-        run: |
-          set -euo pipefail
-          current="$(ssh -i ~/.ssh/id_deploy -p "$VPS_PORT" -o BatchMode=yes -o ConnectTimeout=15 \
-            "$VPS_USER@$VPS_HOST" "git -C '$APP_DIR' rev-parse HEAD")"
-          echo "current=$current" >> "$GITHUB_OUTPUT"
-          echo "The server is on $current"
-
-      - name: Work out whether this release adds a migration
-        id: plan
-        env:
-          CURRENT: ${{ steps.server.outputs.current }}
-        run: |
-          set -euo pipefail
-          # deploy.sh never decides anything from this - Prisma does - but it says so out loud when
-          # the two disagree, which is how a reverted migration or a database behind by more than
-          # one release gets noticed.
-          #
-          # Both ends have to be resolvable here. A manual run can name a ref this clone does not
-          # have, and the server can sit on a commit that was since force-pushed away; neither is
-          # worth failing a deploy over, so the answer is simply "unknown".
-          for ref in "$CURRENT" "$TARGET"; do
-            if ! git rev-parse --verify --quiet "$ref^{commit}" >/dev/null; then
-              echo "expect=unknown" >> "$GITHUB_OUTPUT"
-              echo "::notice::$ref could not be resolved here, so the migration diff was skipped."
-              exit 0
-            fi
-          done
-
-          if git diff --name-only "$CURRENT" "$TARGET" -- prisma/migrations | grep -q .; then
-            echo "expect=true" >> "$GITHUB_OUTPUT"
-            echo "This release adds or changes a migration."
-          else
-            echo "expect=false" >> "$GITHUB_OUTPUT"
-            echo "No migration folder changed in this release."
-          fi
-
       - name: Deploy
-        env:
-          EXPECT_MIGRATIONS: ${{ steps.plan.outputs.expect }}
         run: |
           set -euo pipefail
           # The remote script is fed over stdin with a quoted heredoc, so nothing in it is expanded
@@ -163,30 +118,13 @@ jobs:
           # currently has checked out - otherwise a fix to the deploy script could never ship.
           ssh -i ~/.ssh/id_deploy -p "$VPS_PORT" -o BatchMode=yes -o ConnectTimeout=15 \
             "$VPS_USER@$VPS_HOST" \
-            "APP_DIR='$APP_DIR' SERVICE_NAME='$SERVICE_NAME' EXPECT_MIGRATIONS='$EXPECT_MIGRATIONS' TARGET='$TARGET' bash -s" <<'REMOTE'
+            "APP_DIR='$APP_DIR' SERVICE_NAME='$SERVICE_NAME' TARGET='$TARGET' bash -s" <<'REMOTE'
           set -e
           cd "$APP_DIR"
           git fetch --prune --tags origin
           git checkout "$TARGET" -- scripts/deploy.sh
           bash scripts/deploy.sh "$TARGET"
           REMOTE
-
-      - name: Summarise what moved
-        if: ${{ always() && steps.server.outputs.current != '' }}
-        env:
-          CURRENT: ${{ steps.server.outputs.current }}
-          EXPECTED: ${{ steps.plan.outputs.expect }}
-        run: |
-          {
-            echo "### Deploy"
-            echo ""
-            echo "| | commit |"
-            echo "|---|---|"
-            echo "| was | \`$CURRENT\` |"
-            echo "| now | \`$TARGET\` |"
-            echo ""
-            echo "Migrations expected: \`${EXPECTED:-unknown}\`"
-          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Smoke-test the public URL
         # /api/health is loopback-only on the server, so this checks what a user actually reaches:
