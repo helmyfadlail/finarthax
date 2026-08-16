@@ -132,6 +132,29 @@ restart_service() {
   sudo -n systemctl restart "$SERVICE_NAME"
 }
 
+# Everything below is best effort and must never fail the caller: this runs when something has
+# already gone wrong, and losing the rollback because the diagnosis itself errored would be worse
+# than having no diagnosis at all.
+diagnose_health() {
+  warn "No answer from $HEALTH_URL after ${HEALTH_TIMEOUT}s."
+
+  info "unit:  $(systemctl is-active "$SERVICE_NAME" 2>&1 || true) / $(systemctl is-failed "$SERVICE_NAME" 2>&1 || true)"
+  info "port:  $( (ss -ltnp 2>/dev/null || netstat -ltnp 2>/dev/null) | grep -F ':3000' || echo 'nothing is listening on 3000')"
+
+  # A reply at all separates "the app is up and unhealthy" - which curl -f hides behind a bare
+  # failure, because /api/health answers 503 when the database is unreachable - from "nothing is
+  # listening", which is a different problem with a different fix.
+  info "health:"
+  curl -sS --max-time 5 -w '\n  → http %{http_code}\n' "$HEALTH_URL" 2>&1 | sed 's/^/  /' || true
+
+  if journalctl -u "$SERVICE_NAME" -n 40 --no-pager >/dev/null 2>&1; then
+    info "last 40 journal lines:"
+    journalctl -u "$SERVICE_NAME" -n 40 --no-pager 2>&1 | sed 's/^/  /' || true
+  else
+    info "the journal is not readable as this user - run: sudo journalctl -u $SERVICE_NAME -n 100"
+  fi
+}
+
 wait_for_health() {
   log "Waiting for $HEALTH_URL"
 
@@ -145,6 +168,7 @@ wait_for_health() {
     waited=$((waited + 3))
   done
 
+  diagnose_health
   return 1
 }
 
