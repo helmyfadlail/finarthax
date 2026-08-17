@@ -15,12 +15,13 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(({ className, variant 
 
   const variants = {
     primary:
-      "bg-primary-500 dark:bg-secondary-400 text-white dark:text-primary-900 hover:bg-primary-600 dark:hover:bg-secondary-500 focus:ring-primary-400 dark:focus:ring-secondary-400 shadow-sm hover:shadow-md active:scale-95",
-    secondary: "bg-secondary-400 dark:bg-secondary-500 text-white hover:bg-secondary-500 dark:hover:bg-secondary-400 focus:ring-secondary-400 shadow-sm hover:shadow-md active:scale-95",
+      "bg-primary-500 dark:bg-secondary-400 text-on-solid dark:text-on-bright hover:bg-primary-600 dark:hover:bg-secondary-500 focus:ring-primary-400 dark:focus:ring-secondary-400 shadow-sm hover:shadow-md active:scale-95",
+    secondary:
+      "bg-secondary-600 dark:bg-secondary-400 text-on-solid dark:text-on-bright hover:bg-secondary-700 dark:hover:bg-secondary-500 focus:ring-secondary-500 shadow-sm hover:shadow-md active:scale-95",
     outline:
-      "border-2 border-primary-500 dark:border-secondary-400 text-primary-500 dark:text-secondary-400 hover:bg-primary-500 dark:hover:bg-secondary-400 hover:text-white dark:hover:text-primary-900 focus:ring-primary-400 active:scale-95",
+      "border-2 border-primary-500 dark:border-secondary-400 text-primary-500 dark:text-secondary-400 hover:bg-primary-500 dark:hover:bg-secondary-400 hover:text-on-solid dark:hover:text-on-bright focus:ring-primary-400 active:scale-95",
     ghost: "text-primary-600 dark:text-primary-800 hover:bg-primary-100 dark:hover:bg-primary-300 focus:ring-primary-400 active:scale-95",
-    danger: "bg-rose-500 text-white hover:bg-rose-600 focus:ring-rose-500 shadow-sm hover:shadow-md active:scale-95",
+    danger: "bg-danger-500 text-on-solid hover:bg-danger-600 focus:ring-danger-500 shadow-sm hover:shadow-md active:scale-95",
   };
 
   const sizes = {

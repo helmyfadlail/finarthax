@@ -153,13 +153,13 @@ const DueRow: React.FC<{ item: ScheduledRecurrence; onLog: (item: ScheduledRecur
   const isDue = item.status !== "UPCOMING";
 
   return (
-    <div className={`flex items-center justify-between gap-2 p-2.5 rounded-lg sm:gap-3 sm:p-3 ${isDue ? "bg-white ring-1 ring-amber-200" : "bg-white ring-1 ring-primary-100"}`}>
+    <div className={`flex items-center justify-between gap-2 p-2.5 rounded-lg sm:gap-3 sm:p-3 ${isDue ? "bg-white ring-1 ring-warning-200" : "bg-white ring-1 ring-primary-100"}`}>
       <div className="flex items-center flex-1 min-w-0 gap-2 sm:gap-3">
         <div className={`flex items-center justify-center shrink-0 w-8 h-8 text-base rounded-full sm:w-10 sm:h-10 sm:text-lg ${config.bg}`}>{item.category?.icon ?? RECURRENCE_ICONS[item.interval]}</div>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium truncate sm:text-sm text-primary-900">{item.description || "No description"}</p>
           <p className="text-xs truncate text-primary-500">
-            {RECURRENCE_LABELS[item.interval]} · {item.account?.name} · <span className={isDue ? "font-medium text-amber-600" : ""}>{relativeDue(item.daysUntil)}</span>
+            {RECURRENCE_LABELS[item.interval]} · {item.account?.name} · <span className={isDue ? "font-medium text-warning-600" : ""}>{relativeDue(item.daysUntil)}</span>
           </p>
         </div>
       </div>

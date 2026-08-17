@@ -47,27 +47,27 @@ async function main() {
 
   const defaultCategories = [
     // Income
-    { name: "Salary", type: "INCOME", icon: "💰", color: "#10B981", isDefault: true },
-    { name: "Bonus", type: "INCOME", icon: "🎁", color: "#3B82F6", isDefault: false },
-    { name: "Investment", type: "INCOME", icon: "📈", color: "#8B5CF6", isDefault: false },
-    { name: "Freelance", type: "INCOME", icon: "💼", color: "#F59E0B", isDefault: false },
-    { name: "Business", type: "INCOME", icon: "🏪", color: "#06B6D4", isDefault: false },
-    { name: "Gift", type: "INCOME", icon: "🎉", color: "#EC4899", isDefault: false },
-    { name: "Other Income", type: "INCOME", icon: "💵", color: "#6B7280", isDefault: false },
+    { name: "Salary", type: "INCOME", icon: "💰", color: "#16a34a", isDefault: true },
+    { name: "Bonus", type: "INCOME", icon: "🎁", color: "#0284c7", isDefault: false },
+    { name: "Investment", type: "INCOME", icon: "📈", color: "#7c3aed", isDefault: false },
+    { name: "Freelance", type: "INCOME", icon: "💼", color: "#ca8a04", isDefault: false },
+    { name: "Business", type: "INCOME", icon: "🏪", color: "#0e7490", isDefault: false },
+    { name: "Gift", type: "INCOME", icon: "🎉", color: "#db2777", isDefault: false },
+    { name: "Other Income", type: "INCOME", icon: "💵", color: "#64748b", isDefault: false },
     // Expense
-    { name: "Food & Drinks", type: "EXPENSE", icon: "🍔", color: "#EF4444", isDefault: true },
-    { name: "Transportation", type: "EXPENSE", icon: "🚗", color: "#F59E0B", isDefault: false },
-    { name: "Shopping", type: "EXPENSE", icon: "🛒", color: "#8B5CF6", isDefault: false },
-    { name: "Entertainment", type: "EXPENSE", icon: "🎬", color: "#EC4899", isDefault: false },
-    { name: "Bills & Utilities", type: "EXPENSE", icon: "📄", color: "#6366F1", isDefault: false },
-    { name: "Healthcare", type: "EXPENSE", icon: "⚕️", color: "#14B8A6", isDefault: false },
-    { name: "Education", type: "EXPENSE", icon: "📚", color: "#06B6D4", isDefault: false },
-    { name: "Household", type: "EXPENSE", icon: "🏠", color: "#84CC16", isDefault: false },
-    { name: "Clothing", type: "EXPENSE", icon: "👕", color: "#A855F7", isDefault: false },
-    { name: "Beauty", type: "EXPENSE", icon: "💄", color: "#F472B6", isDefault: false },
-    { name: "Technology", type: "EXPENSE", icon: "💻", color: "#3B82F6", isDefault: false },
-    { name: "Sports & Fitness", type: "EXPENSE", icon: "⚽", color: "#22C55E", isDefault: false },
-    { name: "Donation", type: "EXPENSE", icon: "🤲", color: "#10B981", isDefault: false },
+    { name: "Food & Drinks", type: "EXPENSE", icon: "🍔", color: "#dc2626", isDefault: true },
+    { name: "Transportation", type: "EXPENSE", icon: "🚗", color: "#ea580c", isDefault: false },
+    { name: "Shopping", type: "EXPENSE", icon: "🛒", color: "#7c3aed", isDefault: false },
+    { name: "Entertainment", type: "EXPENSE", icon: "🎬", color: "#db2777", isDefault: false },
+    { name: "Bills & Utilities", type: "EXPENSE", icon: "📄", color: "#4f46e5", isDefault: false },
+    { name: "Healthcare", type: "EXPENSE", icon: "⚕️", color: "#0d9488", isDefault: false },
+    { name: "Education", type: "EXPENSE", icon: "📚", color: "#0e7490", isDefault: false },
+    { name: "Household", type: "EXPENSE", icon: "🏠", color: "#65a30d", isDefault: false },
+    { name: "Clothing", type: "EXPENSE", icon: "👕", color: "#7c3aed", isDefault: false },
+    { name: "Beauty", type: "EXPENSE", icon: "💄", color: "#db2777", isDefault: false },
+    { name: "Technology", type: "EXPENSE", icon: "💻", color: "#0284c7", isDefault: false },
+    { name: "Sports & Fitness", type: "EXPENSE", icon: "⚽", color: "#16a34a", isDefault: false },
+    { name: "Donation", type: "EXPENSE", icon: "🤲", color: "#0d9488", isDefault: false },
   ];
 
   const categoryIds: Record<string, string> = {};
@@ -99,13 +99,13 @@ async function main() {
 
   const [cashAccount, bankAccount, ewalletAccount, creditAccount, savingsAccount, investmentAccount] = await Promise.all([
     prisma.account.create({
-      data: { userId: demoUser.id, name: "Cash", type: "CASH", balance: 0, color: "#10B981", icon: "💵", isDefault: true },
+      data: { userId: demoUser.id, name: "Cash", type: "CASH", balance: 0, color: "#16a34a", icon: "💵", isDefault: true },
     }),
     prisma.account.create({
-      data: { userId: demoUser.id, name: "Bank Account", type: "BANK", balance: 0, color: "#3B82F6", icon: "🏦", isDefault: false },
+      data: { userId: demoUser.id, name: "Bank Account", type: "BANK", balance: 0, color: "#0284c7", icon: "🏦", isDefault: false },
     }),
     prisma.account.create({
-      data: { userId: demoUser.id, name: "GoPay / OVO", type: "EWALLET", balance: 0, color: "#22C55E", icon: "📱", isDefault: false },
+      data: { userId: demoUser.id, name: "GoPay / OVO", type: "EWALLET", balance: 0, color: "#0d9488", icon: "📱", isDefault: false },
     }),
     prisma.account.create({
       data: {
@@ -114,16 +114,16 @@ async function main() {
         type: "CREDIT_CARD",
         balance: 0, // starts fully paid off
         creditLimit: 15_000_000,
-        color: "#EF4444",
+        color: "#dc2626",
         icon: "💳",
         isDefault: false,
       },
     }),
     prisma.account.create({
-      data: { userId: demoUser.id, name: "Savings", type: "BANK", balance: 0, color: "#8B5CF6", icon: "🏛️", isDefault: false },
+      data: { userId: demoUser.id, name: "Savings", type: "BANK", balance: 0, color: "#0e7490", icon: "🏛️", isDefault: false },
     }),
     prisma.account.create({
-      data: { userId: demoUser.id, name: "Investment", type: "INVESTMENT", balance: 0, color: "#F59E0B", icon: "📈", isDefault: false },
+      data: { userId: demoUser.id, name: "Investment", type: "INVESTMENT", balance: 0, color: "#ca8a04", icon: "📈", isDefault: false },
     }),
   ]);
 

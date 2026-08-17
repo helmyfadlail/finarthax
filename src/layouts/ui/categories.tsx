@@ -4,6 +4,7 @@ import * as React from "react";
 import { useTranslations } from "next-intl";
 import { Card, CardContent, Button, Modal, Badge, useToast, Input, Select } from "@/components";
 import { useCategories } from "@/hooks";
+import { ACCENT_PALETTE, ACCENT_DEFAULT, accentTile } from "@/static";
 import type { Category } from "@/types";
 
 interface FormData {
@@ -35,12 +36,12 @@ interface EmptyStateProps {
   onCreateClick: () => void;
 }
 
-const COLOR_PALETTE = ["#1E4E70", "#1E5F7A", "#3F5C8C", "#2B8FA3", "#2C9B9B", "#5B7C9C", "#3A8F8A", "#4A9B7F", "#7BA7BC", "#8FC1C9"];
+const COLOR_PALETTE = [...ACCENT_PALETTE];
 const ICON_SUGGESTIONS = {
   INCOME: ["💰", "💵", "💸", "💳", "🏆", "📈", "💼", "🎁"],
   EXPENSE: ["🛒", "🍔", "🏠", "🚗", "⚡", "🎮", "👕", "📱", "✈️", "🏥", "📚", "🎬"],
 };
-const INITIAL_FORM: FormData = { name: "", type: "EXPENSE", icon: "📁", color: "#5F9598", isDefault: false };
+const INITIAL_FORM: FormData = { name: "", type: "EXPENSE", icon: "📁", color: ACCENT_DEFAULT, isDefault: false };
 
 const CategoryCard: React.FC<CategoryCardProps> = ({ category, onEdit, onDelete }) => {
   const t = useTranslations("categoriesPage");
@@ -52,7 +53,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category, onEdit, onDelete 
         <div className="flex items-start justify-between mb-3 sm:mb-4">
           <div
             className="flex items-center justify-center text-2xl transition-transform sm:text-3xl w-11 h-11 sm:w-14 sm:h-14 rounded-2xl group-hover:scale-110"
-            style={{ backgroundColor: category.color + "20" }}
+            style={accentTile(category.color)}
           >
             {category.icon}
           </div>
@@ -194,7 +195,7 @@ export const CategoryFormModal: React.FC<CategoryFormModalProps> = ({ isOpen, on
         <div className="p-3 border rounded-lg sm:p-4 bg-primary-50 dark:bg-primary-300 border-primary-100 dark:border-primary-400">
           <p className="mb-2 text-xs font-medium sm:mb-3 sm:text-sm text-primary-600 dark:text-primary-700">{t("modal.preview")}:</p>
           <div className="flex items-center gap-2.5 p-2.5 rounded-lg shadow-sm sm:gap-3 sm:p-3 bg-white dark:bg-primary-200">
-            <div className="flex items-center justify-center w-10 h-10 text-xl sm:w-12 sm:h-12 sm:text-2xl rounded-xl shrink-0" style={{ backgroundColor: formData.color + "20" }}>
+            <div className="flex items-center justify-center w-10 h-10 text-xl sm:w-12 sm:h-12 sm:text-2xl rounded-xl shrink-0" style={accentTile(formData.color)}>
               {formData.icon || "📁"}
             </div>
             <div className="flex-1 min-w-0">
@@ -312,7 +313,7 @@ export const Categories: React.FC = () => {
 
   const handleEdit = React.useCallback((category: Category): void => {
     setEditingCategory(category);
-    setFormData({ name: category.name, type: category.type, icon: category.icon || "📁", color: category.color || "#5F9598", isDefault: category.isDefault || false });
+    setFormData({ name: category.name, type: category.type, icon: category.icon || "📁", color: category.color || ACCENT_DEFAULT, isDefault: category.isDefault || false });
     setIsModalOpen(true);
   }, []);
 
@@ -352,8 +353,8 @@ export const Categories: React.FC = () => {
             <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
               {[
                 { value: stats.total, label: t("stats.total"), color: "text-primary-900 dark:text-primary-900" },
-                { value: stats.income, label: t("income"), color: "text-emerald-600 dark:text-emerald-400" },
-                { value: stats.expense, label: t("expense"), color: "text-rose-600 dark:text-rose-400" },
+                { value: stats.income, label: t("income"), color: "text-success-600 dark:text-success-400" },
+                { value: stats.expense, label: t("expense"), color: "text-danger-600 dark:text-danger-400" },
                 { value: stats.custom, label: t("stats.custom"), color: "text-primary-900 dark:text-primary-900" },
               ].map(({ value, label, color }) => (
                 <div key={label} className="text-center">
@@ -426,11 +427,11 @@ export const Categories: React.FC = () => {
 
       <Modal isOpen={!!deleteId} onClose={() => setDeleteId(null)} title={t("deleteModal.title")} size="sm">
         <div className="space-y-3 sm:space-y-4">
-          <div className="flex items-start gap-2.5 p-3 border border-rose-200 dark:border-rose-900/30 rounded-lg sm:gap-3 sm:p-4 bg-rose-50 dark:bg-rose-950/20">
+          <div className="flex items-start gap-2.5 p-3 border border-danger-300 dark:border-danger-700 rounded-lg sm:gap-3 sm:p-4 bg-danger-100 dark:bg-danger-800">
             <span className="text-xl sm:text-2xl shrink-0">⚠️</span>
             <div>
-              <p className="mb-0.5 text-sm font-medium sm:mb-1 text-rose-900 dark:text-rose-300">{t("deleteModal.confirm")}</p>
-              <p className="text-xs text-rose-700 dark:text-rose-400 sm:text-sm">{t("deleteModal.warning")}</p>
+              <p className="mb-0.5 text-sm font-medium sm:mb-1 text-danger-800 dark:text-danger-300">{t("deleteModal.confirm")}</p>
+              <p className="text-xs text-danger-700 dark:text-danger-400 sm:text-sm">{t("deleteModal.warning")}</p>
             </div>
           </div>
           <div className="flex justify-end gap-2 sm:gap-3">

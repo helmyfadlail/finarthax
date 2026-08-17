@@ -110,7 +110,7 @@ const SidebarContent = ({ session, router, pathname, logout }: SidebarContentPro
               key={item.name}
               onClick={() => router.push(item.href)}
               className={`flex items-center w-full gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm md:px-4 md:py-3 md:text-base ${
-                isActive ? "bg-primary-500 text-white dark:bg-secondary-400 dark:text-primary-900" : "text-primary-700 hover:bg-primary-50 dark:text-primary-800 dark:hover:bg-primary-200"
+                isActive ? "bg-primary-500 text-on-solid dark:bg-secondary-400 dark:text-on-bright" : "text-primary-700 hover:bg-primary-50 dark:text-primary-800 dark:hover:bg-primary-200"
               }`}
             >
               <span className="text-lg md:text-xl">{item.icon}</span>

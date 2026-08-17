@@ -26,9 +26,9 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onUpdateProgress, onDelete })
   const status = React.useMemo(() => calculateGoalStatus(goal), [goal]);
 
   const progressColor = React.useMemo(() => {
-    if (status.isCompleted) return "bg-secondary-400 dark:bg-secondary-400";
+    if (status.isCompleted) return "bg-success-500 dark:bg-success-500";
     if (status.percentage >= 75) return "bg-primary-500 dark:bg-primary-500";
-    if (status.percentage >= 50) return "bg-amber-500 dark:bg-amber-400";
+    if (status.percentage >= 50) return "bg-warning-500 dark:bg-warning-400";
     return "bg-primary-400 dark:bg-primary-400";
   }, [status]);
 
@@ -93,13 +93,13 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onUpdateProgress, onDelete })
         </div>
 
         {status.isCompleted && (
-          <div className="p-2.5 mb-3 border border-secondary-200 dark:border-secondary-800/30 rounded-lg sm:p-3 sm:mb-4 bg-secondary-50 dark:bg-secondary-900/10">
-            <p className="flex items-center gap-2 text-xs font-medium text-secondary-600 dark:text-secondary-400 sm:text-sm">🎉 {t("congratulations")}</p>
+          <div className="p-2.5 mb-3 border border-secondary-200 dark:border-secondary-300 rounded-lg sm:p-3 sm:mb-4 bg-secondary-50 dark:bg-secondary-100">
+            <p className="flex items-center gap-2 text-xs font-medium text-success-600 dark:text-success-400 sm:text-sm">🎉 {t("congratulations")}</p>
           </div>
         )}
         {status.isOverdue && !status.isCompleted && (
-          <div className="p-2.5 mb-3 border border-rose-200 dark:border-rose-900/30 rounded-lg sm:p-3 sm:mb-4 bg-rose-50 dark:bg-rose-950/20">
-            <p className="flex items-center gap-2 text-xs font-medium text-rose-700 dark:text-rose-400 sm:text-sm">⚠️ {t("overdueWarning")}</p>
+          <div className="p-2.5 mb-3 border border-danger-300 dark:border-danger-700 rounded-lg sm:p-3 sm:mb-4 bg-danger-100 dark:bg-danger-800">
+            <p className="flex items-center gap-2 text-xs font-medium text-danger-700 dark:text-danger-400 sm:text-sm">⚠️ {t("overdueWarning")}</p>
           </div>
         )}
 
@@ -277,7 +277,7 @@ export const Goals: React.FC = () => {
             <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
               {[
                 { value: summary.totalGoals, label: t("summary.totalGoals"), color: "text-primary-900 dark:text-primary-900" },
-                { value: summary.completedGoals, label: t("summary.completed"), color: "text-secondary-400 dark:text-secondary-400" },
+                { value: summary.completedGoals, label: t("summary.completed"), color: "text-success-600 dark:text-success-400" },
                 { value: `${summary.overallProgress.toFixed(0)}%`, label: t("summary.overallProgress"), color: "text-primary-900 dark:text-primary-900" },
                 { value: format(summary.totalSaved), label: t("summary.ofTotal", { amount: format(summary.totalTarget) }), color: "text-primary-900 dark:text-primary-900" },
               ].map(({ value, label, color }) => (
@@ -381,7 +381,7 @@ export const Goals: React.FC = () => {
           />
 
           {selectedGoal && progressAmount && (
-            <div className="p-2.5 border border-secondary-200 dark:border-secondary-800/30 rounded-lg sm:p-3 bg-secondary-50 dark:bg-secondary-900/10">
+            <div className="p-2.5 border border-secondary-200 dark:border-secondary-300 rounded-lg sm:p-3 bg-secondary-50 dark:bg-secondary-100">
               <p className="text-xs text-secondary-600 dark:text-secondary-400 sm:text-sm">
                 {parseFloat(progressAmount) >= Number(selectedGoal.targetAmount)
                   ? `🎉 ${t("progressModal.willComplete")}`
@@ -403,11 +403,11 @@ export const Goals: React.FC = () => {
 
       <Modal isOpen={!!deleteId} onClose={() => setDeleteId(null)} title={t("deleteModal.title")} size="sm">
         <div className="space-y-3 sm:space-y-4">
-          <div className="flex items-start gap-2.5 p-3 border border-rose-200 dark:border-rose-900/30 rounded-lg sm:gap-3 sm:p-4 bg-rose-50 dark:bg-rose-950/20">
+          <div className="flex items-start gap-2.5 p-3 border border-danger-300 dark:border-danger-700 rounded-lg sm:gap-3 sm:p-4 bg-danger-100 dark:bg-danger-800">
             <span className="text-xl sm:text-2xl shrink-0">⚠️</span>
             <div>
-              <p className="mb-0.5 text-sm font-medium sm:mb-1 text-rose-900 dark:text-rose-300">{t("deleteModal.confirm")}</p>
-              <p className="text-xs text-rose-700 dark:text-rose-400 sm:text-sm">{t("deleteModal.warning")}</p>
+              <p className="mb-0.5 text-sm font-medium sm:mb-1 text-danger-800 dark:text-danger-300">{t("deleteModal.confirm")}</p>
+              <p className="text-xs text-danger-700 dark:text-danger-400 sm:text-sm">{t("deleteModal.warning")}</p>
             </div>
           </div>
           <div className="flex justify-end gap-2 sm:gap-3">

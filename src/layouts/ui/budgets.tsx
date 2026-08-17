@@ -42,9 +42,9 @@ const BudgetItem: React.FC<BudgetItemProps> = ({ budget, alertThreshold, onEdit,
   const remaining: number = amount - spent;
 
   const status: BudgetStatus = React.useMemo(() => {
-    if (percentage >= 100) return { type: "over", color: "text-rose-600 dark:text-rose-400", barColor: "bg-rose-500", label: t("status.overBudget") };
-    if (percentage >= alertThreshold) return { type: "warning", color: "text-amber-600 dark:text-amber-400", barColor: "bg-amber-500", label: t("status.approachingLimit") };
-    return { type: "safe", color: "text-secondary-400 dark:text-secondary-400", barColor: "bg-secondary-400", label: t("status.onTrack") };
+    if (percentage >= 100) return { type: "over", color: "text-danger-600 dark:text-danger-400", barColor: "bg-danger-500", label: t("status.overBudget") };
+    if (percentage >= alertThreshold) return { type: "warning", color: "text-warning-600 dark:text-warning-400", barColor: "bg-warning-500", label: t("status.approachingLimit") };
+    return { type: "safe", color: "text-success-600 dark:text-success-400", barColor: "bg-success-500", label: t("status.onTrack") };
   }, [percentage, alertThreshold, t]);
 
   const handleSaveEdit = React.useCallback(() => {
@@ -131,15 +131,15 @@ const BudgetItem: React.FC<BudgetItemProps> = ({ budget, alertThreshold, onEdit,
         </div>
 
         {status.type === "over" && (
-          <div className="flex items-center gap-2 p-2 mt-2 border border-rose-200 dark:border-rose-900/30 rounded-lg sm:mt-3 bg-rose-50 dark:bg-rose-950/20">
-            <span className="text-rose-600 dark:text-rose-400 shrink-0">⚠️</span>
-            <p className="text-xs font-medium text-rose-600 dark:text-rose-400 sm:text-sm">{t("overBudgetBy", { amount: format(Math.abs(remaining)) })}</p>
+          <div className="flex items-center gap-2 p-2 mt-2 border border-danger-300 dark:border-danger-700 rounded-lg sm:mt-3 bg-danger-100 dark:bg-danger-800">
+            <span className="text-danger-600 dark:text-danger-400 shrink-0">⚠️</span>
+            <p className="text-xs font-medium text-danger-600 dark:text-danger-400 sm:text-sm">{t("overBudgetBy", { amount: format(Math.abs(remaining)) })}</p>
           </div>
         )}
         {status.type === "warning" && (
-          <div className="flex items-center gap-2 p-2 mt-2 border border-amber-200 dark:border-amber-900/30 rounded-lg sm:mt-3 bg-amber-50 dark:bg-amber-950/20">
-            <span className="text-amber-600 dark:text-amber-400 shrink-0">⚠️</span>
-            <p className="text-xs font-medium text-amber-600 dark:text-amber-400 sm:text-sm">
+          <div className="flex items-center gap-2 p-2 mt-2 border border-warning-300 dark:border-warning-700 rounded-lg sm:mt-3 bg-warning-100 dark:bg-warning-800">
+            <span className="text-warning-600 dark:text-warning-400 shrink-0">⚠️</span>
+            <p className="text-xs font-medium text-warning-600 dark:text-warning-400 sm:text-sm">
               {status.label} — {percentage.toFixed(0)}% {t("used")}
             </p>
           </div>
@@ -390,11 +390,11 @@ export const Budgets: React.FC = () => {
 
       <Modal isOpen={!!deleteId} onClose={() => setDeleteId(null)} title={t("deleteModal.title")} size="sm">
         <div className="space-y-3 sm:space-y-4">
-          <div className="flex items-start gap-2.5 p-3 border border-rose-200 dark:border-rose-900/30 rounded-lg sm:gap-3 sm:p-4 bg-rose-50 dark:bg-rose-950/20">
+          <div className="flex items-start gap-2.5 p-3 border border-danger-300 dark:border-danger-700 rounded-lg sm:gap-3 sm:p-4 bg-danger-100 dark:bg-danger-800">
             <span className="text-xl sm:text-2xl shrink-0">⚠️</span>
             <div>
-              <p className="mb-0.5 text-sm font-medium sm:mb-1 text-rose-900 dark:text-rose-300">{t("deleteModal.confirm")}</p>
-              <p className="text-xs text-rose-700 dark:text-rose-400 sm:text-sm">{t("deleteModal.warning")}</p>
+              <p className="mb-0.5 text-sm font-medium sm:mb-1 text-danger-800 dark:text-danger-300">{t("deleteModal.confirm")}</p>
+              <p className="text-xs text-danger-700 dark:text-danger-400 sm:text-sm">{t("deleteModal.warning")}</p>
             </div>
           </div>
           <div className="flex justify-end gap-2 sm:gap-3">

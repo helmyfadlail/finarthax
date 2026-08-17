@@ -59,7 +59,7 @@ export const DropdownItem = ({ children, onClick, icon, danger }: DropdownItemPr
       "gap-2 px-3 py-2 text-xs",
       "md:gap-2.5 md:px-3.5 md:py-2.5 md:text-xs",
       "lg:gap-3 lg:px-4 lg:py-3 lg:text-sm",
-      danger ? "text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/20" : "text-primary-900 dark:text-primary-900 hover:bg-primary-50 dark:hover:bg-primary-300",
+      danger ? "text-danger-600 dark:text-danger-400 hover:bg-danger-100 dark:hover:bg-danger-800" : "text-primary-900 dark:text-primary-900 hover:bg-primary-50 dark:hover:bg-primary-300",
     )}
   >
     {icon && <span className="shrink-0">{icon}</span>}

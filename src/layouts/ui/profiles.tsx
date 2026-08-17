@@ -24,16 +24,16 @@ const PasswordStrengthIndicator: React.FC<{ password: string }> = ({ password })
   const strength = React.useMemo(() => calculatePasswordStrength(password), [password]);
   if (!password) return null;
 
-  const barColor = strength.strength === "strong" ? "bg-secondary-400" : strength.strength === "medium" ? "bg-primary-400" : strength.strength === "weak" ? "bg-amber-500" : "bg-rose-500";
+  const barColor = strength.strength === "strong" ? "bg-success-500" : strength.strength === "medium" ? "bg-primary-400" : strength.strength === "weak" ? "bg-warning-500" : "bg-danger-500";
 
   const textColor =
     strength.strength === "strong"
-      ? "text-secondary-400 dark:text-secondary-400"
+      ? "text-success-600 dark:text-success-400"
       : strength.strength === "medium"
         ? "text-primary-500 dark:text-primary-700"
         : strength.strength === "weak"
-          ? "text-amber-600 dark:text-amber-400"
-          : "text-rose-600 dark:text-rose-400";
+          ? "text-warning-600 dark:text-warning-400"
+          : "text-danger-600 dark:text-danger-400";
 
   return (
     <div className="space-y-2">
@@ -47,7 +47,7 @@ const PasswordStrengthIndicator: React.FC<{ password: string }> = ({ password })
       </div>
       <div className="grid grid-cols-1 gap-1.5 text-xs sm:grid-cols-2 sm:gap-2">
         {(["length", "uppercase", "lowercase", "number", "special"] as const).map((check) => (
-          <div key={check} className={`flex items-center gap-1.5 ${strength.checks[check] ? "text-secondary-400 dark:text-secondary-400" : "text-primary-400 dark:text-primary-600"}`}>
+          <div key={check} className={`flex items-center gap-1.5 ${strength.checks[check] ? "text-success-600 dark:text-success-400" : "text-primary-400 dark:text-primary-600"}`}>
             {strength.checks[check] ? "✓" : "○"} {t(`password.requirements.${check}`)}
           </div>
         ))}
@@ -285,7 +285,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
               <p className="mt-1 text-xs sm:text-sm text-primary-500 dark:text-primary-700">{t("profile.description")}</p>
             </div>
             {hasProfileChanges && (
-              <span className="self-start px-2.5 py-1 text-xs font-medium rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 shrink-0">
+              <span className="self-start px-2.5 py-1 text-xs font-medium rounded-full bg-warning-100 dark:bg-warning-800 text-warning-700 dark:text-warning-400 shrink-0">
                 {t("profile.unsavedChanges")}
               </span>
             )}
@@ -306,9 +306,9 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
                 </div>
                 <div
                   onClick={handleAvatarClick}
-                  className="absolute inset-0 flex items-center justify-center transition-opacity bg-primary-900/50 rounded-full opacity-0 cursor-pointer group-hover:opacity-100"
+                  className="absolute inset-0 flex items-center justify-center transition-opacity bg-on-bright/60 rounded-full opacity-0 cursor-pointer group-hover:opacity-100"
                 >
-                  <span className="text-xs sm:text-sm font-medium text-white">{t("avatar.changePhoto")}</span>
+                  <span className="text-xs sm:text-sm font-medium text-on-solid">{t("avatar.changePhoto")}</span>
                 </div>
               </div>
 
@@ -422,7 +422,7 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
 
             {passwordData.confirmPassword && (
               <div
-                className={`text-xs sm:text-sm font-medium ${passwordData.newPassword === passwordData.confirmPassword ? "text-secondary-400 dark:text-secondary-400" : "text-rose-600 dark:text-rose-400"}`}
+                className={`text-xs sm:text-sm font-medium ${passwordData.newPassword === passwordData.confirmPassword ? "text-success-600 dark:text-success-400" : "text-danger-600 dark:text-danger-400"}`}
               >
                 {passwordData.newPassword === passwordData.confirmPassword ? `✓ ${t("password.match")}` : `✗ ${t("password.noMatch")}`}
               </div>

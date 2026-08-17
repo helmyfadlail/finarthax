@@ -2,35 +2,123 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * The brand ramps are grown from the Finarthax mark (public/finarthax.png), whose single
+ * colour is #336580 — HSL(201, 43%, 35%). The light `primary-500` IS that colour exactly,
+ * unmodified, and its hue holds across primary and secondary so the chrome — nav, buttons,
+ * cards, surfaces — always reads as the logo.
+ *
+ * The SEMANTIC ramps below deliberately break out of that band. Money needs to be readable
+ * at a glance, and a green desaturated down to the mark's 30–48% band is a grey-green that
+ * says nothing. Income is a clear green, expense a clear red, warnings a clear amber; the
+ * brand does its work on the surfaces around them.
+ */
 @theme {
   --shadow-border: 0 0 0px 4px var(--color-primary-100);
 
-  --color-primary-50: #e8f1f5;
-  --color-primary-100: #c5dae3;
-  --color-primary-200: #9dc0cf;
-  --color-primary-300: #74a6bc;
-  --color-primary-400: #4a8da8;
-  --color-primary-500: #1d546d;
-  --color-primary-600: #174460;
-  --color-primary-700: #123552;
-  --color-primary-800: #0c2644;
-  --color-primary-900: #061e29;
+  --color-primary-50: #eff6fa;
+  --color-primary-100: #dceaf2;
+  --color-primary-200: #a7cade;
+  --color-primary-300: #6fadcb;
+  --color-primary-400: #3d87ab;
+  --color-primary-500: #336580;
+  --color-primary-600: #29546b;
+  --color-primary-700: #1f4356;
+  --color-primary-800: #163241;
+  --color-primary-900: #0e242f;
   --color-primary: var(--color-primary-500);
 
-  --color-secondary-50: #eef4f4;
-  --color-secondary-100: #d4e7e7;
-  --color-secondary-200: #afd3d4;
-  --color-secondary-300: #8abfc0;
-  --color-secondary-400: #5f9598;
-  --color-secondary-500: #4d7e81;
-  --color-secondary-600: #3c676a;
-  --color-secondary-700: #2b5053;
-  --color-secondary-800: #1a393c;
-  --color-secondary-900: #0a2224;
+  --color-secondary-50: #e8f7f9;
+  --color-secondary-100: #cbeef2;
+  --color-secondary-200: #96dde6;
+  --color-secondary-300: #4ec5d6;
+  --color-secondary-400: #0e9fb8;
+  --color-secondary-500: #0d879c;
+  --color-secondary-600: #0b6f80;
+  --color-secondary-700: #095866;
+  --color-secondary-800: #06414c;
+  --color-secondary-900: #042b33;
   --color-secondary: var(--color-secondary-400);
 
-  --color-white: #f3f4f4;
-  --color-black: #061e29;
+  /*
+   * Semantic scales — clear, saturated hues, not brand-tinted:
+   *
+   *   success  150°  green   — income, on-track budgets, completed goals
+   *   danger     4°  red     — expense, overspend, destructive actions
+   *   warning    38° amber   — due soon, nearing a limit
+   *
+   * Unlike primary/secondary these do NOT invert in `.dark` — components pick the step per
+   * theme themselves (`text-danger-600 dark:text-danger-400`). The steps are pinned by
+   * contrast, not by even lightness spacing: `-600` clears 4.5:1 as text on the light
+   * surface, `-400` clears it on the dark one, and `-500` clears it *behind* `text-on-solid`
+   * so filled badges and pills stay readable. That is why 500/600 sit close together —
+   * a brighter 500 would fail its white label.
+   */
+  --color-success-50: #eafaf0;
+  --color-success-100: #cdf4de;
+  --color-success-200: #97e8bd;
+  --color-success-300: #4fd693;
+  --color-success-400: #16b866;
+  --color-success-500: #0b8241;
+  --color-success-600: #077a3e;
+  --color-success-700: #05622f;
+  --color-success-800: #044c25;
+  --color-success-900: #033218;
+
+  --color-danger-50: #fdf0ef;
+  --color-danger-100: #fbdedc;
+  --color-danger-200: #f7bcb8;
+  --color-danger-300: #f08f88;
+  --color-danger-400: #f4695c;
+  --color-danger-500: #d4281a;
+  --color-danger-600: #c02418;
+  --color-danger-700: #a01d12;
+  --color-danger-800: #7a160e;
+  --color-danger-900: #4f0e09;
+
+  --color-warning-50: #fff8ea;
+  --color-warning-100: #ffedc7;
+  --color-warning-200: #fdd989;
+  --color-warning-300: #fabf3d;
+  --color-warning-400: #e8a010;
+  --color-warning-500: #9c6404;
+  --color-warning-600: #875306;
+  --color-warning-700: #7a4e09;
+  --color-warning-800: #5c3a07;
+  --color-warning-900: #3d2604;
+
+  --color-white: #f8fbfc;
+  --color-black: #0e242f;
+
+  /*
+   * Text/icon colour for anything sitting on a solid colour fill — badges, filled
+   * buttons, the summary cards.
+   *
+   * `--color-white` CANNOT be used for this. It is redefined to #1b303c under `.dark`
+   * because the theme reuses it as the raised-surface token, so `text-white` silently
+   * renders as dark navy in dark mode — which is why filled badges and buttons had
+   * near-invisible labels there. This one never inverts.
+   */
+  --color-on-solid: #f8fbfc;
+
+  /*
+   * The counterpart: dark ink for fills that are *bright*, which in practice means the
+   * teal `secondary` steps under `.dark` (#2ec4de and up). Writing `dark:text-primary-900`
+   * there looks right but is backwards — the primary ramp inverts, so `primary-900` is the
+   * near-white end in dark mode and the label vanished into the fill. Like `on-solid`,
+   * this one never inverts.
+   */
+  --color-on-bright: #0e242f;
+
+  /*
+   * The auth shell's full-bleed gradient. It has to be dark in BOTH themes — it is always
+   * carrying white copy — so it cannot be built from `--color-primary` / `--color-secondary`
+   * the way it was: those invert, and the sign-in page came up as a pale cyan wash in dark
+   * mode with white text on it. Straight from the mark's own steps, frozen.
+   */
+  --color-brand-deep: #1f4356;
+  --color-brand-mid: #336580;
+  --color-brand-teal: #0b6f80;
 
   --color-background: var(--color-primary-50);
   --color-foreground: var(--color-primary-900);
@@ -38,34 +126,34 @@
 
 @layer base {
   .dark {
-    --color-primary-50: #061e29;
-    --color-primary-100: #0a2a38;
-    --color-primary-200: #0f3847;
-    --color-primary-300: #144a5e;
-    --color-primary-400: #1d546d;
-    --color-primary-500: #5f9598;
-    --color-primary-600: #80b0b2;
-    --color-primary-700: #a3c8ca;
-    --color-primary-800: #c6e0e1;
-    --color-primary-900: #f3f4f4;
+    --color-primary-50: #0e1a22;
+    --color-primary-100: #1b303c;
+    --color-primary-200: #243e4c;
+    --color-primary-300: #325162;
+    --color-primary-400: #436a7f;
+    --color-primary-500: #6eadcf;
+    --color-primary-600: #90c3df;
+    --color-primary-700: #b1d7ec;
+    --color-primary-800: #d0e9f6;
+    --color-primary-900: #eff7fb;
     --color-primary: var(--color-primary-500);
 
-    --color-secondary-50: #0a2224;
-    --color-secondary-100: #1a393c;
-    --color-secondary-200: #2b5053;
-    --color-secondary-300: #3c676a;
-    --color-secondary-400: #5f9598;
-    --color-secondary-500: #8abfc0;
-    --color-secondary-600: #afd3d4;
-    --color-secondary-700: #d4e7e7;
-    --color-secondary-800: #eef4f4;
-    --color-secondary-900: #f6fafa;
+    --color-secondary-50: #08252c;
+    --color-secondary-100: #0b3540;
+    --color-secondary-200: #0f4756;
+    --color-secondary-300: #146073;
+    --color-secondary-400: #2ec4de;
+    --color-secondary-500: #55d3e8;
+    --color-secondary-600: #83e0ef;
+    --color-secondary-700: #ade9f4;
+    --color-secondary-800: #d1f3f9;
+    --color-secondary-900: #ecfbfd;
     --color-secondary: var(--color-secondary-400);
 
-    --color-white: #0f3847;
-    --color-black: #f3f4f4;
+    --color-white: #1b303c;
+    --color-black: #eff7fb;
 
-    --color-background: #061e29;
-    --color-foreground: #f3f4f4;
+    --color-background: #0e1a22;
+    --color-foreground: #eff7fb;
   }
 }

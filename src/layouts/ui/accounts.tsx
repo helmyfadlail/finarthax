@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { useAccounts } from "@/hooks";
 import { useCurrency } from "@/providers";
 import { Card, CardContent, Button, Input, Select, Modal, Badge, useToast } from "@/components";
+import { ACCENT_PALETTE, ACCENT_DEFAULT, accentTile } from "@/static";
 import type { Account } from "@/types";
 
 interface FormData {
@@ -40,16 +41,16 @@ interface FormModalProps {
 }
 
 const ACCOUNT_TYPE_CONFIG: Record<Account["type"], { label: string; icon: string; color: string }> = {
-  CASH: { label: "Cash", icon: "💵", color: "#5F9598" },
-  BANK: { label: "Bank Account", icon: "🏦", color: "#1D546D" },
-  EWALLET: { label: "E-Wallet", icon: "📱", color: "#4d7e81" },
-  CREDIT_CARD: { label: "Credit Card", icon: "💳", color: "#EF4444" },
-  INVESTMENT: { label: "Investment", icon: "📈", color: "#061E29" },
+  CASH: { label: "Cash", icon: "💵", color: "#16a34a" },
+  BANK: { label: "Bank Account", icon: "🏦", color: "#0284c7" },
+  EWALLET: { label: "E-Wallet", icon: "📱", color: "#7c3aed" },
+  CREDIT_CARD: { label: "Credit Card", icon: "💳", color: "#dc2626" },
+  INVESTMENT: { label: "Investment", icon: "📈", color: "#ca8a04" },
 };
 
-const COLOR_PALETTE = ["#1E4E70", "#1E5F7A", "#3F5C8C", "#2B8FA3", "#2C9B9B", "#5B7C9C", "#3A8F8A", "#4A9B7F", "#7BA7BC", "#8FC1C9"];
+const COLOR_PALETTE = [...ACCENT_PALETTE];
 const ICON_SUGGESTIONS = ["💵", "🏦", "💳", "📱", "💰", "💸", "🏧", "💎", "🪙", "📈"];
-const INITIAL_FORM: FormData = { name: "", type: "CASH", balance: "", creditLimit: "", color: "#5F9598", icon: "💵", isDefault: false };
+const INITIAL_FORM: FormData = { name: "", type: "CASH", balance: "", creditLimit: "", color: ACCENT_DEFAULT, icon: "💵", isDefault: false };
 
 const AccountCard: React.FC<AccountCardProps> = ({ account, onEdit, onDelete }) => {
   const { format } = useCurrency();
@@ -58,10 +59,10 @@ const AccountCard: React.FC<AccountCardProps> = ({ account, onEdit, onDelete }) 
   const isCreditCard = account.type === "CREDIT_CARD";
   const balance = Number(account.balance);
   const displayBalance = isCreditCard ? Math.abs(balance) : balance;
-  const balanceColor = isCreditCard || balance < 0 ? "text-rose-500 dark:text-rose-400" : "text-primary-900 dark:text-primary-900";
+  const balanceColor = isCreditCard || balance < 0 ? "text-danger-500 dark:text-danger-400" : "text-primary-900 dark:text-primary-900";
   const creditLimit = account.creditLimit ? Number(account.creditLimit) : null;
   const utilisation = creditLimit && creditLimit > 0 ? Math.min((Math.abs(balance) / creditLimit) * 100, 100) : null;
-  const utilisationColor = utilisation === null ? "" : utilisation >= 90 ? "bg-rose-500" : utilisation >= 70 ? "bg-amber-500" : "bg-secondary-400";
+  const utilisationColor = utilisation === null ? "" : utilisation >= 90 ? "bg-danger-500" : utilisation >= 70 ? "bg-warning-500" : "bg-success-500";
 
   return (
     <Card variant="elevated" className="transition-all duration-300 hover:shadow-xl group dark:bg-primary-200 dark:border-primary-400">
@@ -69,7 +70,7 @@ const AccountCard: React.FC<AccountCardProps> = ({ account, onEdit, onDelete }) 
         <div className="flex items-start justify-between mb-3 sm:mb-4">
           <div
             className="flex items-center justify-center text-2xl transition-transform sm:text-3xl w-11 h-11 sm:w-14 sm:h-14 rounded-2xl group-hover:scale-110"
-            style={{ backgroundColor: (account.color ?? accountConfig.color) + "20" }}
+            style={accentTile(account.color ?? accountConfig.color)}
           >
             {account.icon || accountConfig.icon}
           </div>
@@ -97,7 +98,7 @@ const AccountCard: React.FC<AccountCardProps> = ({ account, onEdit, onDelete }) 
         <div className="mb-3 sm:mb-4">
           {isCreditCard ? (
             <div className="space-y-1">
-              <p className="text-xs font-medium text-rose-500 dark:text-rose-400">{t("creditCard.debtLabel", { defaultValue: "Debt owed" })}</p>
+              <p className="text-xs font-medium text-danger-500 dark:text-danger-400">{t("creditCard.debtLabel", { defaultValue: "Debt owed" })}</p>
               <p className={`text-xl sm:text-3xl font-bold tabular-nums ${balanceColor}`}>{format(displayBalance)}</p>
               {creditLimit !== null && (
                 <div className="mt-2 space-y-1">
@@ -170,9 +171,9 @@ const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, title, onSubmit,
         />
         <Select label={`${t("modal.type")} *`} options={accountTypeOptions} value={formData.type} onChange={(e) => onFormChange("type", e.target.value)} />
         {isCreditCard && (
-          <div className="flex items-start gap-2 p-3 border border-rose-200 dark:border-rose-900/30 rounded-lg bg-rose-50 dark:bg-rose-950/20">
+          <div className="flex items-start gap-2 p-3 border border-danger-300 dark:border-danger-700 rounded-lg bg-danger-100 dark:bg-danger-800">
             <span className="text-lg shrink-0">💳</span>
-            <p className="text-xs text-rose-700 dark:text-rose-400">{t("creditCard.balanceExplainer", { defaultValue: "For credit cards, enter the current amount you owe." })}</p>
+            <p className="text-xs text-danger-700 dark:text-danger-400">{t("creditCard.balanceExplainer", { defaultValue: "For credit cards, enter the current amount you owe." })}</p>
           </div>
         )}
         <Input
@@ -245,7 +246,7 @@ const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, title, onSubmit,
           <div className="p-3 border rounded-lg sm:p-4 bg-primary-50 dark:bg-primary-300 border-primary-100 dark:border-primary-400">
             <p className="mb-2 text-xs font-medium sm:mb-3 sm:text-sm text-primary-600 dark:text-primary-700">{t("modal.preview")}:</p>
             <div className="flex items-center gap-2.5 p-2.5 rounded-lg shadow-sm sm:gap-3 sm:p-3 bg-white dark:bg-primary-200">
-              <div className="flex items-center justify-center w-10 h-10 text-xl sm:w-12 sm:h-12 sm:text-2xl rounded-xl shrink-0" style={{ backgroundColor: formData.color + "20" }}>
+              <div className="flex items-center justify-center w-10 h-10 text-xl sm:w-12 sm:h-12 sm:text-2xl rounded-xl shrink-0" style={accentTile(formData.color)}>
                 {formData.icon || "💰"}
               </div>
               <div className="flex-1 min-w-0">
@@ -260,7 +261,7 @@ const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, title, onSubmit,
                     </Badge>
                   )}
                 </div>
-                {isCreditCard && formData.balance && <p className="mt-1 text-xs font-medium text-rose-500 dark:text-rose-400">Debt: Rp {Number(formData.balance).toLocaleString("id-ID")}</p>}
+                {isCreditCard && formData.balance && <p className="mt-1 text-xs font-medium text-danger-500 dark:text-danger-400">Debt: Rp {Number(formData.balance).toLocaleString("id-ID")}</p>}
               </div>
             </div>
           </div>
@@ -462,19 +463,23 @@ export const Accounts: React.FC = () => {
             <p className="text-xl font-bold text-white dark:text-primary-900 sm:text-2xl tabular-nums">{format(summary.totalAssets)}</p>
           </CardContent>
         </Card>
-        <Card variant="default" className="bg-linear-to-br from-rose-500 via-rose-600 to-rose-700 border-0">
+        <Card variant="default" className="bg-linear-to-br from-danger-500 via-danger-600 to-danger-700 border-0">
           <CardContent className="pt-4 pb-4 text-center sm:pt-5 sm:pb-5">
-            <p className="mb-1 text-xs text-rose-200 opacity-80 sm:text-sm">💳 {t("summary.totalDebt", { defaultValue: "Credit Card Debt" })}</p>
-            <p className="text-xl font-bold text-white sm:text-2xl tabular-nums">{format(summary.totalDebt)}</p>
+            <p className="mb-1 text-xs text-danger-200 opacity-80 sm:text-sm">💳 {t("summary.totalDebt", { defaultValue: "Credit Card Debt" })}</p>
+            <p className="text-xl font-bold text-on-solid sm:text-2xl tabular-nums">{format(summary.totalDebt)}</p>
           </CardContent>
         </Card>
         <Card
           variant="default"
-          className={`border-0 bg-linear-to-br ${summary.netWorth >= 0 ? "from-secondary-400 via-secondary-500 to-secondary-600 dark:from-secondary-300 dark:via-secondary-400 dark:to-secondary-500" : "from-rose-500 via-rose-600 to-rose-700"}`}
+          className={`border-0 bg-linear-to-br ${
+            summary.netWorth >= 0
+              ? "from-secondary-600 via-secondary-700 to-secondary-800 text-on-solid dark:from-secondary-400 dark:via-secondary-500 dark:to-secondary-600 dark:text-on-bright"
+              : "from-danger-500 via-danger-600 to-danger-700 text-on-solid"
+          }`}
         >
           <CardContent className="pt-4 pb-4 text-center sm:pt-5 sm:pb-5">
-            <p className="mb-1 text-xs opacity-80 sm:text-sm text-white">📊 {t("summary.netWorth", { defaultValue: "Net Worth" })}</p>
-            <p className="text-xl font-bold text-white sm:text-2xl tabular-nums">{format(summary.netWorth)}</p>
+            <p className="mb-1 text-xs opacity-80 sm:text-sm">📊 {t("summary.netWorth", { defaultValue: "Net Worth" })}</p>
+            <p className="text-xl font-bold sm:text-2xl tabular-nums">{format(summary.netWorth)}</p>
           </CardContent>
         </Card>
       </div>
@@ -534,7 +539,7 @@ export const Accounts: React.FC = () => {
         onSubmit={handleUpdate}
         isSubmitting={isUpdating}
         hint={`ℹ️ ${t("modal.updateHint")}`}
-        hintClass="bg-secondary-50 dark:bg-secondary-900/10 border-secondary-100 dark:border-secondary-800/20 text-secondary-600 dark:text-secondary-400"
+        hintClass="bg-secondary-50 dark:bg-secondary-100 border-secondary-100 dark:border-secondary-300 text-secondary-600 dark:text-secondary-400"
         submitLabel={t("modal.update")}
         formData={formData}
         onFormChange={handleFormChange}
@@ -544,11 +549,11 @@ export const Accounts: React.FC = () => {
 
       <Modal isOpen={!!deleteId} onClose={() => setDeleteId(null)} title={t("deleteModal.title")} size="sm">
         <div className="space-y-3 sm:space-y-4">
-          <div className="flex items-start gap-2.5 p-3 border border-rose-200 dark:border-rose-900/30 rounded-lg sm:gap-3 sm:p-4 bg-rose-50 dark:bg-rose-950/20">
+          <div className="flex items-start gap-2.5 p-3 border border-danger-300 dark:border-danger-700 rounded-lg sm:gap-3 sm:p-4 bg-danger-100 dark:bg-danger-800">
             <span className="text-xl sm:text-2xl shrink-0">⚠️</span>
             <div>
-              <p className="mb-0.5 text-sm font-medium sm:mb-1 text-rose-900 dark:text-rose-300">{t("deleteModal.confirm")}</p>
-              <p className="text-xs text-rose-700 dark:text-rose-400 sm:text-sm">{t("deleteModal.warning")}</p>
+              <p className="mb-0.5 text-sm font-medium sm:mb-1 text-danger-800 dark:text-danger-300">{t("deleteModal.confirm")}</p>
+              <p className="text-xs text-danger-700 dark:text-danger-400 sm:text-sm">{t("deleteModal.warning")}</p>
             </div>
           </div>
           <div className="flex justify-end gap-2 sm:gap-3">

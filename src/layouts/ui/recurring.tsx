@@ -10,9 +10,9 @@ import type { DetectedPattern, RecurrenceInterval, RecurrenceStatus, ScheduledRe
 import { formattedDateTime, toDateTimeInputValue } from "@/utils";
 
 const TYPE_CONFIG: Record<TransactionType, { color: string; bg: string; icon: string; prefix: string; badge: "success" | "error" | "info" }> = {
-  INCOME: { color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30", icon: "💰", prefix: "+", badge: "success" },
-  EXPENSE: { color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-100 dark:bg-rose-900/30", icon: "💳", prefix: "-", badge: "error" },
-  TRANSFER: { color: "text-secondary-400 dark:text-secondary-400", bg: "bg-secondary-100 dark:bg-secondary-900/20", icon: "🔄", prefix: "⇄", badge: "info" },
+  INCOME: { color: "text-success-600 dark:text-success-400", bg: "bg-success-500 dark:bg-success-500", icon: "💰", prefix: "+", badge: "success" },
+  EXPENSE: { color: "text-danger-600 dark:text-danger-400", bg: "bg-danger-500 dark:bg-danger-500", icon: "💳", prefix: "-", badge: "error" },
+  TRANSFER: { color: "text-secondary-600 dark:text-secondary-400", bg: "bg-secondary-400 dark:bg-secondary-400", icon: "🔄", prefix: "⇄", badge: "info" },
 };
 
 const STATUS_BADGE: Record<RecurrenceStatus, "error" | "warning" | "default"> = {
@@ -173,7 +173,7 @@ const SuggestionRow: React.FC<{
   const config = TYPE_CONFIG[pattern.type] ?? TYPE_CONFIG.EXPENSE;
 
   return (
-    <div className="p-3 transition-all border rounded-lg sm:p-4 border-secondary-100 dark:border-secondary-800/30 bg-secondary-50/60 dark:bg-secondary-900/10 hover:shadow-md">
+    <div className="p-3 transition-all border rounded-lg sm:p-4 border-secondary-100 dark:border-secondary-300 bg-secondary-50 dark:bg-secondary-100 hover:shadow-md">
       <div className="flex items-start justify-between gap-2 sm:gap-4">
         <div className="flex items-start flex-1 min-w-0 gap-2 sm:gap-3">
           <div className={`flex items-center justify-center shrink-0 w-9 h-9 text-lg sm:w-11 sm:h-11 sm:text-xl rounded-full ${config.bg}`}>{config.icon}</div>
@@ -206,7 +206,7 @@ const SuggestionRow: React.FC<{
         </div>
       </div>
 
-      <div className="flex flex-wrap justify-end gap-1.5 pt-3 mt-3 border-t sm:gap-2 border-secondary-100 dark:border-secondary-800/30">
+      <div className="flex flex-wrap justify-end gap-1.5 pt-3 mt-3 border-t sm:gap-2 border-secondary-100 dark:border-secondary-300">
         <Button variant="ghost" size="sm" onClick={() => onDismiss(pattern)} disabled={isBusy} className="text-xs">
           🙈 {t("actions.dismiss")}
         </Button>
@@ -349,23 +349,23 @@ export const RecurringDuePanel: React.FC<{ onViewAll: () => void }> = ({ onViewA
   const overflow = due.length - DUE_PANEL_LIMIT;
 
   return (
-    <Card className="border-amber-200 dark:border-amber-900/40 bg-amber-50/70 dark:bg-amber-950/20">
+    <Card className="border-warning-300 dark:border-warning-600 bg-warning-100 dark:bg-warning-800">
       <CardContent className="pt-4 sm:pt-5">
         <div className="flex items-start justify-between gap-2 mb-3">
           <div className="min-w-0">
-            <h2 className="flex items-center gap-2 text-sm font-bold sm:text-base text-amber-900 dark:text-amber-300">
+            <h2 className="flex items-center gap-2 text-sm font-bold sm:text-base text-warning-800 dark:text-warning-300">
               🔔 {t("duePanel.title")}
               <Badge variant="warning" className="text-xs">
                 {due.length}
               </Badge>
             </h2>
-            <p className="mt-0.5 text-xs sm:text-sm text-amber-700 dark:text-amber-400">{t("duePanel.description")}</p>
+            <p className="mt-0.5 text-xs sm:text-sm text-warning-700 dark:text-warning-400">{t("duePanel.description")}</p>
           </div>
           <button
             onClick={() => setIsHidden(true)}
             aria-label={t("duePanel.hide")}
             title={t("duePanel.hide")}
-            className="px-1 text-sm transition-colors shrink-0 text-amber-700/70 hover:text-amber-900 dark:text-amber-400/70 dark:hover:text-amber-300"
+            className="px-1 text-sm transition-colors shrink-0 text-warning-700 hover:text-warning-800 dark:text-warning-400 dark:hover:text-warning-300"
           >
             ✕
           </button>
@@ -408,8 +408,8 @@ export const RecurringDuePanel: React.FC<{ onViewAll: () => void }> = ({ onViewA
           })}
         </div>
 
-        <div className="flex justify-end pt-2 mt-2 border-t border-amber-200/70 dark:border-amber-900/40">
-          <Button variant="ghost" size="sm" onClick={onViewAll} className="text-xs text-amber-800 dark:text-amber-300">
+        <div className="flex justify-end pt-2 mt-2 border-t border-warning-300 dark:border-warning-600">
+          <Button variant="ghost" size="sm" onClick={onViewAll} className="text-xs text-warning-800 dark:text-warning-300">
             {overflow > 0 ? t("duePanel.more", { count: overflow }) : t("duePanel.viewAll")} →
           </Button>
         </div>
@@ -530,7 +530,7 @@ export const Recurring: React.FC = () => {
     // The title, the tab bar and the way back all belong to the workspace this renders inside of.
     <div className="space-y-3 sm:space-y-5 lg:space-y-6">
       <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-4 lg:gap-4">
-        <SummaryTile icon="🔔" label={t("summary.due")} value={String(summary.dueCount)} hint={t("summary.dueHint")} accent="text-rose-600 dark:text-rose-400" />
+        <SummaryTile icon="🔔" label={t("summary.due")} value={String(summary.dueCount)} hint={t("summary.dueHint")} accent="text-danger-600 dark:text-danger-400" />
         <SummaryTile
           icon="📅"
           label={t("summary.upcoming")}
@@ -538,7 +538,7 @@ export const Recurring: React.FC = () => {
           hint={t("summary.upcomingHint", { days: preferences.recurringLookaheadDays })}
           accent="text-primary-900 dark:text-primary-900"
         />
-        <SummaryTile icon="🔍" label={t("summary.detected")} value={String(summary.detectedCount)} hint={t("summary.detectedHint")} accent="text-secondary-500 dark:text-secondary-400" />
+        <SummaryTile icon="🔍" label={t("summary.detected")} value={String(summary.detectedCount)} hint={t("summary.detectedHint")} accent="text-secondary-600 dark:text-secondary-400" />
         <SummaryTile icon="💸" label={t("summary.committed")} value={format(summary.monthlyCommitted)} hint={t("summary.committedHint")} accent="text-primary-900 dark:text-primary-900" />
       </div>
 
@@ -659,11 +659,11 @@ export const Recurring: React.FC = () => {
 
       <Modal isOpen={!!stopTarget} onClose={() => setStopTarget(null)} title={t("stopModal.title")} size="sm">
         <div className="space-y-3 sm:space-y-4">
-          <div className="flex items-start gap-2.5 p-3 border rounded-lg sm:gap-3 sm:p-4 border-amber-200 dark:border-amber-900/30 bg-amber-50 dark:bg-amber-950/20">
+          <div className="flex items-start gap-2.5 p-3 border rounded-lg sm:gap-3 sm:p-4 border-warning-300 dark:border-warning-700 bg-warning-100 dark:bg-warning-800">
             <span className="text-xl sm:text-2xl shrink-0">⚠️</span>
             <div>
-              <p className="mb-0.5 text-sm font-medium sm:mb-1 text-amber-900 dark:text-amber-300">{t("stopModal.confirm")}</p>
-              <p className="text-xs text-amber-700 dark:text-amber-400 sm:text-sm">{t("stopModal.warning")}</p>
+              <p className="mb-0.5 text-sm font-medium sm:mb-1 text-warning-800 dark:text-warning-300">{t("stopModal.confirm")}</p>
+              <p className="text-xs text-warning-700 dark:text-warning-400 sm:text-sm">{t("stopModal.warning")}</p>
             </div>
           </div>
           <div className="flex justify-end gap-2 sm:gap-3">

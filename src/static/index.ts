@@ -6,3 +6,4 @@ export * from "./recurring";
 export * from "./user-settings";
 export * from "./content";
 export * from "./app-settings";
+export * from "./palette";

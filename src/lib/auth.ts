@@ -133,17 +133,17 @@ export const authOptions: NextAuthOptions = {
 
           await prisma.category.createMany({
             data: [
-              { userId: existingUser.id, name: "Salary", type: "INCOME", icon: "💰", color: "#10B981", isDefault: true },
-              { userId: existingUser.id, name: "Bonus", type: "INCOME", icon: "🎁", color: "#3B82F6", isDefault: true },
-              { userId: existingUser.id, name: "Freelance", type: "INCOME", icon: "💼", color: "#F59E0B", isDefault: true },
-              { userId: existingUser.id, name: "Others", type: "INCOME", icon: "💵", color: "#6B7280", isDefault: true },
+              { userId: existingUser.id, name: "Salary", type: "INCOME", icon: "💰", color: "#16a34a", isDefault: true },
+              { userId: existingUser.id, name: "Bonus", type: "INCOME", icon: "🎁", color: "#0284c7", isDefault: true },
+              { userId: existingUser.id, name: "Freelance", type: "INCOME", icon: "💼", color: "#ca8a04", isDefault: true },
+              { userId: existingUser.id, name: "Others", type: "INCOME", icon: "💵", color: "#64748b", isDefault: true },
 
-              { userId: existingUser.id, name: "Food & Drinks", type: "EXPENSE", icon: "🍔", color: "#EF4444", isDefault: true },
-              { userId: existingUser.id, name: "Transportation", type: "EXPENSE", icon: "🚗", color: "#F59E0B", isDefault: true },
-              { userId: existingUser.id, name: "Shopping", type: "EXPENSE", icon: "🛒", color: "#8B5CF6", isDefault: true },
-              { userId: existingUser.id, name: "Entertainment", type: "EXPENSE", icon: "🎬", color: "#EC4899", isDefault: true },
-              { userId: existingUser.id, name: "Bills", type: "EXPENSE", icon: "📄", color: "#6366F1", isDefault: true },
-              { userId: existingUser.id, name: "Healthcare", type: "EXPENSE", icon: "⚕️", color: "#14B8A6", isDefault: true },
+              { userId: existingUser.id, name: "Food & Drinks", type: "EXPENSE", icon: "🍔", color: "#dc2626", isDefault: true },
+              { userId: existingUser.id, name: "Transportation", type: "EXPENSE", icon: "🚗", color: "#ea580c", isDefault: true },
+              { userId: existingUser.id, name: "Shopping", type: "EXPENSE", icon: "🛒", color: "#7c3aed", isDefault: true },
+              { userId: existingUser.id, name: "Entertainment", type: "EXPENSE", icon: "🎬", color: "#db2777", isDefault: true },
+              { userId: existingUser.id, name: "Bills", type: "EXPENSE", icon: "📄", color: "#4f46e5", isDefault: true },
+              { userId: existingUser.id, name: "Healthcare", type: "EXPENSE", icon: "⚕️", color: "#0d9488", isDefault: true },
             ],
           });
 
@@ -154,7 +154,7 @@ export const authOptions: NextAuthOptions = {
               type: "CASH",
               balance: 0,
               isDefault: true,
-              color: "#10B981",
+              color: "#16a34a",
               icon: "💵",
             },
           });

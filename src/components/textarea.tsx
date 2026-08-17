@@ -18,15 +18,15 @@ const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(({ className, la
         "text-primary-900 dark:text-primary-900",
         "placeholder:text-primary-300 dark:placeholder:text-primary-600",
         "focus:border-primary-500 dark:focus:border-secondary-400",
-        "focus:ring-2 focus:ring-primary-200 dark:focus:ring-secondary-400/30 focus:outline-none",
+        "focus:ring-2 focus:ring-primary-200 dark:focus:ring-secondary-400 focus:outline-none",
         "disabled:bg-primary-50 dark:disabled:bg-primary-200 disabled:cursor-not-allowed",
         "px-3 py-2 text-sm md:px-4 md:py-2.5 md:text-base lg:px-4 lg:py-3 lg:text-base",
-        error && "border-rose-500 focus:border-rose-500 focus:ring-rose-200",
+        error && "border-danger-500 focus:border-danger-500 focus:ring-danger-200",
         className,
       )}
       {...props}
     />
-    {error && <p className="mt-1 text-xs text-rose-500 md:mt-1.5 md:text-sm">{error}</p>}
+    {error && <p className="mt-1 text-xs text-danger-500 md:mt-1.5 md:text-sm">{error}</p>}
   </div>
 ));
 Textarea.displayName = "Textarea";

@@ -10,13 +10,15 @@ const PAGE_W = 595.28;
 const PAGE_H = 841.89;
 const CONTENT_W = PAGE_W - MARGIN * 2;
 
+// Mirrors the app theme: brand ramp for chrome, clear green/red for money.
+// Paper is always white, so these are the light-mode steps only.
 const C = {
-  primary: "#1e293b",
-  secondary: "#475569",
-  accent: "#3b82f6",
-  success: "#10b981",
-  danger: "#ef4444",
-  light: "#f1f5f9",
+  primary: "#1f4356", // primary-700
+  secondary: "#336580", // primary-500 — the logo colour
+  accent: "#0284c7", // accent sky
+  success: "#077a3e", // success-600
+  danger: "#c02418", // danger-600
+  light: "#eff6fa", // primary-50
   white: "#ffffff",
 } as const;
 

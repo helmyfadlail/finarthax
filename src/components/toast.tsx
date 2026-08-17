@@ -47,10 +47,13 @@ const ToastContainer = ({ toasts, removeToast }: { toasts: Toast[]; removeToast:
 
 const ToastItem = ({ toast, onClose }: { toast: Toast; onClose: () => void }) => {
   const styles = {
-    success: "bg-secondary-400 dark:bg-secondary-500 text-white",
-    error: "bg-rose-500 dark:bg-rose-600 text-white",
-    warning: "bg-amber-500 dark:bg-amber-600 text-white",
-    info: "bg-primary-500 dark:bg-primary-400 text-white dark:text-primary-900",
+    // `text-on-solid`, not `text-white` — `--color-white` is redefined to a dark navy under
+    // `.dark` (it doubles as the raised-surface token), so `text-white` on these fills came
+    // out near-invisible in dark mode.
+    success: "bg-success-500 dark:bg-success-600 text-on-solid",
+    error: "bg-danger-500 dark:bg-danger-600 text-on-solid",
+    warning: "bg-warning-500 dark:bg-warning-600 text-on-solid",
+    info: "bg-primary-500 dark:bg-primary-400 text-on-solid dark:text-primary-900",
   };
 
   const icons = {

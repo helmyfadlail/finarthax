@@ -7,8 +7,9 @@ import { useRouter } from "@/i18n/navigation";
 import { AreaChart, Area, BarChart, Bar, PieChart, Pie, Tooltip as ReTooltip, ResponsiveContainer, XAxis, YAxis, CartesianGrid, Legend } from "recharts";
 import { apiClient } from "@/utils";
 import { usePreferences, useRecurring } from "@/hooks";
-import { useCurrency } from "@/providers";
+import { useCurrency, useTheme } from "@/providers";
 import { Card, CardHeader, CardTitle, CardContent, Badge, Button, Skeleton } from "@/components";
+import { ACCENT_PALETTE, CHART_THEME } from "@/static";
 import type { ApiResponse, DashboardCharts, DashboardSummary, Transaction, TransactionType } from "@/types";
 
 interface SummaryCardProps {
@@ -28,63 +29,56 @@ interface BudgetProgressProps {
 }
 
 const TX_CONFIG: Record<TransactionType, { color: string; iconBg: string; icon: string; badge: "success" | "error" | "info"; prefix: string }> = {
-  INCOME: { color: "text-emerald-600 dark:text-emerald-400", iconBg: "bg-emerald-100 dark:bg-emerald-900/30", icon: "💰", badge: "success", prefix: "+" },
-  EXPENSE: { color: "text-rose-600 dark:text-rose-400", iconBg: "bg-rose-100 dark:bg-rose-900/30", icon: "💳", badge: "error", prefix: "-" },
-  TRANSFER: { color: "text-secondary-400 dark:text-secondary-400", iconBg: "bg-secondary-100 dark:bg-secondary-900/30", icon: "🔄", badge: "info", prefix: "⇄" },
+  INCOME: { color: "text-success-600 dark:text-success-400", iconBg: "bg-success-500 dark:bg-success-500", icon: "💰", badge: "success", prefix: "+" },
+  EXPENSE: { color: "text-danger-600 dark:text-danger-400", iconBg: "bg-danger-500 dark:bg-danger-500", icon: "💳", badge: "error", prefix: "-" },
+  TRANSFER: { color: "text-secondary-600 dark:text-secondary-400", iconBg: "bg-secondary-400 dark:bg-secondary-400", icon: "🔄", badge: "info", prefix: "⇄" },
 };
 
-const CHART_COLORS = { income: "#5F9598", expense: "#1D546D", transfer: "#061E29", text: "#74a6bc" };
-const PIE_PALETTE = ["#5F9598", "#1D546D", "#061E29", "#9dc0cf", "#4d7e81", "#c6e0e1", "#144a5e", "#8abfc0"];
+const PIE_PALETTE = [...ACCENT_PALETTE];
 
 const SummaryCard: React.FC<SummaryCardProps> = ({ title, amount, change, icon, type, count }) => {
   const t = useTranslations("dashboardPage");
   const { format } = useCurrency();
-  const isPositive = type === "expense" ? change <= 0 : type === "transfer" ? true : change >= 0;
-
-  const colorClass =
+  // These four cards are the largest blocks on the dashboard, so they are where colour has
+  // to land. A white card with a 4px coloured edge — or a `from-*-100 to-white` gradient,
+  // which loses its tint by the second stop — leaves the top of every screen colourless.
+  // Solid fill, white type. The balance card is the logo colour itself, at full size.
+  //
+  // primary/secondary invert under `.dark` (500 becomes a pale tint there), so the dark
+  // step comes from the low end for those two. success/danger do not invert.
+  const cardTone =
     type === "income"
-      ? "text-emerald-600 dark:text-emerald-400"
+      ? "bg-success-500 dark:bg-success-600"
       : type === "expense"
-        ? "text-rose-600 dark:text-rose-400"
+        ? "bg-danger-500 dark:bg-danger-600"
         : type === "transfer"
-          ? "text-secondary-400 dark:text-secondary-400"
-          : "text-primary-900 dark:text-primary-900";
-
-  const cardBg =
-    type === "income"
-      ? "from-emerald-50 to-white border-emerald-100 dark:from-emerald-950/20 dark:to-primary-200 dark:border-emerald-900/20"
-      : type === "expense"
-        ? "from-rose-50 to-white border-rose-100 dark:from-rose-950/20 dark:to-primary-200 dark:border-rose-900/20"
-        : type === "transfer"
-          ? "from-secondary-50 to-white border-secondary-100 dark:from-secondary-900/20 dark:to-primary-200 dark:border-secondary-800/20"
-          : "from-primary-50 to-white border-primary-100 dark:from-primary-100/20 dark:to-primary-200 dark:border-primary-300";
-
-  const changeColor = type === "transfer" ? "text-secondary-400 dark:text-secondary-400" : isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400";
+          ? "bg-secondary-500 dark:bg-secondary-200"
+          : "bg-primary-500 dark:bg-primary-300";
 
   return (
-    <Card variant="elevated" className={`bg-linear-to-br ${cardBg} hover:shadow-xl transition-all duration-300 border`}>
+    <Card variant="elevated" className={`${cardTone} hover:shadow-xl transition-all duration-300`}>
       <CardHeader>
         <CardTitle className="flex items-center justify-between text-sm font-medium">
-          <span className="pr-1 text-xs tracking-wide uppercase truncate text-primary-500 dark:text-primary-700">{title}</span>
+          <span className="pr-1 text-xs tracking-wide uppercase truncate text-on-solid/85">{title}</span>
           <span className="text-lg lg:text-xl shrink-0">{icon}</span>
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className={`text-base sm:text-xl md:text-2xl lg:text-xl xl:text-3xl font-bold ${colorClass} mb-1.5 tabular-nums truncate`}>{format(amount)}</p>
+        <p className="text-base sm:text-xl md:text-2xl lg:text-xl xl:text-3xl font-bold text-on-solid mb-1.5 tabular-nums truncate">{format(amount)}</p>
         <div className="flex items-center justify-between gap-1">
           <div className="flex items-center gap-1">
             {type !== "transfer" ? (
               <>
-                <span className={`text-xs font-medium ${changeColor}`}>
+                <span className="text-xs font-medium text-on-solid">
                   {change >= 0 ? "↗" : "↘"} {Math.abs(change).toFixed(1)}%
                 </span>
-                <span className="hidden text-xs md:inline text-primary-400 dark:text-primary-600">{t("vsLastMonth")}</span>
+                <span className="hidden text-xs md:inline text-on-solid/75">{t("vsLastMonth")}</span>
               </>
             ) : (
-              <span className="text-xs font-medium text-secondary-400">⇄ {t("neutral")}</span>
+              <span className="text-xs font-medium text-on-solid">⇄ {t("neutral")}</span>
             )}
           </div>
-          {count !== undefined && <span className="text-xs text-primary-400 dark:text-primary-600 tabular-nums shrink-0">{count} txn</span>}
+          {count !== undefined && <span className="text-xs text-on-solid/75 tabular-nums shrink-0">{count} txn</span>}
         </div>
       </CardContent>
     </Card>
@@ -110,8 +104,8 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
           <h4 className="text-xs font-semibold truncate sm:text-sm text-primary-900 dark:text-primary-900">{transaction.description || t("noDescription")}</h4>
           <p className="text-xs truncate text-primary-500 dark:text-primary-700 flex items-center gap-1">
             {isTransfer ? (transaction.toAccount ? `${transaction.account?.name} → ${transaction.toAccount.name}` : transaction.account?.name) : (transaction.category?.name ?? t("uncategorized"))}
-            {isCCExp && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">debt</span>}
-            {isCCPayoff && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">payoff</span>}
+            {isCCExp && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-danger-500 text-on-solid">debt</span>}
+            {isCCPayoff && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-success-500 text-on-solid">payoff</span>}
           </p>
         </div>
       </div>
@@ -132,9 +126,9 @@ const BudgetProgress: React.FC<BudgetProgressProps> = ({ budget, alertThreshold 
   const t = useTranslations("dashboardPage");
   const { format } = useCurrency();
   const status = useMemo(() => {
-    if (budget.percentage >= 100) return { bar: "from-rose-400 to-rose-600", text: "text-rose-600 dark:text-rose-400", label: t("budgetStatus.overBudget") };
-    if (budget.percentage >= alertThreshold) return { bar: "from-amber-400 to-amber-500", text: "text-amber-600 dark:text-amber-400", label: t("budgetStatus.nearLimit") };
-    return { bar: "from-secondary-400 to-secondary-500", text: "text-secondary-400 dark:text-secondary-400", label: t("budgetStatus.onTrack") };
+    if (budget.percentage >= 100) return { bar: "from-danger-400 to-danger-600", text: "text-danger-600 dark:text-danger-400", label: t("budgetStatus.overBudget") };
+    if (budget.percentage >= alertThreshold) return { bar: "from-warning-400 to-warning-500", text: "text-warning-600 dark:text-warning-400", label: t("budgetStatus.nearLimit") };
+    return { bar: "from-success-400 to-success-500", text: "text-success-600 dark:text-success-400", label: t("budgetStatus.onTrack") };
   }, [budget.percentage, alertThreshold, t]);
 
   return (
@@ -221,6 +215,9 @@ export const Dashboard: React.FC = () => {
   const t = useTranslations("dashboardPage");
   const { format } = useCurrency();
   const router = useRouter();
+  const { isDark } = useTheme();
+
+  const CHART_COLORS = isDark ? CHART_THEME.dark : CHART_THEME.light;
 
   const { data: summary, isLoading: summaryLoading } = useQuery<ApiResponse<DashboardSummary>>({ queryKey: ["dashboard", "summary"], queryFn: () => apiClient.get("/dashboard/summary") });
   const { data: charts, isLoading: chartsLoading } = useQuery<ApiResponse<DashboardCharts>>({ queryKey: ["dashboard", "charts"], queryFn: () => apiClient.get("/dashboard/charts") });
@@ -274,7 +271,7 @@ export const Dashboard: React.FC = () => {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="mb-0.5 text-xs font-medium tracking-widest uppercase text-primary-200 dark:text-primary-700 sm:text-sm">{t("netWorth", { defaultValue: "Net Worth" })}</p>
-            <p className={`text-2xl font-bold lg:text-3xl xl:text-4xl tabular-nums ${netWorth >= 0 ? "text-white dark:text-primary-900" : "text-rose-300 dark:text-rose-400"}`}>{format(netWorth)}</p>
+            <p className={`text-2xl font-bold lg:text-3xl xl:text-4xl tabular-nums ${netWorth >= 0 ? "text-white dark:text-primary-900" : "text-danger-300 dark:text-danger-400"}`}>{format(netWorth)}</p>
             <p className="mt-0.5 text-xs text-primary-200 dark:text-primary-700 sm:text-sm sm:mt-1">
               {accounts.length} {t("accountsLinked")}
             </p>
@@ -283,12 +280,12 @@ export const Dashboard: React.FC = () => {
             <div className="flex gap-3 text-xs sm:text-sm">
               <div className="flex flex-col items-start sm:items-end gap-0.5">
                 <span className="text-primary-200 dark:text-primary-700 opacity-80">{t("totalAssets", { defaultValue: "Assets" })}</span>
-                <span className="font-bold text-emerald-300 dark:text-emerald-400 tabular-nums">{format(totalAssets)}</span>
+                <span className="font-bold text-success-300 dark:text-success-400 tabular-nums">{format(totalAssets)}</span>
               </div>
               <div className="w-px bg-primary-400 dark:bg-primary-600 self-stretch opacity-40" />
               <div className="flex flex-col items-start sm:items-end gap-0.5">
                 <span className="text-primary-200 dark:text-primary-700 opacity-80">{t("creditDebt", { defaultValue: "CC Debt" })}</span>
-                <span className="font-bold text-rose-300 dark:text-rose-400 tabular-nums">{format(totalDebt)}</span>
+                <span className="font-bold text-danger-300 dark:text-danger-400 tabular-nums">{format(totalDebt)}</span>
               </div>
             </div>
             <div className="flex flex-col gap-0.5 xl:gap-1.5">
@@ -296,8 +293,8 @@ export const Dashboard: React.FC = () => {
                 <div key={acc.id} className="flex items-center gap-2 text-xs lg:text-sm">
                   <span className="opacity-70">{acc.icon}</span>
                   <span className="truncate text-primary-100 dark:text-primary-800 max-w-24 sm:max-w-40">{acc.name}</span>
-                  <span className={`font-bold tabular-nums ${acc.type === "CREDIT_CARD" ? "text-rose-300 dark:text-rose-400" : "text-white dark:text-primary-900"}`}>{format(acc.balance)}</span>
-                  {acc.type === "CREDIT_CARD" && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-rose-900/40 text-rose-300 shrink-0">debt</span>}
+                  <span className={`font-bold tabular-nums ${acc.type === "CREDIT_CARD" ? "text-danger-300 dark:text-danger-400" : "text-white dark:text-primary-900"}`}>{format(acc.balance)}</span>
+                  {acc.type === "CREDIT_CARD" && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-danger-700 text-danger-300 shrink-0">debt</span>}
                 </div>
               ))}
               {accounts.length > 3 && <span className="text-xs text-primary-200 dark:text-primary-700">+{accounts.length - 3} more</span>}
@@ -317,8 +314,8 @@ export const Dashboard: React.FC = () => {
         <Card
           className={
             recurringDue.length > 0
-              ? "border border-amber-200 dark:border-amber-900/40 bg-amber-50 dark:bg-amber-950/20"
-              : "border border-secondary-100 dark:border-secondary-800/30 bg-secondary-50 dark:bg-secondary-900/10"
+              ? "border border-warning-300 dark:border-warning-600 bg-warning-100 dark:bg-warning-800"
+              : "border border-secondary-100 dark:border-secondary-300 bg-secondary-50 dark:bg-secondary-100"
           }
         >
           <CardContent className="pt-3 pb-3 sm:pt-4 sm:pb-4">
@@ -326,10 +323,10 @@ export const Dashboard: React.FC = () => {
               <div className="flex items-start min-w-0 gap-2 sm:gap-3">
                 <span className="text-xl sm:text-2xl shrink-0">{recurringDue.length > 0 ? "🔔" : "🔍"}</span>
                 <div className="min-w-0">
-                  <p className={`text-sm font-semibold ${recurringDue.length > 0 ? "text-amber-900 dark:text-amber-300" : "text-secondary-700 dark:text-secondary-400"}`}>
+                  <p className={`text-sm font-semibold ${recurringDue.length > 0 ? "text-warning-800 dark:text-warning-300" : "text-secondary-700 dark:text-secondary-400"}`}>
                     {recurringDue.length > 0 ? t("recurring.dueTitle", { count: recurringDue.length }) : t("recurring.detectedTitle", { count: recurringDetected.length })}
                   </p>
-                  <p className={`text-xs truncate ${recurringDue.length > 0 ? "text-amber-700 dark:text-amber-400" : "text-secondary-600 dark:text-secondary-500"}`}>
+                  <p className={`text-xs truncate ${recurringDue.length > 0 ? "text-warning-700 dark:text-warning-400" : "text-secondary-600 dark:text-secondary-500"}`}>
                     {(recurringDue.length > 0 ? recurringDue : recurringDetected)
                       .slice(0, 3)
                       .map((item) => item.description || t("recurring.noDescription"))
@@ -354,25 +351,25 @@ export const Dashboard: React.FC = () => {
               const limit = cc.creditLimit ? Number(cc.creditLimit) : null;
               const utilisation = limit && limit > 0 ? Math.min((debt / limit) * 100, 100) : null;
               return (
-                <Card key={cc.id} className="border border-rose-200 dark:border-rose-900/40 bg-rose-50 dark:bg-rose-950/20">
+                <Card key={cc.id} className="border border-danger-300 dark:border-danger-600 bg-danger-100 dark:bg-danger-800">
                   <CardContent className="pt-3 pb-3 sm:pt-4 sm:pb-4">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-lg">{cc.icon || "💳"}</span>
-                      <p className="text-xs font-semibold truncate text-rose-900 dark:text-rose-300">{cc.name}</p>
+                      <p className="text-xs font-semibold truncate text-danger-800 dark:text-danger-300">{cc.name}</p>
                       <Badge variant="error" className="ml-auto text-xs shrink-0">
                         debt
                       </Badge>
                     </div>
-                    <p className="text-lg font-bold text-rose-600 dark:text-rose-400 tabular-nums">{format(debt)}</p>
+                    <p className="text-lg font-bold text-danger-600 dark:text-danger-400 tabular-nums">{format(debt)}</p>
                     {limit !== null && (
                       <div className="mt-2 space-y-1">
-                        <div className="w-full h-1.5 rounded-full bg-rose-200 dark:bg-rose-900/40 overflow-hidden">
+                        <div className="w-full h-1.5 rounded-full bg-danger-200 dark:bg-danger-700 overflow-hidden">
                           <div
-                            className={`h-full rounded-full transition-all duration-500 ${(utilisation ?? 0) >= 90 ? "bg-rose-600" : (utilisation ?? 0) >= 70 ? "bg-amber-500" : "bg-secondary-400"}`}
+                            className={`h-full rounded-full transition-all duration-500 ${(utilisation ?? 0) >= 90 ? "bg-danger-600" : (utilisation ?? 0) >= 70 ? "bg-warning-500" : "bg-success-500"}`}
                             style={{ width: `${utilisation ?? 0}%` }}
                           />
                         </div>
-                        <p className="text-xs text-right text-rose-400 dark:text-rose-500">
+                        <p className="text-xs text-right text-danger-400 dark:text-danger-500">
                           {utilisation?.toFixed(0)}% of {format(limit)}
                         </p>
                       </div>
@@ -488,15 +485,15 @@ export const Dashboard: React.FC = () => {
       {transferSummary && transferSummary.totalMoved > 0 && (
         <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
           {[
-            { label: t("transferFlow.totalMoved"), value: transferSummary.totalMoved, icon: "🔄", color: "text-secondary-400 dark:text-secondary-400" },
-            { label: t("transferFlow.totalReceived"), value: transferSummary.totalReceived, icon: "📥", color: "text-emerald-600 dark:text-emerald-400" },
-            { label: t("transferFlow.withdrawals"), value: transferSummary.withdrawals, icon: "🏧", color: "text-amber-600 dark:text-amber-400" },
+            { label: t("transferFlow.totalMoved"), value: transferSummary.totalMoved, icon: "🔄", color: "text-secondary-600 dark:text-secondary-400" },
+            { label: t("transferFlow.totalReceived"), value: transferSummary.totalReceived, icon: "📥", color: "text-success-600 dark:text-success-400" },
+            { label: t("transferFlow.withdrawals"), value: transferSummary.withdrawals, icon: "🏧", color: "text-warning-600 dark:text-warning-400" },
           ].map(({ label, value, icon, color }) => (
-            <Card key={label} className="border bg-secondary-50 dark:bg-secondary-900/10 border-secondary-100 dark:border-secondary-800/20">
+            <Card key={label} className="border bg-secondary-50 dark:bg-secondary-100 border-secondary-100 dark:border-secondary-300">
               <CardContent className="pt-2.5 pb-2.5 sm:pt-4 sm:pb-4">
                 <div className="flex items-center gap-1.5 mb-1 sm:gap-2">
                   <span className="text-base sm:text-lg">{icon}</span>
-                  <span className="text-xs font-medium tracking-wide uppercase truncate text-secondary-500 dark:text-secondary-400">{label}</span>
+                  <span className="text-xs font-medium tracking-wide uppercase truncate text-secondary-700 dark:text-secondary-400">{label}</span>
                 </div>
                 <p className={`text-sm sm:text-lg lg:text-2xl font-bold tabular-nums ${color}`}>{format(value)}</p>
               </CardContent>
@@ -584,7 +581,7 @@ export const Dashboard: React.FC = () => {
                 icon: "🎯",
                 bg: "bg-primary-100 hover:bg-primary-200 border-primary-200 dark:bg-primary-300 dark:hover:bg-primary-400 dark:border-primary-400",
                 text: "text-secondary-600 dark:text-secondary-400",
-                sub: "text-secondary-500 dark:text-secondary-500",
+                sub: "text-secondary-600 dark:text-secondary-500",
                 title: t("quickActions.budgets.title"),
                 subtitle: t("quickActions.budgets.subtitle"),
               },
@@ -602,7 +599,7 @@ export const Dashboard: React.FC = () => {
                 icon: "📊",
                 bg: "bg-primary-100 hover:bg-primary-200 border-primary-200 dark:bg-primary-300 dark:hover:bg-primary-400 dark:border-primary-400",
                 text: "text-secondary-600 dark:text-secondary-400",
-                sub: "text-secondary-500 dark:text-secondary-500",
+                sub: "text-secondary-600 dark:text-secondary-500",
                 title: t("quickActions.reports.title"),
                 subtitle: t("quickActions.reports.subtitle"),
               },

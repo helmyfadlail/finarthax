@@ -9,18 +9,18 @@ interface AlertProps extends HTMLAttributes<HTMLDivElement> {
 const Alert = forwardRef<HTMLDivElement, AlertProps>(({ className, variant = "default", icon, children, ...props }, ref) => {
   const variants = {
     default: "bg-primary-50 dark:bg-primary-300 border-primary-200 dark:border-primary-400 text-primary-900 dark:text-primary-900",
-    success: "bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40 text-emerald-900 dark:text-emerald-300",
-    warning: "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/40 text-amber-900 dark:text-amber-300",
-    error: "bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/40 text-rose-900 dark:text-rose-300",
-    info: "bg-secondary-50 dark:bg-secondary-900/10 border-secondary-100 dark:border-secondary-800/30 text-secondary-700 dark:text-secondary-400",
+    success: "bg-success-100 dark:bg-success-800 border-success-300 dark:border-success-600 text-success-800 dark:text-success-300",
+    warning: "bg-warning-100 dark:bg-warning-800 border-warning-300 dark:border-warning-600 text-warning-800 dark:text-warning-300",
+    error: "bg-danger-100 dark:bg-danger-800 border-danger-300 dark:border-danger-600 text-danger-800 dark:text-danger-300",
+    info: "bg-secondary-50 dark:bg-secondary-100 border-secondary-100 dark:border-secondary-300 text-secondary-700 dark:text-secondary-400",
   };
 
   const iconColors = {
     default: "text-primary-500 dark:text-primary-700",
-    success: "text-emerald-600 dark:text-emerald-400",
-    warning: "text-amber-600 dark:text-amber-400",
-    error: "text-rose-600 dark:text-rose-400",
-    info: "text-secondary-500 dark:text-secondary-400",
+    success: "text-success-600 dark:text-success-400",
+    warning: "text-warning-600 dark:text-warning-400",
+    error: "text-danger-600 dark:text-danger-400",
+    info: "text-secondary-600 dark:text-secondary-400",
   };
 
   return (

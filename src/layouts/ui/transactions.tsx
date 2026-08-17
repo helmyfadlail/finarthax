@@ -52,9 +52,9 @@ const INITIAL_FORM_DATA: FormData = {
 };
 
 const TYPE_CONFIG: Record<TransactionType, { color: string; bg: string; icon: string; prefix: string }> = {
-  INCOME: { color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-100 dark:bg-emerald-900/30", icon: "💰", prefix: "+" },
-  EXPENSE: { color: "text-rose-600 dark:text-rose-400", bg: "bg-rose-100 dark:bg-rose-900/30", icon: "💳", prefix: "-" },
-  TRANSFER: { color: "text-secondary-400 dark:text-secondary-400", bg: "bg-secondary-100 dark:bg-secondary-900/20", icon: "🔄", prefix: "⇄" },
+  INCOME: { color: "text-success-600 dark:text-success-400", bg: "bg-success-500 dark:bg-success-500", icon: "💰", prefix: "+" },
+  EXPENSE: { color: "text-danger-600 dark:text-danger-400", bg: "bg-danger-500 dark:bg-danger-500", icon: "💳", prefix: "-" },
+  TRANSFER: { color: "text-secondary-600 dark:text-secondary-400", bg: "bg-secondary-400 dark:bg-secondary-400", icon: "🔄", prefix: "⇄" },
 };
 
 const isCreditCard = (account?: Account | null): boolean => account?.type === "CREDIT_CARD";
@@ -111,7 +111,7 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, dateForm
             )}
             <span className="flex items-center gap-1 truncate max-w-24 sm:max-w-none">
               {transaction.account?.icon} {transaction.account?.name}
-              {isCCExp && <span className="ml-1 px-1 py-0.5 text-[10px] font-semibold rounded bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400">debt</span>}
+              {isCCExp && <span className="ml-1 px-1 py-0.5 text-[10px] font-semibold rounded bg-danger-500 text-on-solid">debt</span>}
             </span>
             {isTransfer && transaction.toAccount && (
               <>
@@ -119,7 +119,7 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, dateForm
                 <span className="flex items-center gap-1 truncate max-w-20 sm:max-w-none">
                   {transaction.toAccount.icon} {transaction.toAccount.name}
                   {transaction.toAccount.type === "CREDIT_CARD" && (
-                    <span className="ml-1 px-1 py-0.5 text-[10px] font-semibold rounded bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">payoff</span>
+                    <span className="ml-1 px-1 py-0.5 text-[10px] font-semibold rounded bg-success-500 text-on-solid">payoff</span>
                   )}
                 </span>
               </>
@@ -631,10 +631,10 @@ export const Transactions: React.FC = () => {
             <div
               className={`flex items-start gap-2 p-3 rounded-lg border text-xs sm:text-sm ${
                 contextHint.variant === "error"
-                  ? "bg-rose-50 dark:bg-rose-950/20 border-rose-200 dark:border-rose-900/30 text-rose-700 dark:text-rose-400"
+                  ? "bg-danger-100 dark:bg-danger-800 border-danger-300 dark:border-danger-700 text-danger-700 dark:text-danger-400"
                   : contextHint.variant === "warning"
-                    ? "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-900/30 text-amber-700 dark:text-amber-400"
-                    : "bg-secondary-50 dark:bg-secondary-900/10 border-secondary-100 dark:border-secondary-800/20 text-secondary-600 dark:text-secondary-400"
+                    ? "bg-warning-100 dark:bg-warning-800 border-warning-300 dark:border-warning-700 text-warning-700 dark:text-warning-400"
+                    : "bg-secondary-50 dark:bg-secondary-100 border-secondary-100 dark:border-secondary-300 text-secondary-600 dark:text-secondary-400"
               }`}
             >
               <p>{contextHint.text}</p>
@@ -703,7 +703,7 @@ export const Transactions: React.FC = () => {
                   <Badge variant={formData.type === "INCOME" ? "success" : formData.type === "TRANSFER" ? "info" : "error"} className="text-xs">
                     {formData.type}
                   </Badge>
-                  {isSourceCreditCard && formData.type === "EXPENSE" && <p className="mt-0.5 text-xs text-rose-500 dark:text-rose-400">+debt</p>}
+                  {isSourceCreditCard && formData.type === "EXPENSE" && <p className="mt-0.5 text-xs text-danger-500 dark:text-danger-400">+debt</p>}
                 </div>
               </div>
             </div>
@@ -727,11 +727,11 @@ export const Transactions: React.FC = () => {
 
       <Modal isOpen={!!deleteId} onClose={() => setDeleteId(null)} title={t("deleteModal.title")} size="sm">
         <div className="space-y-3 sm:space-y-4">
-          <div className="flex items-start gap-2.5 p-3 border border-rose-200 dark:border-rose-900/30 rounded-lg sm:gap-3 sm:p-4 bg-rose-50 dark:bg-rose-950/20">
+          <div className="flex items-start gap-2.5 p-3 border border-danger-300 dark:border-danger-700 rounded-lg sm:gap-3 sm:p-4 bg-danger-100 dark:bg-danger-800">
             <span className="text-xl sm:text-2xl shrink-0">⚠️</span>
             <div>
-              <p className="mb-0.5 text-sm font-medium sm:mb-1 text-rose-900 dark:text-rose-300">{t("deleteModal.confirm")}</p>
-              <p className="text-xs text-rose-700 dark:text-rose-400 sm:text-sm">{t("deleteModal.warning")}</p>
+              <p className="mb-0.5 text-sm font-medium sm:mb-1 text-danger-800 dark:text-danger-300">{t("deleteModal.confirm")}</p>
+              <p className="text-xs text-danger-700 dark:text-danger-400 sm:text-sm">{t("deleteModal.warning")}</p>
             </div>
           </div>
           <div className="flex justify-end gap-2 sm:gap-3">

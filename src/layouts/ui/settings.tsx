@@ -230,7 +230,7 @@ export const Settings: React.FC = () => {
       </div>
 
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3 lg:gap-4">
-        <Card variant="elevated" className="bg-linear-to-br from-secondary-50 to-white dark:from-secondary-900/10 dark:to-primary-200 border border-secondary-100 dark:border-secondary-800/20">
+        <Card variant="elevated" className="bg-secondary-50 dark:bg-secondary-100 border border-secondary-100 dark:border-secondary-300">
           <CardContent className="pt-4 pb-4 sm:pt-6">
             <div className="text-center text-primary-900 dark:text-primary-900">
               <p className="mb-1.5 sm:mb-2 text-3xl sm:text-4xl">🔔</p>
@@ -242,7 +242,7 @@ export const Settings: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card variant="elevated" className="bg-linear-to-br from-primary-50 to-white dark:from-primary-100/20 dark:to-primary-200 border border-primary-100 dark:border-primary-300">
+        <Card variant="elevated" className="bg-primary-50 dark:bg-primary-100 border border-primary-100 dark:border-primary-300">
           <CardContent className="pt-4 pb-4 sm:pt-6">
             <div className="text-center text-primary-900 dark:text-primary-900">
               <p className="mb-1.5 sm:mb-2 text-3xl sm:text-4xl">💾</p>
@@ -252,7 +252,7 @@ export const Settings: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Card variant="elevated" className="bg-linear-to-br from-primary-100 to-white dark:from-primary-200/20 dark:to-primary-200 border border-primary-200 dark:border-primary-400">
+        <Card variant="elevated" className="bg-primary-100 dark:bg-primary-200 border border-primary-200 dark:border-primary-400">
           <CardContent className="pt-4 pb-4 sm:pt-6">
             <div className="text-center text-primary-900 dark:text-primary-900">
               <p className="mb-1.5 sm:mb-2 text-3xl sm:text-4xl">{currentTheme === "system" ? "🔄" : isDark ? "🌙" : "☀️"}</p>
@@ -356,7 +356,7 @@ export const Settings: React.FC = () => {
         <CardContent>
           <div className="space-y-3 sm:space-y-6">
             {/* Export */}
-            <div className="p-3 sm:p-4 border border-secondary-200 dark:border-secondary-800/30 rounded-lg bg-secondary-50 dark:bg-secondary-900/10">
+            <div className="p-3 sm:p-4 border border-secondary-200 dark:border-secondary-300 rounded-lg bg-secondary-50 dark:bg-secondary-100">
               <div className="flex items-start gap-2.5 sm:gap-3">
                 <span className="text-2xl sm:text-3xl shrink-0">📥</span>
                 <div className="flex-1 min-w-0">
@@ -367,7 +367,7 @@ export const Settings: React.FC = () => {
                     size="sm"
                     onClick={handleExportData}
                     isLoading={isExporting}
-                    className="text-xs sm:text-sm text-secondary-600 dark:text-secondary-400 border-secondary-300 dark:border-secondary-700 hover:bg-secondary-100 dark:hover:bg-secondary-900/20 w-full sm:w-auto"
+                    className="text-xs sm:text-sm text-secondary-600 dark:text-secondary-400 border-secondary-300 dark:border-secondary-700 hover:bg-secondary-100 dark:hover:bg-secondary-100 w-full sm:w-auto"
                   >
                     📥 {t("dataManagement.export.button")}
                   </Button>
@@ -375,11 +375,11 @@ export const Settings: React.FC = () => {
               </div>
             </div>
 
-            <div className="p-3 sm:p-4 border border-rose-200 dark:border-rose-900/30 rounded-lg bg-rose-50 dark:bg-rose-950/20">
+            <div className="p-3 sm:p-4 border border-danger-300 dark:border-danger-700 rounded-lg bg-danger-100 dark:bg-danger-800">
               <div className="flex items-start gap-2.5 sm:gap-3">
                 <span className="text-2xl sm:text-3xl shrink-0">⚠️</span>
                 <div className="flex-1 min-w-0">
-                  <h3 className="mb-0.5 sm:mb-1 text-sm sm:text-base font-medium text-rose-900 dark:text-rose-300">{t("dataManagement.dangerZone.title")}</h3>
+                  <h3 className="mb-0.5 sm:mb-1 text-sm sm:text-base font-medium text-danger-800 dark:text-danger-300">{t("dataManagement.dangerZone.title")}</h3>
                   <Alert variant="warning" className="mb-3 sm:mb-4">
                     <AlertTitle>⚠️ {t("dataManagement.dangerZone.warning.title")}</AlertTitle>
                     <AlertDescription>{t("dataManagement.dangerZone.warning.description")}</AlertDescription>
@@ -434,12 +434,12 @@ export const Settings: React.FC = () => {
         size="md"
       >
         <div className="space-y-3 sm:space-y-4">
-          <div className="flex items-start gap-2.5 sm:gap-3 p-3 sm:p-4 border border-rose-200 dark:border-rose-900/30 rounded-lg bg-rose-50 dark:bg-rose-950/20">
+          <div className="flex items-start gap-2.5 sm:gap-3 p-3 sm:p-4 border border-danger-300 dark:border-danger-700 rounded-lg bg-danger-100 dark:bg-danger-800">
             <span className="text-2xl sm:text-3xl shrink-0">⚠️</span>
             <div>
-              <p className="mb-0.5 sm:mb-1 text-sm font-medium text-rose-900 dark:text-rose-300">{t("deleteModal.warning.title")}</p>
-              <p className="text-xs sm:text-sm text-rose-700 dark:text-rose-400">{t("deleteModal.warning.description")}</p>
-              <ul className="mt-1.5 sm:mt-2 space-y-0.5 sm:space-y-1 text-xs sm:text-sm text-rose-700 dark:text-rose-400 list-disc list-inside">
+              <p className="mb-0.5 sm:mb-1 text-sm font-medium text-danger-800 dark:text-danger-300">{t("deleteModal.warning.title")}</p>
+              <p className="text-xs sm:text-sm text-danger-700 dark:text-danger-400">{t("deleteModal.warning.description")}</p>
+              <ul className="mt-1.5 sm:mt-2 space-y-0.5 sm:space-y-1 text-xs sm:text-sm text-danger-700 dark:text-danger-400 list-disc list-inside">
                 {["transactions", "budgets", "goals", "categories", "settings"].map((item) => (
                   <li key={item}>{t(`deleteModal.warning.items.${item}`)}</li>
                 ))}

@@ -63,7 +63,7 @@ export const Login = () => {
 
   if (isLoadingAppSettings) {
     return (
-      <div className="relative flex items-center justify-center min-h-screen px-4 py-6 overflow-hidden bg-linear-to-br from-primary via-secondary to-primary sm:px-6 md:px-8">
+      <div className="relative flex items-center justify-center min-h-screen px-4 py-6 overflow-hidden bg-linear-to-br from-brand-deep via-brand-teal to-brand-mid sm:px-6 md:px-8">
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           <div className="absolute w-40 h-40 rounded-full -left-16 top-10 bg-secondary opacity-20 blur-3xl sm:left-10 sm:top-20 sm:h-72 sm:w-72" />
           <div className="absolute w-56 h-56 rounded-full bottom-10 -right-16 bg-secondary opacity-20 blur-3xl sm:bottom-20 sm:right-10 sm:h-96 sm:w-96" />
@@ -106,7 +106,7 @@ export const Login = () => {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen p-4 bg-linear-to-br from-primary via-secondary to-primary">
+    <div className="flex items-center justify-center min-h-screen p-4 bg-linear-to-br from-brand-deep via-brand-teal to-brand-mid">
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute rounded-full top-20 left-10 w-72 h-72 bg-secondary opacity-20 blur-3xl" />
         <div className="absolute rounded-full bottom-20 right-10 w-96 h-96 bg-secondary opacity-20 blur-3xl" />

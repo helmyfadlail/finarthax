@@ -4,9 +4,10 @@ import * as React from "react";
 import { useTranslations } from "next-intl";
 import { apiClient } from "@/utils";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { useCurrency } from "@/providers";
+import { useCurrency, useTheme } from "@/providers";
 import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip, ResponsiveContainer, Legend } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle, Select, Skeleton, Badge, Input, Button } from "@/components";
+import { ACCENT_DEFAULT, CHART_THEME } from "@/static";
 import type { ApiResponse, MonthlyReport, YearlyReport, CustomReport } from "@/types";
 
 type ReportTab = "monthly" | "yearly" | "custom";
@@ -33,52 +34,28 @@ interface TransferStripProps {
 
 const YEAR_OPTIONS = ["2025", "2026", "2027", "2028", "2029", "2030"].map((y) => ({ value: y, label: y }));
 
-const CHART_COLORS = {
-  income: "#5F9598",
-  expense: "#1D546D",
-  transfer: "#061E29",
-  grid: "#c5dae3",
-  muted: "#74a6bc",
-};
-
+// `green` is income, `red` expense, `teal` transfers, `primary` the net figure.
+// Filled solid, matching the dashboard summary cards — a white body with a coloured edge
+// leaves the top of the page colourless. primary/secondary invert under `.dark`, so their
+// dark step comes from the low end of the ramp; success/danger do not invert.
 const COLOR_CONFIG = {
-  green: {
-    card: "from-secondary-50 to-white border-secondary-100 dark:from-secondary-900/10 dark:to-primary-200 dark:border-secondary-800/20",
-    text: "text-secondary-400 dark:text-secondary-400",
-    bg: "bg-secondary-50 dark:bg-secondary-900/10",
-    border: "border-secondary-100 dark:border-secondary-800/20",
-  },
-  red: {
-    card: "from-rose-50 to-white border-rose-100 dark:from-rose-950/20 dark:to-primary-200 dark:border-rose-900/30",
-    text: "text-rose-600 dark:text-rose-400",
-    bg: "bg-rose-50 dark:bg-rose-950/20",
-    border: "border-rose-100 dark:border-rose-900/30",
-  },
-  teal: {
-    card: "from-primary-50 to-white border-primary-100 dark:from-primary-100/20 dark:to-primary-200 dark:border-primary-300",
-    text: "text-primary-500 dark:text-primary-700",
-    bg: "bg-primary-50 dark:bg-primary-100/20",
-    border: "border-primary-100 dark:border-primary-300",
-  },
-  primary: {
-    card: "from-primary-100 to-white border-primary-200 dark:from-primary-200/20 dark:to-primary-200 dark:border-primary-400",
-    text: "text-primary-900 dark:text-primary-900",
-    bg: "bg-primary-100/50 dark:bg-primary-200/20",
-    border: "border-primary-200 dark:border-primary-400",
-  },
+  green: "bg-success-500 dark:bg-success-600",
+  red: "bg-danger-500 dark:bg-danger-600",
+  teal: "bg-secondary-500 dark:bg-secondary-200",
+  primary: "bg-primary-500 dark:bg-primary-300",
 };
 
 const StatCard: React.FC<StatCardProps> = ({ label, value, icon, color = "primary", subtitle }) => {
   const cfg = COLOR_CONFIG[color];
   return (
-    <Card variant="elevated" className={`bg-linear-to-br ${cfg.bg} border ${cfg.border} transition-all hover:shadow-lg`}>
+    <Card variant="elevated" className={`${cfg} transition-all hover:shadow-lg`}>
       <CardContent className="pt-4 pb-4 sm:pt-6">
         <div className="flex items-center justify-between mb-1 sm:mb-2">
-          <p className="text-xs sm:text-sm font-medium uppercase tracking-wide text-primary-500 dark:text-primary-700">{label}</p>
+          <p className="text-xs sm:text-sm font-medium uppercase tracking-wide text-on-solid/85">{label}</p>
           <span className="text-xl sm:text-2xl">{icon}</span>
         </div>
-        <p className={`text-xl sm:text-2xl md:text-3xl font-bold tabular-nums ${cfg.text}`}>{value}</p>
-        {subtitle && <p className="text-xs mt-1 text-primary-400 dark:text-primary-600">{subtitle}</p>}
+        <p className="text-xl sm:text-2xl md:text-3xl font-bold tabular-nums text-on-solid">{value}</p>
+        {subtitle && <p className="text-xs mt-1 text-on-solid/75">{subtitle}</p>}
       </CardContent>
     </Card>
   );
@@ -87,7 +64,7 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, icon, color = "primar
 const CategoryBar: React.FC<CategoryBarProps> = ({ category, totalExpense, rank }) => {
   const { format } = useCurrency();
   const percentage = totalExpense > 0 ? (category.total / totalExpense) * 100 : 0;
-  const barColor = category.color && category.color !== "#gray" ? category.color : "#1D546D";
+  const barColor = category.color && category.color !== "#6b7280" ? category.color : ACCENT_DEFAULT;
 
   return (
     <div className="p-3 transition-colors sm:p-4 rounded-xl bg-primary-50 dark:bg-primary-300 hover:bg-primary-100 dark:hover:bg-primary-400 group">
@@ -124,7 +101,7 @@ const MonthBreakdown: React.FC<MonthBreakdownProps> = ({ month, index }) => {
       </div>
       <div className="grid grid-cols-2 gap-2 text-xs sm:flex sm:gap-4 md:gap-6 sm:text-sm">
         <div className="text-center sm:text-right">
-          <p className="font-bold text-secondary-400 dark:text-secondary-400 tabular-nums">+{format(month.income)}</p>
+          <p className="font-bold text-success-600 dark:text-success-400 tabular-nums">+{format(month.income)}</p>
           <p className="text-primary-400 dark:text-primary-600">{t("income")}</p>
         </div>
         <div className="text-center sm:text-right">
@@ -136,7 +113,7 @@ const MonthBreakdown: React.FC<MonthBreakdownProps> = ({ month, index }) => {
           <p className="text-primary-400 dark:text-primary-600">{t("transfer")}</p>
         </div>
         <div className="text-center sm:text-right">
-          <p className={`font-bold tabular-nums ${isPositive ? "text-primary-900 dark:text-primary-900" : "text-rose-600 dark:text-rose-400"}`}>
+          <p className={`font-bold tabular-nums ${isPositive ? "text-primary-900 dark:text-primary-900" : "text-danger-600 dark:text-danger-400"}`}>
             {isPositive ? "+" : ""}
             {format(month.balance)}
           </p>
@@ -154,15 +131,15 @@ const TransferStrip: React.FC<TransferStripProps> = ({ summary }) => {
 
   const items = [
     { label: t("transferSummary.totalMoved"), value: summary.totalMoved, icon: "🔄", color: "text-primary-500 dark:text-primary-700", raw: false },
-    { label: t("transferSummary.totalReceived"), value: summary.totalReceived, icon: "📥", color: "text-secondary-400 dark:text-secondary-400", raw: false },
-    { label: t("transferSummary.withdrawals"), value: summary.withdrawals, icon: "🏧", color: "text-amber-600 dark:text-amber-400", raw: false },
+    { label: t("transferSummary.totalReceived"), value: summary.totalReceived, icon: "📥", color: "text-success-600 dark:text-success-400", raw: false },
+    { label: t("transferSummary.withdrawals"), value: summary.withdrawals, icon: "🏧", color: "text-warning-600 dark:text-warning-400", raw: false },
     { label: t("transferSummary.count"), value: summary.count, icon: "🔢", color: "text-primary-600 dark:text-primary-700", raw: true },
   ];
 
   return (
-    <Card className="border bg-secondary-50 dark:bg-secondary-900/10 border-secondary-100 dark:border-secondary-800/20">
+    <Card className="border bg-secondary-50 dark:bg-secondary-100 border-secondary-100 dark:border-secondary-300">
       <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-sm sm:text-base text-secondary-500 dark:text-secondary-400">🔄 {t("transferSummary.title")}</CardTitle>
+        <CardTitle className="flex items-center gap-2 text-sm sm:text-base text-secondary-600 dark:text-secondary-400">🔄 {t("transferSummary.title")}</CardTitle>
       </CardHeader>
       <CardContent>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
@@ -229,7 +206,7 @@ const TabButton: React.FC<{ active: boolean; onClick: () => void; children: Reac
     onClick={onClick}
     className={`px-3 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-medium transition-all ${
       active
-        ? "bg-primary-500 dark:bg-secondary-400 text-white dark:text-primary-900 shadow-md"
+        ? "bg-primary-500 dark:bg-secondary-400 text-on-solid dark:text-on-bright shadow-md"
         : "bg-primary-50 dark:bg-primary-300 text-primary-600 dark:text-primary-800 hover:bg-primary-100 dark:hover:bg-primary-400"
     }`}
   >
@@ -240,6 +217,9 @@ const TabButton: React.FC<{ active: boolean; onClick: () => void; children: Reac
 export const Reports: React.FC = () => {
   const t = useTranslations("reportsPage");
   const { format } = useCurrency();
+  const { isDark } = useTheme();
+
+  const CHART_COLORS = isDark ? CHART_THEME.dark : CHART_THEME.light;
 
   const now = React.useMemo(() => new Date(), []);
   const [activeTab, setActiveTab] = React.useState<ReportTab>("monthly");
@@ -361,13 +341,13 @@ export const Reports: React.FC = () => {
           </div>
 
           <Card
-            className={`border ${monthly.summary.balance >= 0 ? "border-secondary-200 dark:border-secondary-800/30 bg-secondary-50 dark:bg-secondary-900/10" : "border-rose-200 dark:border-rose-900/30 bg-rose-50 dark:bg-rose-950/20"}`}
+            className={`border ${monthly.summary.balance >= 0 ? "border-secondary-200 dark:border-secondary-300 bg-secondary-50 dark:bg-secondary-100" : "border-danger-300 dark:border-danger-700 bg-danger-100 dark:bg-danger-800"}`}
           >
             <CardContent className="pt-4 pb-4 sm:pt-5">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-xs tracking-wide uppercase sm:text-sm text-primary-500 dark:text-primary-700">{t("stats.netBalance")}</p>
-                  <p className={`text-2xl sm:text-3xl font-bold tabular-nums ${monthly.summary.balance >= 0 ? "text-secondary-400 dark:text-secondary-400" : "text-rose-600 dark:text-rose-400"}`}>
+                  <p className={`text-2xl sm:text-3xl font-bold tabular-nums ${monthly.summary.balance >= 0 ? "text-success-600 dark:text-success-400" : "text-danger-600 dark:text-danger-400"}`}>
                     {monthly.summary.balance >= 0 ? "+" : ""}
                     {format(monthly.summary.balance)}
                   </p>
@@ -463,28 +443,28 @@ export const Reports: React.FC = () => {
           {(yearly.summary.bestMonth || yearly.summary.worstMonth) && (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4">
               {yearly.summary.bestMonth && (
-                <Card className="border bg-secondary-50 dark:bg-secondary-900/10 border-secondary-100 dark:border-secondary-800/20">
+                <Card className="border bg-secondary-50 dark:bg-secondary-100 border-secondary-100 dark:border-secondary-300">
                   <CardContent className="pt-4 pb-4">
                     <div className="flex items-center gap-3">
                       <span className="text-2xl sm:text-3xl">🏆</span>
                       <div>
-                        <p className="text-xs font-medium uppercase text-secondary-500 dark:text-secondary-400">{t("yearly.bestMonth")}</p>
+                        <p className="text-xs font-medium uppercase text-secondary-700 dark:text-secondary-400">{t("yearly.bestMonth")}</p>
                         <p className="text-lg font-bold sm:text-xl text-secondary-600 dark:text-secondary-400">{yearly.summary.bestMonth.month}</p>
-                        <p className="text-sm text-secondary-500 dark:text-secondary-400 tabular-nums">+{format(yearly.summary.bestMonth.balance)}</p>
+                        <p className="text-sm text-success-600 dark:text-success-400 tabular-nums">+{format(yearly.summary.bestMonth.balance)}</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
               )}
               {yearly.summary.worstMonth && (
-                <Card className="border bg-rose-50 dark:bg-rose-950/20 border-rose-100 dark:border-rose-900/30">
+                <Card className="border bg-danger-100 dark:bg-danger-800 border-danger-100 dark:border-danger-700">
                   <CardContent className="pt-4 pb-4">
                     <div className="flex items-center gap-3">
                       <span className="text-2xl sm:text-3xl">📉</span>
                       <div>
-                        <p className="text-xs font-medium uppercase text-rose-600 dark:text-rose-400">{t("yearly.worstMonth")}</p>
-                        <p className="text-lg font-bold sm:text-xl text-rose-700 dark:text-rose-400">{yearly.summary.worstMonth.month}</p>
-                        <p className="text-sm text-rose-600 dark:text-rose-400 tabular-nums">{format(yearly.summary.worstMonth.balance)}</p>
+                        <p className="text-xs font-medium uppercase text-danger-600 dark:text-danger-400">{t("yearly.worstMonth")}</p>
+                        <p className="text-lg font-bold sm:text-xl text-danger-700 dark:text-danger-400">{yearly.summary.worstMonth.month}</p>
+                        <p className="text-sm text-danger-600 dark:text-danger-400 tabular-nums">{format(yearly.summary.worstMonth.balance)}</p>
                       </div>
                     </div>
                   </CardContent>
@@ -680,10 +660,10 @@ export const Reports: React.FC = () => {
                         </div>
                         <div className="grid grid-cols-2 text-xs sm:flex sm:gap-4 gap-x-4 gap-y-1 sm:text-sm">
                           {[
-                            { label: t("custom.account.in"), value: `+${format(acc.income)}`, color: "text-secondary-400 dark:text-secondary-400" },
-                            { label: t("custom.account.out"), value: `-${format(acc.expense)}`, color: "text-primary-600 dark:text-primary-700" },
-                            { label: t("custom.account.sent"), value: `-${format(acc.transferOut)}`, color: "text-amber-600 dark:text-amber-400" },
-                            { label: t("custom.account.received"), value: `+${format(acc.transferIn)}`, color: "text-primary-500 dark:text-primary-700" },
+                            { label: t("custom.account.in"), value: `+${format(acc.income)}`, color: "text-success-600 dark:text-success-400" },
+                            { label: t("custom.account.out"), value: `-${format(acc.expense)}`, color: "text-danger-600 dark:text-danger-400" },
+                            { label: t("custom.account.sent"), value: `-${format(acc.transferOut)}`, color: "text-warning-600 dark:text-warning-400" },
+                            { label: t("custom.account.received"), value: `+${format(acc.transferIn)}`, color: "text-secondary-600 dark:text-secondary-400" },
                           ].map(({ label, value, color }) => (
                             <div key={label} className="text-center sm:text-right">
                               <p className={`font-bold tabular-nums ${color}`}>{value}</p>
