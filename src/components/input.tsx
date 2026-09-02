@@ -53,7 +53,11 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({ className, label, erro
             "focus:border-primary-500 dark:focus:border-secondary-400",
             "focus:ring-2 focus:ring-primary-200 dark:focus:ring-secondary-400 focus:outline-none",
             "disabled:bg-primary-50 dark:disabled:bg-primary-200 disabled:cursor-not-allowed",
-            "px-4 py-2.5 text-sm md:text-base lg:text-base",
+            // 16px minimum at mobile width: iOS Safari auto-zooms the whole page when a
+            // focused field is under 16px and never zooms back out, which is what made every
+            // form on this app feel broken on an iPhone. py-3 also lifts the control to a
+            // ~46px touch target; the desktop steps tighten it back up.
+            "px-4 py-3 text-base md:py-2.5",
             error && "border-danger-500 focus:border-danger-500 focus:ring-danger-200",
             icon && "pl-10",
             minusNumber && "pl-11",

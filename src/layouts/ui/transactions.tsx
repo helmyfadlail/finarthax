@@ -140,10 +140,10 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, dateForm
           </Badge>
         </div>
         <div className="flex items-center gap-1 sm:gap-2">
-          <Button variant="outline" size="sm" onClick={() => onEdit(transaction)} aria-label={t("editButton")} title={t("editButton")} className="px-2 sm:px-3">
+          <Button variant="outline" size="sm" onClick={() => onEdit(transaction)} aria-label={t("editButton")} title={t("editButton")} className="w-9 px-0 sm:w-auto sm:px-3">
             ✏️
           </Button>
-          <Button variant="danger" size="sm" onClick={() => onDelete(transaction.id)} disabled={isDeleting} aria-label={t("deleteButton")} className="px-2 sm:px-3">
+          <Button variant="danger" size="sm" onClick={() => onDelete(transaction.id)} disabled={isDeleting} aria-label={t("deleteButton")} className="w-9 px-0 sm:w-auto sm:px-3">
             🗑️
           </Button>
         </div>

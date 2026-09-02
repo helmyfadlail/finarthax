@@ -114,7 +114,7 @@ const BudgetItem: React.FC<BudgetItemProps> = ({ budget, alertThreshold, onEdit,
                 {remaining >= 0 ? `${format(remaining)} ${t("left")}` : `${format(Math.abs(remaining))} ${t("over")}`}
               </p>
             </div>
-            <Button variant="danger" size="sm" onClick={() => onDelete(budget.id)} disabled={isDeleting} aria-label={t("deleteButton")} className="px-2 sm:px-3">
+            <Button variant="danger" size="sm" onClick={() => onDelete(budget.id)} disabled={isDeleting} aria-label={t("deleteButton")} className="w-9 px-0 sm:w-auto sm:px-3">
               🗑️
             </Button>
           </div>

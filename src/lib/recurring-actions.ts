@@ -8,22 +8,8 @@ import { notifyBudgetThresholdCrossed, notifyTransactionRecorded } from "./notif
 import { logger } from "./logger";
 import type { RecurrenceInterval, ScheduledRecurrence, TransactionType } from "@/types";
 
-/**
- * The two writes a recurring series accepts: log the occurrence that is due, and start or stop
- * tracking a transaction as a series.
- *
- * They live here rather than in the route because the quick-entry page performs the same two
- * actions without a session - and a second implementation of "advance the schedule and apply the
- * balance" is exactly the kind of thing that drifts until the two disagree about what your balance
- * is. The routes own authentication and the shape of the response; everything below is the
- * behaviour they share.
- *
- * Both call `after()`, so both must be called from inside a request.
- */
-
 export type TransactionWithRelations = Prisma.TransactionGetPayload<{ include: typeof TRANSACTION_INCLUDE }>;
 
-/** `error` set means nothing was written; the caller turns it into a response. */
 export interface RecurringActionResult {
   error?: string;
   status?: number;
@@ -36,7 +22,6 @@ export interface ConfirmOccurrenceInput {
   date?: string;
   description?: string;
   interval?: RecurrenceInterval;
-  /** false logs this occurrence and ends the schedule - "this was the last one". */
   keepTracking?: boolean;
 }
 
@@ -52,12 +37,6 @@ export const SERIES_INCLUDE = {
   category: { select: { id: true, name: true, icon: true, color: true } },
 } as const;
 
-/**
- * Every tracked series with a schedule, newest deadline first.
- *
- * Shared with the quick-entry page so "due now" means the same thing in both places - a series that
- * looks overdue on one screen and not on the other is a bug report waiting to happen.
- */
 export const listScheduledRecurrences = async (userId: string, now: Date = new Date()): Promise<ScheduledRecurrence[]> => {
   const anchors = await prisma.transaction.findMany({
     where: { userId, nextOccurrence: { not: null }, recurrenceInterval: { not: null } },
@@ -103,7 +82,6 @@ export const listScheduledRecurrences = async (userId: string, now: Date = new D
   });
 };
 
-/** A recorded transaction notifies its owner, whoever recorded it - on the public page that alert is also the only signal a stranger used your email. */
 const notifyRecorded = (userId: string, created: TransactionWithRelations): void => {
   after(async () => {
     try {
@@ -125,7 +103,6 @@ const notifyRecorded = (userId: string, created: TransactionWithRelations): void
   });
 };
 
-/** Records the occurrence a series is waiting for and moves the schedule to the next one. */
 export const confirmOccurrence = async (userId: string, transactionId: string, input: ConfirmOccurrenceInput = {}): Promise<RecurringActionResult> => {
   const { amount, date, description, keepTracking = true } = input;
 
@@ -152,7 +129,6 @@ export const confirmOccurrence = async (userId: string, transactionId: string, i
     return { error: "This series already ended. Update its end date before logging another occurrence.", status: 422 };
   }
 
-  // A suggestion confirmed straight from detection has no series yet — create one now.
   let recurrenceKey = source.recurrenceKey;
   if (!recurrenceKey) {
     recurrenceKey = createId();
@@ -193,7 +169,6 @@ export const confirmOccurrence = async (userId: string, transactionId: string, i
 
     await applyBudgetChange(tx, userId, { type: source.type, categoryId: source.categoryId, amount: occurrenceAmount, date: occurrenceDate }, "apply");
 
-    // Only one row per series may hold the schedule.
     await tx.transaction.updateMany({
       where: { userId, recurrenceKey, id: { not: occurrence.id } },
       data: { nextOccurrence: null },
@@ -221,7 +196,6 @@ export const confirmOccurrence = async (userId: string, transactionId: string, i
   };
 };
 
-/** Starts tracking a transaction (and its siblings) as a series, or stops tracking one. */
 export const trackSeries = async (userId: string, transactionId: string, input: TrackSeriesInput): Promise<RecurringActionResult> => {
   const { isRecurring, interval, endDate } = input;
 
@@ -283,7 +257,6 @@ export const trackSeries = async (userId: string, transactionId: string, input: 
     await tx.transaction.update({ where: { id: anchor.id }, data: { nextOccurrence: isFinished ? null : nextOccurrence } });
   });
 
-  // This rewrites a whole series at once, so record how many rows it touched.
   logger.info("recurring.tracked", {
     transactionId,
     anchorId: anchor.id,

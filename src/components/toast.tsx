@@ -38,7 +38,18 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
 };
 
 const ToastContainer = ({ toasts, removeToast }: { toasts: Toast[]; removeToast: (id: string) => void }) => (
-  <div className={cn("fixed flex flex-col z-100", "bottom-0 left-0 right-0 gap-2 p-3", "md:bottom-4 md:left-auto md:right-4 md:p-0 md:max-w-sm", "lg:max-w-md")}>
+  // The mobile stack is bottom-anchored, so its bottom padding has to clear the iOS home
+  // indicator or the newest toast sits under it. `pointer-events-none` on the container with
+  // `pointer-events-auto` on each toast keeps the full-width strip from swallowing taps on
+  // whatever is behind it.
+  <div
+    className={cn(
+      "fixed flex flex-col z-100 pointer-events-none",
+      "bottom-0 left-0 right-0 gap-2 p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]",
+      "md:bottom-4 md:left-auto md:right-4 md:p-0 md:max-w-sm",
+      "lg:max-w-md",
+    )}
+  >
     {toasts.map((toast) => (
       <ToastItem key={toast.id} toast={toast} onClose={() => removeToast(toast.id)} />
     ))}
@@ -90,13 +101,13 @@ const ToastItem = ({ toast, onClose }: { toast: Toast; onClose: () => void }) =>
   return (
     <div
       className={cn(
-        "flex items-center rounded-lg shadow-lg animate-in slide-in-from-bottom md:animate-in md:slide-in-from-right gap-2 px-3 py-2.5 text-xs md:gap-3 md:px-4 md:py-3 md:text-sm",
+        "flex items-center rounded-lg shadow-lg animate-in slide-in-from-bottom md:animate-in md:slide-in-from-right gap-2 px-3 py-2.5 text-xs md:gap-3 md:px-4 md:py-3 md:text-sm pointer-events-auto",
         styles[toast.type],
       )}
     >
       {icons[toast.type]}
       <p className="flex-1 font-medium">{toast.message}</p>
-      <button onClick={onClose} className="transition-opacity hover:opacity-80 shrink-0">
+      <button onClick={onClose} aria-label="Dismiss" className="p-1 -m-1 transition-opacity hover:opacity-80 shrink-0">
         <svg className="w-4 h-4 md:w-5 md:h-5" fill="currentColor" viewBox="0 0 20 20">
           <path
             fillRule="evenodd"

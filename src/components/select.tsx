@@ -21,7 +21,8 @@ const Select = forwardRef<HTMLSelectElement, SelectProps>(({ parentClassName, cl
         "focus:border-primary-500 dark:focus:border-secondary-400",
         "focus:ring-2 focus:ring-primary-200 dark:focus:ring-secondary-400 focus:outline-none",
         "disabled:bg-primary-50 dark:disabled:bg-primary-200 disabled:cursor-not-allowed",
-        "px-3 py-2 text-sm md:px-4 md:py-2.5 md:text-base lg:px-4 lg:py-3 lg:text-base",
+        // See input.tsx — never below 16px at mobile width or iOS Safari zooms the page in.
+        "px-3 py-3 text-base md:px-4 md:py-2.5 lg:px-4 lg:py-3",
         error && "border-danger-500 focus:border-danger-500 focus:ring-danger-200",
         className,
       )}

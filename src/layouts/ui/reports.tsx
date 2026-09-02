@@ -374,21 +374,23 @@ export const Reports: React.FC = () => {
                 <CardTitle className="flex items-center gap-2 text-sm sm:text-base dark:text-primary-900">📈 {t("charts.dailySpending")}</CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={200}>
-                  <AreaChart data={monthly.spendingTrend} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                    <defs>
-                      <linearGradient id="gradExpMonthly" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={CHART_COLORS.expense} stopOpacity={0.3} />
-                        <stop offset="95%" stopColor={CHART_COLORS.expense} stopOpacity={0} />
-                      </linearGradient>
-                    </defs>
-                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: CHART_COLORS.muted }} axisLine={false} tickLine={false} tickFormatter={(d) => d.slice(8)} />
-                    <YAxis tick={{ fontSize: 10, fill: CHART_COLORS.muted }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1_000).toFixed(0)}K`} />
-                    <ReTooltip content={<ChartTooltip formatter={(v) => format(v)} />} />
-                    <Area type="monotone" dataKey="amount" name={t("expense")} stroke={CHART_COLORS.expense} strokeWidth={2} fill="url(#gradExpMonthly)" dot={false} activeDot={{ r: 4 }} />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <div className="w-full h-52 sm:h-64 lg:h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={monthly.spendingTrend} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="gradExpMonthly" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor={CHART_COLORS.expense} stopOpacity={0.3} />
+                          <stop offset="95%" stopColor={CHART_COLORS.expense} stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
+                      <XAxis dataKey="date" tick={{ fontSize: 10, fill: CHART_COLORS.muted }} axisLine={false} tickLine={false} tickFormatter={(d) => d.slice(8)} />
+                      <YAxis tick={{ fontSize: 10, fill: CHART_COLORS.muted }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1_000).toFixed(0)}K`} />
+                      <ReTooltip content={<ChartTooltip formatter={(v) => format(v)} />} />
+                      <Area type="monotone" dataKey="amount" name={t("expense")} stroke={CHART_COLORS.expense} strokeWidth={2} fill="url(#gradExpMonthly)" dot={false} activeDot={{ r: 4 }} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
               </CardContent>
             </Card>
           )}
@@ -478,18 +480,20 @@ export const Reports: React.FC = () => {
               <CardTitle className="flex items-center gap-2 text-sm sm:text-base dark:text-primary-900">📊 {t("charts.monthlyBreakdown")}</CardTitle>
             </CardHeader>
             <CardContent>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={yearly.monthlyBreakdown} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barCategoryGap="30%">
-                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 11, fill: CHART_COLORS.muted }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 11, fill: CHART_COLORS.muted }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1_000_000).toFixed(1)}M`} />
-                  <ReTooltip content={<ChartTooltip formatter={(v) => format(v)} />} />
-                  <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} formatter={(value) => <span className="capitalize text-primary-500 dark:text-primary-700">{value}</span>} />
-                  <Bar dataKey="income" name={t("income")} fill={CHART_COLORS.income} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="expense" name={t("expense")} fill={CHART_COLORS.expense} radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="transfer" name={t("transfer")} fill={CHART_COLORS.transfer} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <div className="w-full h-56 sm:h-72 lg:h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={yearly.monthlyBreakdown} margin={{ top: 4, right: 4, left: -20, bottom: 0 }} barCategoryGap="30%">
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: 11, fill: CHART_COLORS.muted }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: CHART_COLORS.muted }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1_000_000).toFixed(1)}M`} />
+                    <ReTooltip content={<ChartTooltip formatter={(v) => format(v)} />} />
+                    <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} formatter={(value) => <span className="capitalize text-primary-500 dark:text-primary-700">{value}</span>} />
+                    <Bar dataKey="income" name={t("income")} fill={CHART_COLORS.income} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="expense" name={t("expense")} fill={CHART_COLORS.expense} radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="transfer" name={t("transfer")} fill={CHART_COLORS.transfer} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </CardContent>
           </Card>
 
@@ -580,36 +584,38 @@ export const Reports: React.FC = () => {
                     <CardTitle className="flex items-center gap-2 text-sm sm:text-base dark:text-primary-900">📈 {t("charts.dailyTrend")}</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <ResponsiveContainer width="100%" height={220}>
-                      <AreaChart data={custom.dailyTrend} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
-                        <defs>
-                          {(["income", "expense", "transfer"] as const).map((k) => (
-                            <linearGradient key={k} id={`grad_${k}`} x1="0" y1="0" x2="0" y2="1">
-                              <stop offset="5%" stopColor={CHART_COLORS[k]} stopOpacity={0.25} />
-                              <stop offset="95%" stopColor={CHART_COLORS[k]} stopOpacity={0} />
-                            </linearGradient>
-                          ))}
-                        </defs>
-                        <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
-                        <XAxis dataKey="date" tick={{ fontSize: 10, fill: CHART_COLORS.muted }} axisLine={false} tickLine={false} tickFormatter={(d) => d.slice(5)} />
-                        <YAxis tick={{ fontSize: 10, fill: CHART_COLORS.muted }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1_000).toFixed(0)}K`} />
-                        <ReTooltip content={<ChartTooltip formatter={(v) => format(v)} />} />
-                        <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} formatter={(value) => <span className="capitalize text-primary-500 dark:text-primary-700">{value}</span>} />
-                        <Area type="monotone" dataKey="income" name={t("income")} stroke={CHART_COLORS.income} strokeWidth={2} fill="url(#grad_income)" dot={false} activeDot={{ r: 3 }} />
-                        <Area type="monotone" dataKey="expense" name={t("expense")} stroke={CHART_COLORS.expense} strokeWidth={2} fill="url(#grad_expense)" dot={false} activeDot={{ r: 3 }} />
-                        <Area
-                          type="monotone"
-                          dataKey="transfer"
-                          name={t("transfer")}
-                          stroke={CHART_COLORS.transfer}
-                          strokeWidth={2}
-                          fill="url(#grad_transfer)"
-                          dot={false}
-                          activeDot={{ r: 3 }}
-                          strokeDasharray="4 2"
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
+                    <div className="w-full h-56 sm:h-72 lg:h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={custom.dailyTrend} margin={{ top: 4, right: 4, left: -20, bottom: 0 }}>
+                          <defs>
+                            {(["income", "expense", "transfer"] as const).map((k) => (
+                              <linearGradient key={k} id={`grad_${k}`} x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor={CHART_COLORS[k]} stopOpacity={0.25} />
+                                <stop offset="95%" stopColor={CHART_COLORS[k]} stopOpacity={0} />
+                              </linearGradient>
+                            ))}
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.grid} vertical={false} />
+                          <XAxis dataKey="date" tick={{ fontSize: 10, fill: CHART_COLORS.muted }} axisLine={false} tickLine={false} tickFormatter={(d) => d.slice(5)} />
+                          <YAxis tick={{ fontSize: 10, fill: CHART_COLORS.muted }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1_000).toFixed(0)}K`} />
+                          <ReTooltip content={<ChartTooltip formatter={(v) => format(v)} />} />
+                          <Legend wrapperStyle={{ fontSize: 11, paddingTop: 8 }} formatter={(value) => <span className="capitalize text-primary-500 dark:text-primary-700">{value}</span>} />
+                          <Area type="monotone" dataKey="income" name={t("income")} stroke={CHART_COLORS.income} strokeWidth={2} fill="url(#grad_income)" dot={false} activeDot={{ r: 3 }} />
+                          <Area type="monotone" dataKey="expense" name={t("expense")} stroke={CHART_COLORS.expense} strokeWidth={2} fill="url(#grad_expense)" dot={false} activeDot={{ r: 3 }} />
+                          <Area
+                            type="monotone"
+                            dataKey="transfer"
+                            name={t("transfer")}
+                            stroke={CHART_COLORS.transfer}
+                            strokeWidth={2}
+                            fill="url(#grad_transfer)"
+                            dot={false}
+                            activeDot={{ r: 3 }}
+                            strokeDasharray="4 2"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
                   </CardContent>
                 </Card>
               )}

@@ -37,6 +37,14 @@ const INITIAL_FORM_DATA: FormData = {
   recurrenceEndDate: "",
 };
 
+/** ISO timestamp -> the `YYYY-MM-DDTHH:mm` a `datetime-local` input expects, in the viewer's own timezone. */
+const toDatetimeLocal = (iso: string): string => {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (value: number) => String(value).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
 const TYPE_CONFIG: Record<
   TransactionType,
   {
@@ -239,6 +247,8 @@ export const Home: React.FC = () => {
   const [sessionLog, setSessionLog] = React.useState<PublicTransaction[]>([]);
   const [trackTarget, setTrackTarget] = React.useState<PublicTransaction | null>(null);
   const [trackForm, setTrackForm] = React.useState<{ interval: RecurrenceInterval; endDate: string }>({ interval: "MONTHLY", endDate: "" });
+  const [logTarget, setLogTarget] = React.useState<ScheduledRecurrence | null>(null);
+  const [logDate, setLogDate] = React.useState("");
   const [formData, setFormData] = React.useState<FormData>(INITIAL_FORM_DATA);
 
   const applyResources = (resources: QuickTransactionResources) => {
@@ -416,14 +426,30 @@ export const Home: React.FC = () => {
     });
   };
 
-  /** One tap: records the occurrence with the amount and account the series already carries. */
-  const handleLogNow = (item: ScheduledRecurrence) => {
+  /** Opens the confirm dialog, prefilled with the date the series is currently due. */
+  const openLogModal = (item: ScheduledRecurrence) => {
+    setLogTarget(item);
+    setLogDate(toDatetimeLocal(item.nextOccurrence));
+  };
+
+  /** Records the occurrence with the amount and account the series already carries, at the chosen date. */
+  const handleLogConfirm = () => {
+    if (!logTarget) return;
+
+    if (!logDate || Number.isNaN(new Date(logDate).getTime())) {
+      addToast({ message: "Please enter a valid date", type: "error" });
+      return;
+    }
+
+    const item = logTarget;
+
     runRecurringAction(
-      { email, action: "log", transactionId: item.transactionId },
+      { email, action: "log", transactionId: item.transactionId, date: new Date(logDate).toISOString() },
       {
         onSuccess: (response) => {
           addToast({ message: `Logged “${item.description || "transaction"}” 🎉`, type: "success" });
           setSessionLog((previous) => [toPublicTransaction(response.data), ...previous]);
+          setLogTarget(null);
           refreshResources();
         },
         onError: (error: Error) => addToast({ message: error.message || "Could not log this one. Please try again.", type: "error" }),
@@ -757,7 +783,7 @@ export const Home: React.FC = () => {
               </div>
               <div className="space-y-1.5 sm:space-y-2">
                 {dueRecurring.map((item) => (
-                  <DueRow key={item.transactionId} item={item} onLog={handleLogNow} isBusy={isRunningRecurringAction} />
+                  <DueRow key={item.transactionId} item={item} onLog={openLogModal} isBusy={isRunningRecurringAction} />
                 ))}
               </div>
               <p className="mt-2 text-xs text-primary-400">Logging one records it with the amount it always has and moves the reminder to the next date.</p>
@@ -838,6 +864,26 @@ export const Home: React.FC = () => {
             </Button>
             <Button variant="primary" onClick={handleTrackConfirm} isLoading={isRunningRecurringAction} className="text-xs sm:text-sm">
               Start tracking
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={!!logTarget} onClose={() => setLogTarget(null)} title="✓ Log occurrence" size="md">
+        <div className="space-y-3 sm:space-y-4">
+          <div className="p-2.5 sm:p-3 border rounded-lg bg-primary-50 border-primary-100">
+            <p className="text-xs font-medium sm:text-sm text-primary-700">
+              “{logTarget?.description || "This transaction"}” will be recorded with the amount and account the series already carries.
+            </p>
+          </div>
+          <Input type="datetime-local" label="Date &amp; time *" value={logDate} onChange={(e) => setLogDate(e.target.value)} required />
+          <p className="text-xs text-primary-500">Defaults to the date this occurrence is due — change it to log at a different time.</p>
+          <div className="flex justify-end gap-2 pt-3 border-t border-primary-100 sm:gap-3">
+            <Button variant="ghost" onClick={() => setLogTarget(null)} disabled={isRunningRecurringAction} className="text-xs sm:text-sm">
+              Cancel
+            </Button>
+            <Button variant="primary" onClick={handleLogConfirm} isLoading={isRunningRecurringAction} className="text-xs sm:text-sm">
+              Log it
             </Button>
           </div>
         </div>

@@ -3,15 +3,10 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
- * The brand ramps are grown from the Finarthax mark (public/finarthax.png), whose single
- * colour is #336580 — HSL(201, 43%, 35%). The light `primary-500` IS that colour exactly,
- * unmodified, and its hue holds across primary and secondary so the chrome — nav, buttons,
- * cards, surfaces — always reads as the logo.
- *
- * The SEMANTIC ramps below deliberately break out of that band. Money needs to be readable
- * at a glance, and a green desaturated down to the mark's 30–48% band is a grey-green that
- * says nothing. Income is a clear green, expense a clear red, warnings a clear amber; the
- * brand does its work on the surfaces around them.
+ * Brand ramps grow from the Finarthax mark (public/finarthax.png): #336580 = HSL(201, 43%,
+ * 35%). Light `primary-500` is that colour exactly, and the hue holds across primary and
+ * secondary. The semantic ramps below leave that band on purpose and run at full strength —
+ * money has to read at a glance.
  */
 @theme {
   --shadow-border: 0 0 0px 4px var(--color-primary-100);
@@ -41,46 +36,39 @@
   --color-secondary: var(--color-secondary-400);
 
   /*
-   * Semantic scales — clear, saturated hues, not brand-tinted:
-   *
-   *   success  150°  green   — income, on-track budgets, completed goals
-   *   danger     4°  red     — expense, overspend, destructive actions
-   *   warning    38° amber   — due soon, nearing a limit
-   *
-   * Unlike primary/secondary these do NOT invert in `.dark` — components pick the step per
-   * theme themselves (`text-danger-600 dark:text-danger-400`). The steps are pinned by
-   * contrast, not by even lightness spacing: `-600` clears 4.5:1 as text on the light
-   * surface, `-400` clears it on the dark one, and `-500` clears it *behind* `text-on-solid`
-   * so filled badges and pills stay readable. That is why 500/600 sit close together —
-   * a brighter 500 would fail its white label.
+   * Semantic scales — full-strength hues (success ~158°, danger ~353°, warning ~38°). These
+   * do NOT invert in `.dark`; components pick the step per theme (`text-danger-600
+   * dark:text-danger-400`). Steps are pinned by contrast, not even lightness: `-600` clears
+   * 4.5:1 as text on the light surface, `-400` on the dark one, and `-500` clears it behind
+   * `text-on-solid` so filled badges/pills stay readable — which is why 500/600 sit close.
    */
-  --color-success-50: #eafaf0;
-  --color-success-100: #cdf4de;
-  --color-success-200: #97e8bd;
-  --color-success-300: #4fd693;
-  --color-success-400: #16b866;
-  --color-success-500: #0b8241;
-  --color-success-600: #077a3e;
-  --color-success-700: #05622f;
-  --color-success-800: #044c25;
-  --color-success-900: #033218;
+  --color-success-50: #e7fcf0;
+  --color-success-100: #c3f7dd;
+  --color-success-200: #86edbb;
+  --color-success-300: #3bdd98;
+  --color-success-400: #06c974;
+  --color-success-500: #068150;
+  --color-success-600: #05613b;
+  --color-success-700: #044c2f;
+  --color-success-800: #033a24;
+  --color-success-900: #012618;
 
-  --color-danger-50: #fdf0ef;
-  --color-danger-100: #fbdedc;
-  --color-danger-200: #f7bcb8;
-  --color-danger-300: #f08f88;
-  --color-danger-400: #f4695c;
-  --color-danger-500: #d4281a;
-  --color-danger-600: #c02418;
-  --color-danger-700: #a01d12;
-  --color-danger-800: #7a160e;
-  --color-danger-900: #4f0e09;
+  --color-danger-50: #ffebeb;
+  --color-danger-100: #ffcfcf;
+  --color-danger-200: #ffa5a5;
+  --color-danger-300: #ff6a6a;
+  --color-danger-400: #ff4444;
+  --color-danger-500: #e01029;
+  --color-danger-600: #bd0a20;
+  --color-danger-700: #9a0a1c;
+  --color-danger-800: #730813;
+  --color-danger-900: #47040b;
 
-  --color-warning-50: #fff8ea;
-  --color-warning-100: #ffedc7;
-  --color-warning-200: #fdd989;
-  --color-warning-300: #fabf3d;
-  --color-warning-400: #e8a010;
+  --color-warning-50: #fff6e3;
+  --color-warning-100: #ffe7b6;
+  --color-warning-200: #ffd070;
+  --color-warning-300: #fbb527;
+  --color-warning-400: #f0990a;
   --color-warning-500: #9c6404;
   --color-warning-600: #875306;
   --color-warning-700: #7a4e09;
@@ -91,30 +79,22 @@
   --color-black: #0e242f;
 
   /*
-   * Text/icon colour for anything sitting on a solid colour fill — badges, filled
-   * buttons, the summary cards.
-   *
-   * `--color-white` CANNOT be used for this. It is redefined to #1b303c under `.dark`
-   * because the theme reuses it as the raised-surface token, so `text-white` silently
-   * renders as dark navy in dark mode — which is why filled badges and buttons had
-   * near-invisible labels there. This one never inverts.
+   * Text/icon colour for anything on a solid fill. `--color-white` can't be used here: it
+   * is redefined to #1b303c under `.dark` (reused as the raised-surface token), so
+   * `text-white` renders dark there. This one never inverts.
    */
   --color-on-solid: #f8fbfc;
 
   /*
-   * The counterpart: dark ink for fills that are *bright*, which in practice means the
-   * teal `secondary` steps under `.dark` (#2ec4de and up). Writing `dark:text-primary-900`
-   * there looks right but is backwards — the primary ramp inverts, so `primary-900` is the
-   * near-white end in dark mode and the label vanished into the fill. Like `on-solid`,
-   * this one never inverts.
+   * Dark ink for *bright* fills — in practice the teal `secondary` steps under `.dark`.
+   * `dark:text-primary-900` looks right but is backwards: the primary ramp inverts, so
+   * `primary-900` is the near-white end there. Never inverts.
    */
   --color-on-bright: #0e242f;
 
   /*
-   * The auth shell's full-bleed gradient. It has to be dark in BOTH themes — it is always
-   * carrying white copy — so it cannot be built from `--color-primary` / `--color-secondary`
-   * the way it was: those invert, and the sign-in page came up as a pale cyan wash in dark
-   * mode with white text on it. Straight from the mark's own steps, frozen.
+   * Auth shell gradient — stays dark in BOTH themes (always carries white copy), so it is
+   * frozen from the mark's own steps rather than built from primary/secondary, which invert.
    */
   --color-brand-deep: #1f4356;
   --color-brand-mid: #336580;

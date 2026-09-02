@@ -30,7 +30,7 @@ const DropdownContent = ({ session, router, logout, variant = "sidebar" }: Dropd
     <Dropdown
       trigger={
         isMobileHeader ? (
-          <button className="flex items-center transition-colors rounded-full hover:ring-2 hover:ring-secondary-400 focus:outline-none focus:ring-2 focus:ring-secondary-400">
+          <button aria-label="Account menu" className="flex items-center justify-center w-11 h-11 -mr-2 transition-colors rounded-full focus:outline-none focus:ring-2 focus:ring-secondary-400">
             {!session.user.avatar ? (
               <div className="flex items-center justify-center w-8 h-8 text-xs font-medium rounded-full bg-primary-100 text-primary-700 dark:bg-primary-300 dark:text-primary-900">
                 {formatInitialName(session.user.name || "")}
@@ -187,13 +187,13 @@ const DashboardLayoutInner = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="min-h-screen bg-primary-50 dark:bg-primary-50">
-      <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-14 bg-white dark:bg-primary-100 border-b border-primary-100 dark:border-primary-300 md:hidden">
+      <header className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-[calc(3.5rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] bg-white dark:bg-primary-100 border-b border-primary-100 dark:border-primary-300 md:hidden">
         <button
           onClick={() => setSidebarOpen(true)}
           aria-label="Open menu"
-          className="p-1.5 rounded-lg transition-colors text-primary-600 hover:bg-primary-50 dark:text-primary-800 dark:hover:bg-primary-200"
+          className="-ml-2 flex items-center justify-center w-11 h-11 rounded-lg transition-colors text-primary-600 hover:bg-primary-50 dark:text-primary-800 dark:hover:bg-primary-200"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
@@ -209,14 +209,14 @@ const DashboardLayoutInner = ({ children }: { children: React.ReactNode }) => {
       {sidebarOpen && <div className="fixed inset-0 z-50 bg-primary-900/60 backdrop-blur-sm md:hidden" onClick={() => setSidebarOpen(false)} />}
 
       <div
-        className={`fixed inset-y-0 left-0 z-50 w-72 shadow-xl bg-white dark:bg-primary-100 transform transition-transform duration-300 ease-in-out md:hidden ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+        className={`fixed inset-y-0 left-0 z-50 w-[min(18rem,85vw)] shadow-xl bg-white dark:bg-primary-100 pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] transform transition-transform duration-300 ease-in-out md:hidden ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         <button
           onClick={() => setSidebarOpen(false)}
           aria-label="Close menu"
-          className="absolute top-3 right-3 p-1.5 rounded-lg transition-colors text-primary-400 hover:text-primary-600 hover:bg-primary-50 dark:text-primary-700 dark:hover:text-primary-900 dark:hover:bg-primary-200"
+          className="absolute z-10 flex items-center justify-center w-11 h-11 rounded-lg transition-colors top-1.5 right-1.5 text-primary-400 hover:text-primary-600 hover:bg-primary-50 dark:text-primary-700 dark:hover:text-primary-900 dark:hover:bg-primary-200"
         >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
@@ -227,8 +227,8 @@ const DashboardLayoutInner = ({ children }: { children: React.ReactNode }) => {
         <SidebarContent session={session as Session} router={router} pathname={pathname} logout={logout} />
       </aside>
 
-      <main className="min-h-screen pt-14 md:pt-0 md:ml-64 bg-primary-50 dark:bg-primary-50">
-        <div className="p-4 md:p-6 lg:p-8">{children}</div>
+      <main className="min-h-screen pt-[calc(3.5rem+env(safe-area-inset-top))] md:pt-0 md:ml-64 bg-primary-50 dark:bg-primary-50">
+        <div className="p-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-4 md:p-6 lg:p-8">{children}</div>
       </main>
     </div>
   );

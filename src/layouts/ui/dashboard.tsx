@@ -39,13 +39,6 @@ const PIE_PALETTE = [...ACCENT_PALETTE];
 const SummaryCard: React.FC<SummaryCardProps> = ({ title, amount, change, icon, type, count }) => {
   const t = useTranslations("dashboardPage");
   const { format } = useCurrency();
-  // These four cards are the largest blocks on the dashboard, so they are where colour has
-  // to land. A white card with a 4px coloured edge — or a `from-*-100 to-white` gradient,
-  // which loses its tint by the second stop — leaves the top of every screen colourless.
-  // Solid fill, white type. The balance card is the logo colour itself, at full size.
-  //
-  // primary/secondary invert under `.dark` (500 becomes a pale tint there), so the dark
-  // step comes from the low end for those two. success/danger do not invert.
   const cardTone =
     type === "income"
       ? "bg-success-500 dark:bg-success-600"
@@ -64,7 +57,7 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ title, amount, change, icon, 
         </CardTitle>
       </CardHeader>
       <CardContent>
-        <p className="text-base sm:text-xl md:text-2xl lg:text-xl xl:text-3xl font-bold text-on-solid mb-1.5 tabular-nums truncate">{format(amount)}</p>
+        <p className="text-sm sm:text-xl md:text-2xl lg:text-xl xl:text-3xl font-bold text-on-solid mb-1.5 tabular-nums leading-tight wrap-break-word">{format(amount)}</p>
         <div className="flex items-center justify-between gap-1">
           <div className="flex items-center gap-1">
             {type !== "transfer" ? (
@@ -271,7 +264,9 @@ export const Dashboard: React.FC = () => {
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
             <p className="mb-0.5 text-xs font-medium tracking-widest uppercase text-primary-200 dark:text-primary-700 sm:text-sm">{t("netWorth", { defaultValue: "Net Worth" })}</p>
-            <p className={`text-2xl font-bold lg:text-3xl xl:text-4xl tabular-nums ${netWorth >= 0 ? "text-white dark:text-primary-900" : "text-danger-300 dark:text-danger-400"}`}>{format(netWorth)}</p>
+            <p className={`text-2xl font-bold lg:text-3xl xl:text-4xl tabular-nums wrap-break-word ${netWorth >= 0 ? "text-white dark:text-primary-900" : "text-danger-200 dark:text-danger-400"}`}>
+              {format(netWorth)}
+            </p>
             <p className="mt-0.5 text-xs text-primary-200 dark:text-primary-700 sm:text-sm sm:mt-1">
               {accounts.length} {t("accountsLinked")}
             </p>
@@ -280,12 +275,12 @@ export const Dashboard: React.FC = () => {
             <div className="flex gap-3 text-xs sm:text-sm">
               <div className="flex flex-col items-start sm:items-end gap-0.5">
                 <span className="text-primary-200 dark:text-primary-700 opacity-80">{t("totalAssets", { defaultValue: "Assets" })}</span>
-                <span className="font-bold text-success-300 dark:text-success-400 tabular-nums">{format(totalAssets)}</span>
+                <span className="font-bold text-success-200 dark:text-success-400 tabular-nums">{format(totalAssets)}</span>
               </div>
               <div className="w-px bg-primary-400 dark:bg-primary-600 self-stretch opacity-40" />
               <div className="flex flex-col items-start sm:items-end gap-0.5">
                 <span className="text-primary-200 dark:text-primary-700 opacity-80">{t("creditDebt", { defaultValue: "CC Debt" })}</span>
-                <span className="font-bold text-danger-300 dark:text-danger-400 tabular-nums">{format(totalDebt)}</span>
+                <span className="font-bold text-danger-200 dark:text-danger-400 tabular-nums">{format(totalDebt)}</span>
               </div>
             </div>
             <div className="flex flex-col gap-0.5 xl:gap-1.5">
@@ -293,8 +288,10 @@ export const Dashboard: React.FC = () => {
                 <div key={acc.id} className="flex items-center gap-2 text-xs lg:text-sm">
                   <span className="opacity-70">{acc.icon}</span>
                   <span className="truncate text-primary-100 dark:text-primary-800 max-w-24 sm:max-w-40">{acc.name}</span>
-                  <span className={`font-bold tabular-nums ${acc.type === "CREDIT_CARD" ? "text-danger-300 dark:text-danger-400" : "text-white dark:text-primary-900"}`}>{format(acc.balance)}</span>
-                  {acc.type === "CREDIT_CARD" && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-danger-700 text-danger-300 shrink-0">debt</span>}
+                  <span className={`font-bold tabular-nums shrink-0 ${acc.type === "CREDIT_CARD" ? "text-danger-200 dark:text-danger-400" : "text-white dark:text-primary-900"}`}>
+                    {format(acc.balance)}
+                  </span>
+                  {acc.type === "CREDIT_CARD" && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-danger-800 text-danger-200 shrink-0">debt</span>}
                 </div>
               ))}
               {accounts.length > 3 && <span className="text-xs text-primary-200 dark:text-primary-700">+{accounts.length - 3} more</span>}
@@ -390,32 +387,34 @@ export const Dashboard: React.FC = () => {
             {safeMonthlyData.length === 0 ? (
               <EmptyState icon="📈" title={t("empty.charts.title")} description={t("empty.charts.description")} />
             ) : (
-              <ResponsiveContainer width="100%" height={180}>
-                <AreaChart data={safeMonthlyData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
-                  <defs>
-                    <linearGradient id="gradIncome" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={CHART_COLORS.income} stopOpacity={0.3} />
-                      <stop offset="95%" stopColor={CHART_COLORS.income} stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="gradExpense" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={CHART_COLORS.expense} stopOpacity={0.3} />
-                      <stop offset="95%" stopColor={CHART_COLORS.expense} stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="gradTransfer" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={CHART_COLORS.transfer} stopOpacity={0.2} />
-                      <stop offset="95%" stopColor={CHART_COLORS.transfer} stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.text} strokeOpacity={0.2} vertical={false} />
-                  <XAxis dataKey="month" tick={{ fontSize: 10, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 10, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}M`} />
-                  <ReTooltip content={<ChartTooltip formatter={(v) => format(v)} />} />
-                  <Legend wrapperStyle={{ fontSize: 10, paddingTop: 6 }} formatter={(value) => <span className="capitalize text-primary-500 dark:text-primary-700">{value}</span>} />
-                  <Area type="monotone" dataKey="income" stroke={CHART_COLORS.income} strokeWidth={2} fill="url(#gradIncome)" dot={false} activeDot={{ r: 3 }} />
-                  <Area type="monotone" dataKey="expense" stroke={CHART_COLORS.expense} strokeWidth={2} fill="url(#gradExpense)" dot={false} activeDot={{ r: 3 }} />
-                  <Area type="monotone" dataKey="transfer" stroke={CHART_COLORS.transfer} strokeWidth={2} fill="url(#gradTransfer)" dot={false} activeDot={{ r: 3 }} strokeDasharray="4 2" />
-                </AreaChart>
-              </ResponsiveContainer>
+              <div className="w-full h-48 sm:h-56 lg:h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={safeMonthlyData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="gradIncome" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={CHART_COLORS.income} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={CHART_COLORS.income} stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gradExpense" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={CHART_COLORS.expense} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={CHART_COLORS.expense} stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="gradTransfer" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={CHART_COLORS.transfer} stopOpacity={0.2} />
+                        <stop offset="95%" stopColor={CHART_COLORS.transfer} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.text} strokeOpacity={0.2} vertical={false} />
+                    <XAxis dataKey="month" tick={{ fontSize: 10, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize: 10, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}M`} />
+                    <ReTooltip content={<ChartTooltip formatter={(v) => format(v)} />} />
+                    <Legend wrapperStyle={{ fontSize: 10, paddingTop: 6 }} formatter={(value) => <span className="capitalize text-primary-500 dark:text-primary-700">{value}</span>} />
+                    <Area type="monotone" dataKey="income" stroke={CHART_COLORS.income} strokeWidth={2} fill="url(#gradIncome)" dot={false} activeDot={{ r: 3 }} />
+                    <Area type="monotone" dataKey="expense" stroke={CHART_COLORS.expense} strokeWidth={2} fill="url(#gradExpense)" dot={false} activeDot={{ r: 3 }} />
+                    <Area type="monotone" dataKey="transfer" stroke={CHART_COLORS.transfer} strokeWidth={2} fill="url(#gradTransfer)" dot={false} activeDot={{ r: 3 }} strokeDasharray="4 2" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
             )}
           </CardContent>
         </Card>
@@ -429,12 +428,14 @@ export const Dashboard: React.FC = () => {
               <EmptyState icon="🥧" title={t("empty.categories.title")} description={t("empty.categories.description")} />
             ) : (
               <div className="flex flex-col items-center gap-2 sm:gap-3">
-                <ResponsiveContainer width="100%" height={140}>
-                  <PieChart>
-                    <Pie data={pieData} cx="50%" cy="50%" innerRadius={38} outerRadius={60} paddingAngle={3} dataKey="value" />
-                    <ReTooltip content={<ChartTooltip formatter={(v) => format(v)} />} />
-                  </PieChart>
-                </ResponsiveContainer>
+                <div className="w-full h-40 sm:h-48 lg:h-52">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <PieChart>
+                      <Pie data={pieData} cx="50%" cy="50%" innerRadius="55%" outerRadius="85%" paddingAngle={3} dataKey="value" />
+                      <ReTooltip content={<ChartTooltip formatter={(v) => format(v)} />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                </div>
                 <div className="w-full space-y-1">
                   {safeCategoryData.slice(0, 5).map((entry, index) => {
                     const color = PIE_PALETTE[index % PIE_PALETTE.length];
@@ -466,24 +467,26 @@ export const Dashboard: React.FC = () => {
           {safeMonthlyData.length === 0 ? (
             <EmptyState icon="📊" title={t("empty.charts.title")} description={t("empty.charts.description")} />
           ) : (
-            <ResponsiveContainer width="100%" height={180}>
-              <BarChart data={safeMonthlyData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }} barCategoryGap="30%">
-                <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.text} strokeOpacity={0.2} vertical={false} />
-                <XAxis dataKey="month" tick={{ fontSize: 10, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 10, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}M`} />
-                <ReTooltip content={<ChartTooltip formatter={(v) => format(v)} />} />
-                <Legend wrapperStyle={{ fontSize: 10, paddingTop: 6 }} formatter={(value) => <span className="capitalize text-primary-500 dark:text-primary-700">{value}</span>} />
-                <Bar dataKey="income" fill={CHART_COLORS.income} radius={[3, 3, 0, 0]} />
-                <Bar dataKey="expense" fill={CHART_COLORS.expense} radius={[3, 3, 0, 0]} />
-                <Bar dataKey="transfer" fill={CHART_COLORS.transfer} radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="w-full h-48 sm:h-56 lg:h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={safeMonthlyData} margin={{ top: 4, right: 4, left: -24, bottom: 0 }} barCategoryGap="30%">
+                  <CartesianGrid strokeDasharray="3 3" stroke={CHART_COLORS.text} strokeOpacity={0.2} vertical={false} />
+                  <XAxis dataKey="month" tick={{ fontSize: 10, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 10, fill: CHART_COLORS.text }} axisLine={false} tickLine={false} tickFormatter={(v) => `${(v / 1_000_000).toFixed(0)}M`} />
+                  <ReTooltip content={<ChartTooltip formatter={(v) => format(v)} />} />
+                  <Legend wrapperStyle={{ fontSize: 10, paddingTop: 6 }} formatter={(value) => <span className="capitalize text-primary-500 dark:text-primary-700">{value}</span>} />
+                  <Bar dataKey="income" fill={CHART_COLORS.income} radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="expense" fill={CHART_COLORS.expense} radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="transfer" fill={CHART_COLORS.transfer} radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           )}
         </CardContent>
       </Card>
 
       {transferSummary && transferSummary.totalMoved > 0 && (
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 lg:gap-4">
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 sm:gap-3 lg:gap-4">
           {[
             { label: t("transferFlow.totalMoved"), value: transferSummary.totalMoved, icon: "🔄", color: "text-secondary-600 dark:text-secondary-400" },
             { label: t("transferFlow.totalReceived"), value: transferSummary.totalReceived, icon: "📥", color: "text-success-600 dark:text-success-400" },
@@ -495,7 +498,7 @@ export const Dashboard: React.FC = () => {
                   <span className="text-base sm:text-lg">{icon}</span>
                   <span className="text-xs font-medium tracking-wide uppercase truncate text-secondary-700 dark:text-secondary-400">{label}</span>
                 </div>
-                <p className={`text-sm sm:text-lg lg:text-2xl font-bold tabular-nums ${color}`}>{format(value)}</p>
+                <p className={`text-base sm:text-lg lg:text-2xl font-bold tabular-nums ${color}`}>{format(value)}</p>
               </CardContent>
             </Card>
           ))}

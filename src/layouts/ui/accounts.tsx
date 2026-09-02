@@ -123,7 +123,7 @@ const AccountCard: React.FC<AccountCardProps> = ({ account, onEdit, onDelete }) 
           <Button variant="outline" size="sm" className="flex-1 text-xs sm:text-sm" onClick={() => onEdit(account)}>
             ✏️ {t("editButton")}
           </Button>
-          <Button variant="danger" size="sm" onClick={() => onDelete(account.id)} aria-label={t("deleteButton")} className="px-2 sm:px-3">
+          <Button variant="danger" size="sm" onClick={() => onDelete(account.id)} aria-label={t("deleteButton")} className="w-9 px-0 sm:w-auto sm:px-3">
             🗑️
           </Button>
         </div>

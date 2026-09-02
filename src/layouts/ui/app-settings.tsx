@@ -342,7 +342,7 @@ export const AppSettings: React.FC = () => {
       )}
 
       <Modal isOpen={isFormOpen} onClose={closeForm} size="xl" title={editing ? t("modal.editTitle") : t("modal.createTitle")} description={editing ? editing.key : t("modal.keyHint")}>
-        <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
+        <div className="space-y-3">
           {!editing && <Input label={`${t("modal.key")} *`} placeholder="recurring_history_days" value={form.key} onChange={(e) => handleChange("key", e.target.value)} required />}
 
           <Input label={`${t("modal.label")} *`} placeholder="Recurring History Window" value={form.label} onChange={(e) => handleChange("label", e.target.value)} required />

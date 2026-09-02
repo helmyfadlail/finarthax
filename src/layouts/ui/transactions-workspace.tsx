@@ -37,7 +37,7 @@ const Tab: React.FC<TabProps> = ({ isActive, label, icon, count, onSelect }) => 
     role="tab"
     aria-selected={isActive}
     onClick={onSelect}
-    className={`flex items-center justify-center gap-1.5 flex-1 sm:flex-none px-3 sm:px-4 py-2 text-xs sm:text-sm font-medium rounded-md transition-all ${
+    className={`flex items-center justify-center gap-1.5 flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-10 sm:min-h-0 text-sm font-medium rounded-md transition-all ${
       isActive
         ? "bg-white shadow-sm text-primary-900 dark:bg-primary-100 dark:text-primary-900"
         : "text-primary-500 hover:text-primary-900 dark:text-primary-700 dark:hover:text-primary-900"

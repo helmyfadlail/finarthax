@@ -21,9 +21,34 @@ const spaceGrotesk = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "Finarthax",
+  applicationName: "Finarthax",
+  title: {
+    default: "Finarthax — Personal Finance, Budget & Expense Tracker",
+    template: "%s | Finarthax",
+  },
   description:
-    "Stay on top of your income, expenses, and budgets with a simple financial management app. " + "Easily monitor transactions, organize your finances, and export data for better money control.",
+    "Finarthax is a simple personal finance app to track income and expenses, build budgets, set savings goals, and export reports — so you can see where your money goes and stay in control in real time.",
+  keywords: [
+    "personal finance app",
+    "budget tracker",
+    "expense tracker",
+    "income and expense tracker",
+    "money management",
+    "savings goals",
+    "financial planning",
+    "spending tracker",
+  ],
+  openGraph: {
+    type: "website",
+    siteName: "Finarthax",
+    title: "Finarthax — Personal Finance, Budget & Expense Tracker",
+    description: "Track income and expenses, build budgets, set savings goals, and export reports in one simple personal finance app.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Finarthax — Personal Finance, Budget & Expense Tracker",
+    description: "Track income and expenses, build budgets, set savings goals, and export reports in one simple personal finance app.",
+  },
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
