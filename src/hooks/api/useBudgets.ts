@@ -9,10 +9,12 @@ interface CreateBudgetData {
   amount: number;
   month: number;
   year: number;
+  autoRenew?: boolean;
 }
 
 interface UpdateBudgetData {
-  amount: number;
+  amount?: number;
+  autoRenew?: boolean;
 }
 
 interface BudgetsParams {

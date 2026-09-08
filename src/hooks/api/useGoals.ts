@@ -8,6 +8,7 @@ interface CreateGoalData {
   name: string;
   targetAmount: number;
   currentAmount?: number;
+  currency?: string;
   deadline?: string;
   status?: "ACTIVE" | "COMPLETED" | "CANCELLED";
 }

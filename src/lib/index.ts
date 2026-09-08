@@ -9,6 +9,8 @@ export * from "./recurring";
 export * from "./recurring-actions";
 export * from "./preferences";
 export * from "./app-settings";
+export * from "./audit";
+export * from "./budget-rollover";
 export * from "./rate-limit";
 export * from "./currency";
 export * from "./mailer";

@@ -120,6 +120,17 @@ class ApiClient {
     return this.request<TResponse, TBody>(endpoint, { ...options, method: "POST", body });
   }
 
+  /** For multipart bodies (file uploads) - skips the JSON stringify/Content-Type the plain `post` always applies. */
+  async postFormData<TResponse>(endpoint: string, formData: FormData): Promise<TResponse> {
+    const response = await fetch(`${this.baseURL}${endpoint}`, { method: "POST", body: formData });
+
+    const data: TResponse = await response.json();
+
+    if (!response.ok) throwApiError(response, data, "An error occurred");
+
+    return data;
+  }
+
   async put<TResponse, TBody extends object>(endpoint: string, body: TBody, options?: FetchOptions): Promise<TResponse> {
     return this.request<TResponse, TBody>(endpoint, { ...options, method: "PUT", body });
   }

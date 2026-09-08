@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { logger, prisma, requireAuth, withApi } from "@/lib";
+import { logger, prisma, recordAuditLog, requireAuth, withApi } from "@/lib";
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
 import z from "zod";
 import { updateGoalSchema } from "@/types";
@@ -32,6 +32,15 @@ export const PUT = withApi<{ id: string }>("goals.update", async (req: NextReque
 
   logger.info("goals.updated", { goalId: id, fields: Object.keys(data), status: goal.status });
 
+  await recordAuditLog({
+    entityType: "goal",
+    entityId: id,
+    action: "update",
+    previousValue: { name: existing.name, targetAmount: existing.targetAmount.toNumber(), currentAmount: existing.currentAmount.toNumber(), status: existing.status },
+    newValue: { name: goal.name, targetAmount: goal.targetAmount.toNumber(), currentAmount: goal.currentAmount.toNumber(), status: goal.status },
+    actor: user,
+  });
+
   return successResponse(goal, "Goal updated successfully");
 });
 
@@ -46,6 +55,8 @@ export const DELETE = withApi<{ id: string }>("goals.delete", async (req: NextRe
   await prisma.goal.delete({ where: { id } });
 
   logger.info("goals.deleted", { goalId: id });
+
+  await recordAuditLog({ entityType: "goal", entityId: id, action: "delete", previousValue: { name: goal.name, targetAmount: goal.targetAmount.toNumber() }, actor: user });
 
   return successResponse(null, "Goal deleted successfully");
 });

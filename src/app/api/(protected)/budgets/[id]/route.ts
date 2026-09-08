@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { logger, prisma, requireAuth, withApi } from "@/lib";
+import { logger, prisma, recordAuditLog, requireAuth, withApi } from "@/lib";
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
 import z from "zod";
 import { updateBudgetSchema } from "@/types";
@@ -22,11 +22,20 @@ export const PUT = withApi<{ id: string }>("budgets.update", async (req: NextReq
 
   const budget = await prisma.budget.update({
     where: { id },
-    data: { amount: validation.data.amount },
+    data: { amount: validation.data.amount, ...(validation.data.autoRenew !== undefined && { autoRenew: validation.data.autoRenew }) },
     include: { category: true },
   });
 
   logger.info("budgets.updated", { budgetId: id, amount: validation.data.amount });
+
+  await recordAuditLog({
+    entityType: "budget",
+    entityId: id,
+    action: "update",
+    previousValue: { amount: existing.amount.toNumber(), autoRenew: existing.autoRenew },
+    newValue: { amount: budget.amount.toNumber(), autoRenew: budget.autoRenew },
+    actor: user,
+  });
 
   return successResponse(budget, "Budget updated successfully");
 });
@@ -42,6 +51,8 @@ export const DELETE = withApi<{ id: string }>("budgets.delete", async (req: Next
   await prisma.budget.delete({ where: { id } });
 
   logger.info("budgets.deleted", { budgetId: id });
+
+  await recordAuditLog({ entityType: "budget", entityId: id, action: "delete", previousValue: { categoryId: budget.categoryId, amount: budget.amount.toNumber() }, actor: user });
 
   return successResponse(null, "Budget deleted successfully");
 });

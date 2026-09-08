@@ -38,6 +38,8 @@ model User {
   categories            Category[]
   budgets               Budget[]
   goals                 Goal[]
+  tags                  Tag[]
+  notifications         Notification[]
 
   @@map("users")
 }
@@ -95,6 +97,39 @@ model AppSetting {
   @@map("app_settings")
 }
 
+model AuditLog {
+  id                    String                    @id @default(cuid())
+  entityType            String
+  entityId              String
+  action                String
+  previousValue         Json?
+  newValue              Json?
+  actorId               String?
+  actorEmail            String?
+  createdAt             DateTime                  @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Notification {
+  id                    String                    @id @default(cuid())
+  userId                String
+  type                  String
+  title                 String
+  message               String
+  link                  String?
+  isRead                Boolean                   @default(false)
+  createdAt             DateTime                  @default(now())
+
+  user                  User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
 model VerificationToken {
   identifier            String
   token                 String
@@ -120,6 +155,7 @@ model Account {
   name                  String
   type                  AccountType
   balance               Decimal                   @default(0) @db.Decimal(15, 2)
+  currency              String                    @default("IDR")
   creditLimit           Decimal?                  @db.Decimal(15, 2)
   color                 String?
   icon                  String?
@@ -130,9 +166,28 @@ model Account {
   user                  User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
   transactions          Transaction[]             @relation("SourceAccount")
   incomingTransfers     Transaction[]             @relation("DestinationAccount")
+  valueHistories        AccountValueHistory[]
 
   @@index([userId])
   @@map("accounts")
+}
+
+model AccountValueHistory {
+  id                    String                    @id @default(cuid())
+  accountId             String
+  previousBalance       Decimal                   @db.Decimal(15, 2)
+  newBalance            Decimal                   @db.Decimal(15, 2)
+  changeAmount          Decimal                   @db.Decimal(15, 2)
+  changePercent         Decimal                   @db.Decimal(9, 4)
+  note                  String?
+  recordedAt            DateTime                  @default(now())
+  createdAt             DateTime                  @default(now())
+
+  account               Account                   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+
+  @@index([accountId])
+  @@index([accountId, recordedAt])
+  @@map("account_value_histories")
 }
 
 enum TransactionType {
@@ -160,6 +215,8 @@ model Transaction {
   description           String?
   date                  DateTime
   attachment            String?
+  exchangeRate          Decimal?                  @db.Decimal(18, 6)
+  convertedAmount       Decimal?                  @db.Decimal(15, 2)
   isRecurring           Boolean                   @default(false)
   recurrenceInterval    RecurrenceInterval?
   recurrenceKey         String?
@@ -173,6 +230,7 @@ model Transaction {
   account               Account                   @relation("SourceAccount", fields: [accountId], references: [id])
   toAccount             Account?                  @relation("DestinationAccount", fields: [toAccountId], references: [id])
   category              Category?                 @relation(fields: [categoryId], references: [id])
+  tags                  Tag[]
 
   @@index([userId])
   @@index([accountId])
@@ -183,6 +241,22 @@ model Transaction {
   @@index([userId, recurrenceKey])
   @@index([userId, nextOccurrence])
   @@map("transactions")
+}
+
+model Tag {
+  id                    String                    @id @default(cuid())
+  userId                String
+  name                  String
+  color                 String?
+  createdAt             DateTime                  @default(now())
+  updatedAt             DateTime                  @updatedAt
+
+  user                  User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  transactions          Transaction[]
+
+  @@unique([userId, name])
+  @@index([userId])
+  @@map("tags")
 }
 
 enum CategoryType {
@@ -217,6 +291,7 @@ model Budget {
   spent                 Decimal                   @default(0) @db.Decimal(15, 2)
   month                 Int
   year                  Int
+  autoRenew             Boolean                   @default(false)
   createdAt             DateTime                  @default(now())
   updatedAt             DateTime                  @updatedAt
 
@@ -240,6 +315,7 @@ model Goal {
   name                  String
   targetAmount          Decimal                   @db.Decimal(15, 2)
   currentAmount         Decimal                   @default(0) @db.Decimal(15, 2)
+  currency              String                    @default("IDR")
   deadline              DateTime?
   status                GoalStatus                @default(ACTIVE)
   createdAt             DateTime                  @default(now())

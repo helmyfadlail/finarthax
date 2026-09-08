@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { logger, prisma, requireAuth, withApi } from "@/lib";
+import { logger, prisma, recordAuditLog, requireAuth, withApi } from "@/lib";
 import { Prisma } from "prisma-client/client";
 import { successResponse, validationErrorResponse } from "@/utils";
 import z from "zod";
@@ -69,6 +69,10 @@ export const POST = withApi("budgets.create", async (req: NextRequest) => {
     _sum: { amount: true },
   });
 
+  const existing = await prisma.budget.findUnique({
+    where: { userId_categoryId_month_year: { userId: user.id, categoryId: data.categoryId, month: data.month, year: data.year } },
+  });
+
   const budget = await prisma.budget.upsert({
     where: {
       userId_categoryId_month_year: {
@@ -85,14 +89,25 @@ export const POST = withApi("budgets.create", async (req: NextRequest) => {
       spent: spent._sum.amount || 0,
       month: data.month,
       year: data.year,
+      autoRenew: data.autoRenew ?? false,
     },
     update: {
       amount: data.amount,
+      ...(data.autoRenew !== undefined && { autoRenew: data.autoRenew }),
     },
     include: { category: true },
   });
 
   logger.info("budgets.upserted", { budgetId: budget.id, categoryId: data.categoryId, month: data.month, year: data.year });
+
+  await recordAuditLog({
+    entityType: "budget",
+    entityId: budget.id,
+    action: existing ? "update" : "create",
+    previousValue: existing ? { amount: existing.amount.toNumber() } : null,
+    newValue: { categoryId: budget.categoryId, amount: budget.amount.toNumber(), month: budget.month, year: budget.year },
+    actor: user,
+  });
 
   return successResponse(budget, "Budget created successfully");
 });

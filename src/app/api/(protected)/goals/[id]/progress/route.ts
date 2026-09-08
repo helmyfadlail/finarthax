@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { logger, prisma, requireAuth, withApi } from "@/lib";
+import { logger, prisma, recordAuditLog, requireAuth, withApi } from "@/lib";
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
 import z from "zod";
 import { updateGoalProgressSchema } from "@/types";
@@ -36,6 +36,15 @@ export const PATCH = withApi<{ id: string }>("goals.progress", async (req: NextR
     currentAmount: validation.data.currentAmount,
     targetAmount: existing.targetAmount.toNumber(),
     ...(newStatus !== existing.status && { statusChangedTo: newStatus }),
+  });
+
+  await recordAuditLog({
+    entityType: "goal",
+    entityId: id,
+    action: "update",
+    previousValue: { currentAmount: existing.currentAmount.toNumber(), status: existing.status },
+    newValue: { currentAmount: goal.currentAmount.toNumber(), status: goal.status },
+    actor: user,
   });
 
   return successResponse(goal, "Progress goal updated successfully");

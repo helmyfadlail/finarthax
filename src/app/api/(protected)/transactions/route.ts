@@ -9,11 +9,14 @@ import {
   notifyBudgetThresholdCrossed,
   notifyTransactionRecorded,
   prisma,
+  recordAuditLog,
   requireAuth,
+  resolveTransferExchangeRate,
   TRANSACTION_INCLUDE,
   validateAccount,
   validateCategory,
   validateCreditCardRules,
+  validateTags,
   withApi,
 } from "@/lib";
 import { Prisma } from "prisma-client/client";
@@ -31,6 +34,7 @@ export const GET = withApi("transactions.list", async (req: NextRequest) => {
     categoryId: searchParams.get("categoryId") || undefined,
     type: searchParams.get("type") || undefined,
     accountId: searchParams.get("accountId") || undefined,
+    tagId: searchParams.get("tagId") || undefined,
     search: searchParams.get("search") || undefined,
     page: parseInt(searchParams.get("page") || "1"),
     limit: parseInt(searchParams.get("limit") || "20"),
@@ -42,7 +46,7 @@ export const GET = withApi("transactions.list", async (req: NextRequest) => {
     return validationErrorResponse(fieldErrors);
   }
 
-  const { startDate, endDate, categoryId, type, accountId, search, page, limit } = validation.data;
+  const { startDate, endDate, categoryId, type, accountId, tagId, search, page, limit } = validation.data;
 
   const where: Prisma.TransactionWhereInput = {
     userId: user.id,
@@ -50,6 +54,7 @@ export const GET = withApi("transactions.list", async (req: NextRequest) => {
     ...(categoryId && { categoryId }),
     ...(type && { type }),
     ...(accountId && { accountId }),
+    ...(tagId && { tags: { some: { id: tagId } } }),
     ...(search && {
       description: {
         contains: search,
@@ -64,6 +69,7 @@ export const GET = withApi("transactions.list", async (req: NextRequest) => {
       include: {
         category: true,
         account: true,
+        tags: true,
       },
       orderBy: { date: "desc" },
       skip: (page - 1) * limit,
@@ -106,6 +112,13 @@ export const POST = withApi("transactions.create", async (req: NextRequest) => {
   const { error: categoryError } = await validateCategory(user.id, "categoryId" in data ? data.categoryId : undefined);
   if (categoryError) return errorResponse(categoryError, 404);
 
+  const { error: tagsError } = await validateTags(user.id, data.tagIds);
+  if (tagsError) return errorResponse(tagsError, 404);
+
+  const { error: fxError, exchangeRate } = await resolveTransferExchangeRate(data.accountId, "toAccountId" in data ? data.toAccountId : undefined, "exchangeRate" in data ? data.exchangeRate : undefined);
+  if (fxError) return errorResponse(fxError, 422);
+  const convertedAmount = exchangeRate ? data.amount * exchangeRate : null;
+
   const transactionDate = new Date(data.date);
   const isRecurring = data.isRecurring === true && !!data.recurrenceInterval;
   const recurrenceInterval = isRecurring ? data.recurrenceInterval : null;
@@ -130,6 +143,9 @@ export const POST = withApi("transactions.create", async (req: NextRequest) => {
         recurrenceKey: isRecurring ? createId() : null,
         recurrenceEndDate,
         nextOccurrence: isFinished ? null : nextOccurrence,
+        exchangeRate,
+        convertedAmount,
+        ...(data.tagIds && data.tagIds.length > 0 && { tags: { connect: data.tagIds.map((id) => ({ id })) } }),
       },
       include: TRANSACTION_INCLUDE,
     });
@@ -141,6 +157,7 @@ export const POST = withApi("transactions.create", async (req: NextRequest) => {
         accountId: data.accountId,
         toAccountId: "toAccountId" in data ? data.toAccountId : null,
         amount: data.amount,
+        convertedAmount,
       },
       "apply",
     );
@@ -167,6 +184,14 @@ export const POST = withApi("transactions.create", async (req: NextRequest) => {
     accountId: transaction.accountId,
     categoryId: transaction.categoryId,
     isRecurring,
+  });
+
+  await recordAuditLog({
+    entityType: "transaction",
+    entityId: transaction.id,
+    action: "create",
+    newValue: { type: transaction.type, amount: Number(transaction.amount), accountId: transaction.accountId, categoryId: transaction.categoryId },
+    actor: user,
   });
 
   after(async () => {

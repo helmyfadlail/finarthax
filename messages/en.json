@@ -12,7 +12,15 @@
       "budgets": "Budgets",
       "goals": "Goals",
       "reports": "Reports",
-      "appSettings": "App Settings"
+      "auditLog": "Activity Log",
+      "appSettings": "App Settings",
+      "more": "More"
+    },
+    "navGroups": {
+      "overview": "Overview",
+      "manage": "Manage",
+      "insights": "Insights",
+      "admin": "Admin"
     },
     "menu": {
       "settings": "Settings",
@@ -108,6 +116,8 @@
     "title": "Transactions",
     "subtitle": "Track and manage your income and expenses",
     "addButton": "Add Transaction",
+    "exportButton": "Export CSV",
+    "importButton": "Import CSV",
     "income": "Income",
     "expense": "Expense",
     "transfer": "Transfer",
@@ -121,8 +131,10 @@
       "allTypes": "All Types",
       "category": "Category",
       "account": "Account",
+      "tag": "Tag",
       "allCategories": "All Categories",
       "allAccounts": "All Accounts",
+      "allTags": "All Tags",
       "search": "Search",
       "searchPlaceholder": "Search by description...",
       "startDate": "Start Date",
@@ -167,7 +179,14 @@
       "editHint": "Change any field — your account balances are recalculated to match.",
       "update": "Save Changes",
       "recurringLocked": "This transaction is part of a recurring series. Its schedule is managed on the Recurring page.",
-      "recurringUnavailable": "Repeat settings are added when a transaction is created, or from the Recurring page."
+      "recurringUnavailable": "Repeat settings are added when a transaction is created, or from the Recurring page.",
+      "tags": "Tags",
+      "noTags": "No tags yet — create one below",
+      "newTagPlaceholder": "New tag name",
+      "addTag": "Add",
+      "exchangeRate": "Exchange rate ({from} → {to})",
+      "exchangeRatePlaceholder": "e.g. 15800",
+      "exchangeRatePreview": "They'll receive ≈ {amount}"
     },
     "deleteModal": {
       "title": "Delete Transaction",
@@ -182,7 +201,8 @@
       "category": "Please select a category",
       "description": "Please add a description",
       "sameAccount": "Source and destination accounts must be different",
-      "creditCardNoIncome": "Income is not allowed on a credit card. Use a Transfer from your bank account to pay it off instead."
+      "creditCardNoIncome": "Income is not allowed on a credit card. Use a Transfer from your bank account to pay it off instead.",
+      "exchangeRate": "Please enter a valid exchange rate for this cross-currency transfer"
     },
     "hints": {
       "creditCardNoIncome": "⚠️ Income transactions are not allowed on a credit card. To reduce your balance, use a Transfer from your bank account to this credit card instead.",
@@ -199,7 +219,8 @@
     "error": {
       "create": "Failed to create transaction",
       "delete": "Failed to delete transaction",
-      "update": "Failed to update transaction"
+      "update": "Failed to update transaction",
+      "tagCreate": "Failed to create tag"
     },
     "interval": {
       "DAILY": "Daily",
@@ -212,7 +233,19 @@
       "all": "All transactions",
       "recurring": "Recurring"
     },
-    "editButton": "Edit transaction"
+    "editButton": "Edit transaction",
+    "import": {
+      "title": "Import Transactions",
+      "hint": "Upload a CSV file with the same columns this app exports: Date, Type, Amount, Description, Category, Account, To Account, Tags. Category and Account are matched by name — unknown tags are created automatically.",
+      "file": "CSV file",
+      "created": "{count} created",
+      "skipped": "{count} skipped",
+      "rowError": "Row {row}",
+      "close": "Close",
+      "submit": "Import",
+      "success": "Imported {count} transactions",
+      "error": "Failed to import the CSV file"
+    }
   },
   "recurringPage": {
     "title": "Recurring",
@@ -398,6 +431,8 @@
       "name": "Account Name",
       "namePlaceholder": "e.g., Cash Wallet, BCA Savings, GoPay",
       "type": "Account Type",
+      "currency": "Currency",
+      "currencyLockedHint": "Currency can't be changed once this account has transactions.",
       "balance": "Initial Balance",
       "currentBalance": "Current Balance",
       "balancePlaceholder": "Enter starting balance",
@@ -435,6 +470,27 @@
       "create": "Failed to create account",
       "update": "Failed to update account",
       "delete": "Failed to delete account. It may be in use."
+    },
+    "valueUpdate": {
+      "checkInButton": "Update Value",
+      "title": "Update Investment Value",
+      "hint": "Check in on \"{name}\" any time — daily, weekly, monthly, or whenever you like — and record its current value to track gains and losses.",
+      "currentValue": "Current value",
+      "newValue": "New value",
+      "newValuePlaceholder": "Enter the current value",
+      "gain": "Gain",
+      "loss": "Loss",
+      "note": "Note (optional)",
+      "notePlaceholder": "e.g., Market update, monthly check-in",
+      "save": "Save Update",
+      "history": "Value History",
+      "loadingHistory": "Loading history...",
+      "noHistory": "No value updates recorded yet",
+      "validation": {
+        "invalidValue": "Please enter a valid value (must be 0 or more)"
+      },
+      "success": "Investment value updated successfully! 📊",
+      "error": "Failed to update investment value"
     }
   },
   "categoriesPage": {
@@ -528,6 +584,7 @@
       "onTrack": "On Track"
     },
     "overBudgetBy": "Over budget by {amount}",
+    "autoRenew": "Auto-renew next month",
     "filter": {
       "month": "Month",
       "year": "Year",
@@ -565,6 +622,8 @@
       "category": "Category",
       "amount": "Budget Amount",
       "amountPlaceholder": "Enter amount",
+      "autoRenew": "Auto-renew next month",
+      "autoRenewHint": "Automatically create next month's budget with the same amount for this category.",
       "cancel": "Cancel",
       "save": "Save Budget"
     },
@@ -583,12 +642,46 @@
     "success": {
       "created": "Budget saved successfully! 🎉",
       "updated": "Budget updated successfully! ✓",
-      "deleted": "Budget deleted successfully"
+      "deleted": "Budget deleted successfully",
+      "autoRenewEnabled": "Auto-renew turned on ✓",
+      "autoRenewDisabled": "Auto-renew turned off"
     },
     "error": {
       "create": "Failed to save budget. Please try again.",
       "update": "Failed to update budget",
       "delete": "Failed to delete budget"
+    }
+  },
+  "auditLogPage": {
+    "title": "Activity Log",
+    "subtitle": "A history of changes to your accounts, transactions, budgets, and goals",
+    "noFieldChanges": "No field changes recorded",
+    "actions": {
+      "create": "Created",
+      "update": "Updated",
+      "delete": "Deleted"
+    },
+    "entities": {
+      "account": "Account",
+      "transaction": "Transaction",
+      "budget": "Budget",
+      "goal": "Goal"
+    },
+    "filter": {
+      "entityType": "Type",
+      "allEntities": "All Types",
+      "startDate": "From",
+      "endDate": "To"
+    },
+    "pagination": {
+      "page": "Page",
+      "of": "of",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "empty": {
+      "title": "No Activity Yet",
+      "description": "Changes to your accounts, transactions, budgets, and goals will show up here"
     }
   },
   "goalsPage": {
@@ -624,6 +717,7 @@
       "hint": "Set a clear goal with a specific target amount to stay motivated!",
       "name": "Goal Name",
       "namePlaceholder": "e.g., Emergency Fund, Buy Car, Vacation",
+      "currency": "Currency",
       "targetAmount": "Target Amount",
       "targetAmountPlaceholder": "Enter target amount",
       "currentAmount": "Current Amount",
@@ -1114,6 +1208,13 @@
       "deleted": "{key} deleted",
       "error": "Something went wrong. Please try again."
     }
+  },
+  "notificationsPage": {
+    "title": "Notifications",
+    "bellLabel": "Notifications",
+    "markAllRead": "Mark all read",
+    "loading": "Loading…",
+    "empty": "You're all caught up — nothing new here."
   },
   "notFoundPage": {
     "title": "Page Not Found",

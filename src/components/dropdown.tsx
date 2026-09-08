@@ -8,9 +8,13 @@ interface DropdownProps {
   children: ReactNode;
   align?: "left" | "right";
   position?: string;
+  /** Defaults to the original fixed w-44/52/56 ramp; pass a wider class for richer panel content. */
+  width?: string;
+  /** Set false for triggers placed inline among siblings (e.g. a header icon row) so the root doesn't stretch to fill the flex row. Defaults to true to preserve full-width triggers like sidebar rows. */
+  fullWidth?: boolean;
 }
 
-export const Dropdown = ({ trigger, children, align = "right", position = "origin-top" }: DropdownProps) => {
+export const Dropdown = ({ trigger, children, align = "right", position = "origin-top", width = "w-44 md:w-52 lg:w-56", fullWidth = true }: DropdownProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -25,12 +29,12 @@ export const Dropdown = ({ trigger, children, align = "right", position = "origi
   }, [isOpen]);
 
   return (
-    <div ref={dropdownRef} className="relative inline-block w-full text-left">
+    <div ref={dropdownRef} className={cn("relative inline-block text-left", fullWidth ? "w-full" : "w-auto")}>
       <div onClick={() => setIsOpen(!isOpen)}>{trigger}</div>
       <div
         className={cn(
           "absolute z-10 mt-1.5 rounded-xl overflow-hidden shadow-lg focus:outline-none transition-all duration-100",
-          "w-44 md:w-52 lg:w-56",
+          width,
           "bg-white dark:bg-primary-200",
           "border border-primary-100 dark:border-primary-400",
           align === "right" ? "right-0" : "left-0",

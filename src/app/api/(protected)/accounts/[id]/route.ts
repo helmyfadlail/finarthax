@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { logger, prisma, requireAuth, withApi } from "@/lib";
+import { logger, prisma, recordAuditLog, requireAuth, withApi } from "@/lib";
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
 import z from "zod";
 import { updateAccountSchema } from "@/types";
@@ -21,6 +21,13 @@ export const PUT = withApi<{ id: string }>("accounts.update", async (req: NextRe
 
   const data = validation.data;
 
+  if (data.currency && data.currency !== existing.currency) {
+    const transactionCount = await prisma.transaction.count({ where: { OR: [{ accountId: id }, { toAccountId: id }] } });
+    if (transactionCount > 0) {
+      return errorResponse("Cannot change the currency of an account that already has transactions", 400);
+    }
+  }
+
   if (data.isDefault) {
     await prisma.account.updateMany({ where: { userId: user.id, isDefault: true }, data: { isDefault: false } });
   }
@@ -32,6 +39,15 @@ export const PUT = withApi<{ id: string }>("accounts.update", async (req: NextRe
   const account = await prisma.account.update({ where: { id }, data: updateData });
 
   logger.info("accounts.updated", { accountId: id, fields: Object.keys(data) });
+
+  await recordAuditLog({
+    entityType: "account",
+    entityId: id,
+    action: "update",
+    previousValue: { name: existing.name, type: existing.type, balance: existing.balance.toNumber(), currency: existing.currency, isDefault: existing.isDefault },
+    newValue: { name: account.name, type: account.type, balance: account.balance.toNumber(), currency: account.currency, isDefault: account.isDefault },
+    actor: user,
+  });
 
   return successResponse(account, "Account updated successfully");
 });
@@ -53,6 +69,14 @@ export const DELETE = withApi<{ id: string }>("accounts.delete", async (req: Nex
   await prisma.account.delete({ where: { id } });
 
   logger.info("accounts.deleted", { accountId: id });
+
+  await recordAuditLog({
+    entityType: "account",
+    entityId: id,
+    action: "delete",
+    previousValue: { name: account.name, type: account.type, balance: account.balance.toNumber() },
+    actor: user,
+  });
 
   return successResponse(null, "Account deleted successfully");
 });

@@ -8,4 +8,6 @@ export * from "./validations/recurring";
 export * from "./validations/category";
 export * from "./validations/budget";
 export * from "./validations/goal";
+export * from "./validations/tag";
 export * from "./validations/settings";
+export * from "./validations/audit-log";

@@ -131,11 +131,41 @@ export interface Transaction {
   nextOccurrence?: string | null;
   recurrenceEndDate?: string | null;
   recurrenceDismissedAt?: string | null;
+  /** Set only for a transfer whose source and destination accounts hold different currencies. */
+  exchangeRate?: number | null;
+  convertedAmount?: number | null;
   createdAt: string;
   updatedAt: string;
   account: Account;
   toAccount?: Account;
   category: Category;
+  tags?: Tag[];
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: string;
+  title: string;
+  message: string;
+  link: string | null;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface TransactionImportResult {
+  created: number;
+  skipped: number;
+  errors: { row: number; message: string }[];
+}
+
+export interface Tag {
+  id: string;
+  userId: string;
+  name: string;
+  color?: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Account {
@@ -144,12 +174,26 @@ export interface Account {
   name: string;
   type: "CASH" | "BANK" | "EWALLET" | "CREDIT_CARD" | "INVESTMENT";
   balance: number;
+  currency: string;
   creditLimit?: number;
   color?: string;
   icon?: string;
   isDefault: boolean;
   createdAt: string;
   updatedAt: string;
+  valueHistories?: AccountValueHistory[];
+}
+
+export interface AccountValueHistory {
+  id: string;
+  accountId: string;
+  previousBalance: number;
+  newBalance: number;
+  changeAmount: number;
+  changePercent: number;
+  note?: string | null;
+  recordedAt: string;
+  createdAt: string;
 }
 
 export interface Category {
@@ -172,6 +216,7 @@ export interface Budget {
   spent: number;
   month: number;
   year: number;
+  autoRenew: boolean;
   createdAt: string;
   updatedAt: string;
   category: Category;
@@ -183,10 +228,34 @@ export interface Goal {
   name: string;
   targetAmount: number;
   currentAmount: number;
+  currency: string;
   deadline?: string;
   status: "ACTIVE" | "COMPLETED" | "CANCELLED";
   createdAt: string;
   updatedAt: string;
+}
+
+export type AuditEntityType = "account" | "transaction" | "budget" | "goal";
+export type AuditAction = "create" | "update" | "delete";
+
+export interface AuditLog {
+  id: string;
+  entityType: AuditEntityType;
+  entityId: string;
+  action: AuditAction;
+  previousValue: Record<string, unknown> | null;
+  newValue: Record<string, unknown> | null;
+  actorId: string | null;
+  actorEmail: string | null;
+  createdAt: string;
+}
+
+export interface AuditLogFilter {
+  entityType?: AuditEntityType | "";
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  limit?: number;
 }
 
 export interface PublicAccount {
@@ -341,6 +410,7 @@ export interface TransactionFilter {
   categoryId?: string;
   type?: TransactionType | "";
   accountId?: string;
+  tagId?: string;
   search?: string;
   page?: number;
   limit?: number;

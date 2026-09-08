@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { logger, prisma, requireAuth, withApi } from "@/lib";
+import { convertToBase, getExchangeRates, logger, prisma, requireAuth, withApi } from "@/lib";
+import { BASE_CURRENCY } from "@/static";
 import { successResponse } from "@/utils";
 
 export const GET = withApi("reports.yearly", async (req: NextRequest) => {
@@ -15,14 +16,19 @@ export const GET = withApi("reports.yearly", async (req: NextRequest) => {
     include: { category: true, account: true, toAccount: true },
   });
 
+  // Normalized to BASE_CURRENCY throughout, same as the monthly report - live rates are only
+  // fetched when a foreign-currency account actually shows up in the year's transactions.
+  const rates = transactions.some((t) => t.account.currency !== BASE_CURRENCY) ? await getExchangeRates() : null;
+  const amt = (t: (typeof transactions)[number]) => convertToBase(t.amount.toNumber(), t.account.currency, rates);
+
   const monthlyBreakdown = Array.from({ length: 12 }, (_, m) => {
     const monthStart = new Date(year, m, 1);
     const monthEnd = new Date(year, m + 1, 0, 23, 59, 59);
     const monthly = transactions.filter((t) => t.date >= monthStart && t.date <= monthEnd);
 
-    const income = monthly.filter((t) => t.type === "INCOME").reduce((s, t) => s + Number(t.amount), 0);
-    const expense = monthly.filter((t) => t.type === "EXPENSE").reduce((s, t) => s + Number(t.amount), 0);
-    const transfer = monthly.filter((t) => t.type === "TRANSFER").reduce((s, t) => s + Number(t.amount), 0);
+    const income = monthly.filter((t) => t.type === "INCOME").reduce((s, t) => s + amt(t), 0);
+    const expense = monthly.filter((t) => t.type === "EXPENSE").reduce((s, t) => s + amt(t), 0);
+    const transfer = monthly.filter((t) => t.type === "TRANSFER").reduce((s, t) => s + amt(t), 0);
 
     return {
       month: monthStart.toLocaleString("id-ID", { month: "short" }),
@@ -33,9 +39,9 @@ export const GET = withApi("reports.yearly", async (req: NextRequest) => {
     };
   });
 
-  const totalIncome = transactions.filter((t) => t.type === "INCOME").reduce((s, t) => s + Number(t.amount), 0);
-  const totalExpense = transactions.filter((t) => t.type === "EXPENSE").reduce((s, t) => s + Number(t.amount), 0);
-  const totalTransfer = transactions.filter((t) => t.type === "TRANSFER").reduce((s, t) => s + Number(t.amount), 0);
+  const totalIncome = transactions.filter((t) => t.type === "INCOME").reduce((s, t) => s + amt(t), 0);
+  const totalExpense = transactions.filter((t) => t.type === "EXPENSE").reduce((s, t) => s + amt(t), 0);
+  const totalTransfer = transactions.filter((t) => t.type === "TRANSFER").reduce((s, t) => s + amt(t), 0);
 
   const yearlyBalance = totalIncome - totalExpense;
   const avgMonthlyIncome = totalIncome / 12;
@@ -60,7 +66,7 @@ export const GET = withApi("reports.yearly", async (req: NextRequest) => {
         color: t.category!.color ?? undefined,
         total: 0,
       };
-      categoryTotals.set(t.categoryId!, { ...prev, total: prev.total + Number(t.amount) });
+      categoryTotals.set(t.categoryId!, { ...prev, total: prev.total + amt(t) });
     });
 
   const topCategories = Array.from(categoryTotals.values())
@@ -72,10 +78,11 @@ export const GET = withApi("reports.yearly", async (req: NextRequest) => {
   const worstMonth = monthsWithData.reduce((worst, m) => (m.balance < worst.balance ? m : worst), monthsWithData[0] ?? null);
 
   const transferWithDest = transactions.filter((t) => t.type === "TRANSFER" && t.toAccountId);
+  const totalReceived = transferWithDest.reduce((s, t) => s + convertToBase((t.convertedAmount ?? t.amount).toNumber(), t.toAccount?.currency ?? BASE_CURRENCY, rates), 0);
   const transferSummary = {
     totalMoved: totalTransfer,
-    totalReceived: transferWithDest.reduce((s, t) => s + Number(t.amount), 0),
-    withdrawals: totalTransfer - transferWithDest.reduce((s, t) => s + Number(t.amount), 0),
+    totalReceived,
+    withdrawals: totalTransfer - totalReceived,
     count: counts.transfer,
   };
 

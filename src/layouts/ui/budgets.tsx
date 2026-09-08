@@ -17,19 +17,21 @@ interface BudgetStatus {
 interface FormData {
   categoryId: string;
   amount: string;
+  autoRenew: boolean;
 }
 interface BudgetItemProps {
   budget: Budget;
   alertThreshold: number;
   onEdit: (budgetId: string, newAmount: string) => void;
   onDelete: (budgetId: string) => void;
+  onToggleAutoRenew: (budgetId: string, autoRenew: boolean) => void;
   isDeleting: boolean;
 }
 interface EmptyStateProps {
   onCreateClick: () => void;
 }
 
-const BudgetItem: React.FC<BudgetItemProps> = ({ budget, alertThreshold, onEdit, onDelete, isDeleting }) => {
+const BudgetItem: React.FC<BudgetItemProps> = ({ budget, alertThreshold, onEdit, onDelete, onToggleAutoRenew, isDeleting }) => {
   const t = useTranslations("budgetsPage");
   const { format } = useCurrency();
 
@@ -144,6 +146,16 @@ const BudgetItem: React.FC<BudgetItemProps> = ({ budget, alertThreshold, onEdit,
             </p>
           </div>
         )}
+
+        <label className="flex items-center gap-2 mt-2 cursor-pointer sm:mt-3">
+          <input
+            type="checkbox"
+            checked={budget.autoRenew}
+            onChange={(e) => onToggleAutoRenew(budget.id, e.target.checked)}
+            className="w-3.5 h-3.5 rounded cursor-pointer accent-secondary-400"
+          />
+          <span className="text-xs text-primary-500 dark:text-primary-700">🔁 {t("autoRenew")}</span>
+        </label>
       </CardContent>
     </Card>
   );
@@ -175,7 +187,7 @@ export const Budgets: React.FC = () => {
   const [selectedYear, setSelectedYear] = React.useState(now.getFullYear());
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
-  const [formData, setFormData] = React.useState<FormData>({ categoryId: "", amount: "" });
+  const [formData, setFormData] = React.useState<FormData>({ categoryId: "", amount: "", autoRenew: false });
 
   const {
     currentPage,
@@ -226,7 +238,7 @@ export const Budgets: React.FC = () => {
   ];
   const selectedMonthLabel = React.useMemo(() => new Date(selectedYear, selectedMonth - 1).toLocaleString("default", { month: "long", year: "numeric" }), [selectedMonth, selectedYear]);
 
-  const resetForm = React.useCallback((): void => setFormData({ categoryId: categories[0]?.id ?? "", amount: "" }), [categories]);
+  const resetForm = React.useCallback((): void => setFormData({ categoryId: categories[0]?.id ?? "", amount: "", autoRenew: false }), [categories]);
   const openModal = React.useCallback((): void => {
     resetForm();
     setIsModalOpen(true);
@@ -249,7 +261,7 @@ export const Budgets: React.FC = () => {
         return;
       }
       createBudget(
-        { categoryId: formData.categoryId, amount, month: selectedMonth, year: selectedYear },
+        { categoryId: formData.categoryId, amount, month: selectedMonth, year: selectedYear, autoRenew: formData.autoRenew },
         {
           onSuccess: () => {
             addToast({ message: t("success.created"), type: "success" });
@@ -276,6 +288,23 @@ export const Budgets: React.FC = () => {
         {
           onSuccess: () => {
             addToast({ message: t("success.updated"), type: "success" });
+          },
+          onError: (error: Error) => {
+            addToast({ message: error.message || t("error.update"), type: "error" });
+          },
+        },
+      );
+    },
+    [updateBudget, addToast, t],
+  );
+
+  const handleToggleAutoRenew = React.useCallback(
+    (budgetId: string, autoRenew: boolean): void => {
+      updateBudget(
+        { id: budgetId, data: { autoRenew } },
+        {
+          onSuccess: () => {
+            addToast({ message: autoRenew ? t("success.autoRenewEnabled") : t("success.autoRenewDisabled"), type: "success" });
           },
           onError: (error: Error) => {
             addToast({ message: error.message || t("error.update"), type: "error" });
@@ -333,7 +362,15 @@ export const Budgets: React.FC = () => {
         ) : (
           <>
             {budgets.map((budget) => (
-              <BudgetItem key={budget.id} budget={budget} alertThreshold={preferences.budgetAlertThreshold} onEdit={handleUpdate} onDelete={handleDeleteClick} isDeleting={isDeleting} />
+              <BudgetItem
+                key={budget.id}
+                budget={budget}
+                alertThreshold={preferences.budgetAlertThreshold}
+                onEdit={handleUpdate}
+                onDelete={handleDeleteClick}
+                onToggleAutoRenew={handleToggleAutoRenew}
+                isDeleting={isDeleting}
+              />
             ))}
 
             {pagination && pagination.totalPages > 1 && (
@@ -377,6 +414,18 @@ export const Budgets: React.FC = () => {
             step="1000"
             required
           />
+          <label className="flex items-start gap-2.5 p-3 border rounded-lg cursor-pointer sm:gap-3 border-primary-100 dark:border-primary-400 bg-primary-50 dark:bg-primary-300">
+            <input
+              type="checkbox"
+              checked={formData.autoRenew}
+              onChange={(e) => setFormData((prev) => ({ ...prev, autoRenew: e.target.checked }))}
+              className="mt-0.5 w-4 h-4 rounded cursor-pointer accent-primary-500 dark:accent-secondary-400"
+            />
+            <span className="min-w-0">
+              <span className="block text-xs font-medium sm:text-sm text-primary-900 dark:text-primary-900">🔁 {t("modal.autoRenew")}</span>
+              <span className="block mt-0.5 text-xs text-primary-500 dark:text-primary-700">{t("modal.autoRenewHint")}</span>
+            </span>
+          </label>
           <div className="flex justify-end gap-2 pt-3 border-t border-primary-100 dark:border-primary-400 sm:gap-3 sm:pt-4">
             <Button type="button" variant="ghost" onClick={closeModal} disabled={isCreating} className="text-xs sm:text-sm">
               {t("modal.cancel")}

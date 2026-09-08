@@ -61,17 +61,42 @@ const buildContext = async (userId: string): Promise<NotificationContext | null>
   };
 };
 
-const dispatch = async (userId: string, kind: EmailNotificationKind, build: (context: NotificationContext) => Promise<BuiltEmail | null> | BuiltEmail | null): Promise<NotificationOutcome> => {
-  if (!isMailerConfigured()) return { sent: false, reason: "not-configured" };
+/** Strips the app origin off a CTA url, so the in-app list can `router.push` it directly. */
+const toRelativeLink = (url: string): string => url.replace(appUrl(), "") || "/admin/dashboard";
 
+/**
+ * The in-app row is independent of email: it is written whenever there is something to say,
+ * whether or not Resend is configured or the user has email notifications turned off. Email is
+ * an extra channel on top of this, not the other way around.
+ */
+const createInAppNotification = async (userId: string, kind: EmailNotificationKind, message: BuiltEmail): Promise<void> => {
+  try {
+    await prisma.notification.create({
+      data: {
+        userId,
+        type: kind,
+        title: message.subject,
+        message: message.content.intro ?? message.content.heading,
+        link: message.content.cta ? toRelativeLink(message.content.cta.url) : null,
+      },
+    });
+  } catch (error) {
+    logger.error("notifications.in_app_failed", { kind, targetUserId: userId, err: error });
+  }
+};
+
+const dispatch = async (userId: string, kind: EmailNotificationKind, build: (context: NotificationContext) => Promise<BuiltEmail | null> | BuiltEmail | null): Promise<NotificationOutcome> => {
   const context = await buildContext(userId);
   if (!context) return { sent: false, reason: "no-recipient" };
 
-  if (!readBooleanPreference(context.preferences, "emailNotifications")) return { sent: false, reason: "master-disabled" };
-  if (!readBooleanPreference(context.preferences, kind)) return { sent: false, reason: "preference-disabled" };
-
   const message = await build(context);
   if (!message) return { sent: false, reason: "nothing-to-send" };
+
+  await createInAppNotification(userId, kind, message);
+
+  if (!isMailerConfigured()) return { sent: false, reason: "not-configured" };
+  if (!readBooleanPreference(context.preferences, "emailNotifications")) return { sent: false, reason: "master-disabled" };
+  if (!readBooleanPreference(context.preferences, kind)) return { sent: false, reason: "preference-disabled" };
 
   try {
     await sendEmail({ to: context.email, subject: message.subject, html: renderEmail(message.content) });

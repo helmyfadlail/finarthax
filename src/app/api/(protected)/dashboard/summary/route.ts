@@ -1,4 +1,5 @@
-import { prisma, requireAuth, withApi } from "@/lib";
+import { convertToBase, getExchangeRates, prisma, requireAuth, sumTransactionAmounts, withApi } from "@/lib";
+import { BASE_CURRENCY } from "@/static";
 import { successResponse } from "@/utils";
 
 export const GET = withApi("dashboard.summary", async () => {
@@ -13,43 +14,16 @@ export const GET = withApi("dashboard.summary", async () => {
   const endOfPrevMonth = new Date(currentYear, currentMonth, 0);
 
   const [currentIncome, currentExpense, currentTransfer, prevIncome, prevExpense, prevTransfer] = await Promise.all([
-    prisma.transaction.aggregate({
-      where: { userId: user.id, type: "INCOME", date: { gte: startOfMonth, lte: endOfMonth } },
-      _sum: { amount: true },
-    }),
-    prisma.transaction.aggregate({
-      where: { userId: user.id, type: "EXPENSE", date: { gte: startOfMonth, lte: endOfMonth } },
-      _sum: { amount: true },
-    }),
-    prisma.transaction.aggregate({
-      where: { userId: user.id, type: "TRANSFER", date: { gte: startOfMonth, lte: endOfMonth } },
-      _sum: { amount: true },
-    }),
-    prisma.transaction.aggregate({
-      where: { userId: user.id, type: "INCOME", date: { gte: startOfPrevMonth, lte: endOfPrevMonth } },
-      _sum: { amount: true },
-    }),
-    prisma.transaction.aggregate({
-      where: { userId: user.id, type: "EXPENSE", date: { gte: startOfPrevMonth, lte: endOfPrevMonth } },
-      _sum: { amount: true },
-    }),
-    prisma.transaction.aggregate({
-      where: { userId: user.id, type: "TRANSFER", date: { gte: startOfPrevMonth, lte: endOfPrevMonth } },
-      _sum: { amount: true },
-    }),
+    sumTransactionAmounts({ userId: user.id, type: "INCOME", date: { gte: startOfMonth, lte: endOfMonth } }),
+    sumTransactionAmounts({ userId: user.id, type: "EXPENSE", date: { gte: startOfMonth, lte: endOfMonth } }),
+    sumTransactionAmounts({ userId: user.id, type: "TRANSFER", date: { gte: startOfMonth, lte: endOfMonth } }),
+    sumTransactionAmounts({ userId: user.id, type: "INCOME", date: { gte: startOfPrevMonth, lte: endOfPrevMonth } }),
+    sumTransactionAmounts({ userId: user.id, type: "EXPENSE", date: { gte: startOfPrevMonth, lte: endOfPrevMonth } }),
+    sumTransactionAmounts({ userId: user.id, type: "TRANSFER", date: { gte: startOfPrevMonth, lte: endOfPrevMonth } }),
   ]);
 
-  const cur = {
-    income: Number(currentIncome._sum.amount ?? 0),
-    expense: Number(currentExpense._sum.amount ?? 0),
-    transfer: Number(currentTransfer._sum.amount ?? 0),
-  };
-
-  const prev = {
-    income: Number(prevIncome._sum.amount ?? 0),
-    expense: Number(prevExpense._sum.amount ?? 0),
-    transfer: Number(prevTransfer._sum.amount ?? 0),
-  };
+  const cur = { income: currentIncome, expense: currentExpense, transfer: currentTransfer };
+  const prev = { income: prevIncome, expense: prevExpense, transfer: prevTransfer };
 
   const currentBalance = cur.income - cur.expense;
   const prevBalance = prev.income - prev.expense;
@@ -76,7 +50,10 @@ export const GET = withApi("dashboard.summary", async () => {
 
   const accounts = await prisma.account.findMany({ where: { userId: user.id }, orderBy: { isDefault: "desc" } });
 
-  const totalBalance = accounts.reduce((sum, acc) => sum + Number(acc.balance), 0);
+  // Net worth only needs live rates when an account actually holds a foreign currency.
+  const needsRates = accounts.some((acc) => acc.currency !== BASE_CURRENCY);
+  const rates = needsRates ? await getExchangeRates() : null;
+  const totalBalance = accounts.reduce((sum, acc) => sum + convertToBase(acc.balance.toNumber(), acc.currency, rates), 0);
 
   const [incomeCount, expenseCount, transferCount] = await Promise.all([
     prisma.transaction.count({

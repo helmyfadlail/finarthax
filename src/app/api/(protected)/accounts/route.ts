@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { logger, prisma, requireAuth, withApi } from "@/lib";
+import { logger, prisma, recordAuditLog, requireAuth, withApi } from "@/lib";
+import { BASE_CURRENCY } from "@/static";
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
 import z from "zod";
 import { accountSchema } from "@/types";
@@ -7,7 +8,11 @@ import { accountSchema } from "@/types";
 export const GET = withApi("accounts.list", async () => {
   const user = await requireAuth();
 
-  const accounts = await prisma.account.findMany({ where: { userId: user.id }, orderBy: { createdAt: "asc" } });
+  const accounts = await prisma.account.findMany({
+    where: { userId: user.id },
+    orderBy: { createdAt: "asc" },
+    include: { valueHistories: { orderBy: { recordedAt: "desc" }, take: 1 } },
+  });
 
   return successResponse(accounts);
 });
@@ -41,9 +46,11 @@ export const POST = withApi("accounts.create", async (req: NextRequest) => {
 
   const accountData = data.type !== "CREDIT_CARD" ? { ...data, creditLimit: undefined } : data;
 
-  const account = await prisma.account.create({ data: { userId: user.id, ...accountData } });
+  const account = await prisma.account.create({ data: { userId: user.id, ...accountData, currency: data.currency ?? BASE_CURRENCY } });
 
   logger.info("accounts.created", { accountId: account.id, type: account.type, isDefault: account.isDefault });
+
+  await recordAuditLog({ entityType: "account", entityId: account.id, action: "create", newValue: { name: account.name, type: account.type, balance: account.balance.toNumber() }, actor: user });
 
   return successResponse(account, "Account created successfully");
 });

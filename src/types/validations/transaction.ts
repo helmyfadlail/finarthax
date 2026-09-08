@@ -9,6 +9,7 @@ const incomeExpenseSchema = z.object({
   description: z.string().optional(),
   date: z.string().min(1, "Date is required"),
   attachment: z.string().optional(),
+  tagIds: z.array(z.string()).optional(),
 });
 
 const transferBaseSchema = z.object({
@@ -20,6 +21,9 @@ const transferBaseSchema = z.object({
   description: z.string().optional(),
   date: z.string().min(1, "Date is required"),
   attachment: z.string().optional(),
+  tagIds: z.array(z.string()).optional(),
+  /** Required only when the source and destination accounts hold different currencies. */
+  exchangeRate: z.number().positive("Exchange rate must be positive").optional(),
 });
 
 export const transactionSchema = z.discriminatedUnion("type", [
@@ -87,6 +91,7 @@ export const transactionFilterSchema = z.object({
   categoryId: z.string().optional().nullable(),
   type: z.enum(["INCOME", "EXPENSE", "TRANSFER"]).optional().nullable(),
   accountId: z.string().optional().nullable(),
+  tagId: z.string().optional().nullable(),
   search: z.string().optional().nullable(),
   page: z.number().int().positive().default(1),
   limit: z.number().int().positive().max(100).default(20),

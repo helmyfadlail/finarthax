@@ -2,14 +2,14 @@
 
 import * as React from "react";
 import { useTranslations } from "next-intl";
-import { useTransactions, useCategories, useAccounts, useSearchPagination, usePreferences } from "@/hooks";
+import { useTransactions, useCategories, useAccounts, useSearchPagination, usePreferences, useTags } from "@/hooks";
 import { useCurrency } from "@/providers";
 import { Card, CardContent, Button, Input, Select, Badge, Modal, Skeleton, useToast } from "@/components";
 import { RECURRENCE_ICONS, RECURRENCE_INTERVALS } from "@/static";
-import type { Transaction, TransactionFilter, TransactionType, Account, RecurrenceInterval } from "@/types";
+import type { Transaction, TransactionFilter, TransactionType, Account, RecurrenceInterval, TransactionImportResult } from "@/types";
 import { endOfTodayInputValue, formattedDateTime, toDateTimeInputValue } from "@/utils";
 
-const FILTER_NAMES = ["type", "category", "startDate", "endDate", "account"] as const;
+const FILTER_NAMES = ["type", "category", "startDate", "endDate", "account", "tag"] as const;
 interface FormData {
   accountId: string;
   toAccountId: string;
@@ -21,8 +21,10 @@ interface FormData {
   isRecurring: boolean;
   recurrenceInterval: RecurrenceInterval;
   recurrenceEndDate: string;
+  tagIds: string[];
+  exchangeRate: string;
 }
-type FormTextField = Exclude<keyof FormData, "isRecurring">;
+type FormTextField = Exclude<keyof FormData, "isRecurring" | "tagIds">;
 interface SelectOption {
   value: string;
   label: string;
@@ -49,6 +51,8 @@ const INITIAL_FORM_DATA: FormData = {
   isRecurring: false,
   recurrenceInterval: "MONTHLY",
   recurrenceEndDate: "",
+  tagIds: [],
+  exchangeRate: "",
 };
 
 const TYPE_CONFIG: Record<TransactionType, { color: string; bg: string; icon: string; prefix: string }> = {
@@ -118,9 +122,7 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, dateForm
                 <span>→</span>
                 <span className="flex items-center gap-1 truncate max-w-20 sm:max-w-none">
                   {transaction.toAccount.icon} {transaction.toAccount.name}
-                  {transaction.toAccount.type === "CREDIT_CARD" && (
-                    <span className="ml-1 px-1 py-0.5 text-[10px] font-semibold rounded bg-success-500 text-on-solid">payoff</span>
-                  )}
+                  {transaction.toAccount.type === "CREDIT_CARD" && <span className="ml-1 px-1 py-0.5 text-[10px] font-semibold rounded bg-success-500 text-on-solid">payoff</span>}
                 </span>
               </>
             )}
@@ -128,13 +130,29 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, dateForm
             <span className="hidden sm:inline">📅 {formattedDateTime(transaction.date, dateFormat)}</span>
           </div>
           <p className="mt-0.5 text-xs text-primary-400 dark:text-primary-600 sm:hidden">📅 {formattedDateTime(transaction.date, dateFormat)}</p>
+          {transaction.tags && transaction.tags.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1.5">
+              {transaction.tags.map((tag) => (
+                <span
+                  key={tag.id}
+                  className={`px-1.5 py-0.5 text-[10px] font-medium rounded-full ${!tag.color ? "bg-primary-100 dark:bg-primary-300 text-primary-700 dark:text-primary-800" : ""}`}
+                  style={tag.color ? { backgroundColor: `${tag.color}22`, color: tag.color } : undefined}
+                >
+                  🏷️ {tag.name}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
       <div className="flex items-center gap-2 shrink-0 sm:gap-4">
         <div className="text-right">
           <p className={`text-sm sm:text-lg lg:text-xl font-bold tabular-nums ${config.color}`}>
-            {config.prefix} {format(transaction.amount)}
+            {config.prefix} {format(transaction.amount, transaction.account?.currency)}
           </p>
+          {isTransfer && transaction.convertedAmount != null && transaction.toAccount && (
+            <p className="text-xs tabular-nums text-primary-500 dark:text-primary-700">≈ {format(transaction.convertedAmount, transaction.toAccount.currency)}</p>
+          )}
           <Badge variant={badgeVariant} className="hidden mt-1 sm:inline-flex">
             {badgeLabel}
           </Badge>
@@ -186,10 +204,15 @@ export const Transactions: React.FC = () => {
   const t = useTranslations("transactionsPage");
   const { categories } = useCategories();
   const { accounts } = useAccounts();
+  const { tags, createTag, isCreating: isCreatingTag } = useTags();
   const { format } = useCurrency();
   const { addToast } = useToast();
   const { preferences } = usePreferences();
-  const { createTransaction, isCreating, updateTransaction, isUpdating } = useTransactions();
+  const { createTransaction, isCreating, updateTransaction, isUpdating, exportTransactions, isExporting, importTransactionsAsync, isImporting } = useTransactions();
+  const [isImportModalOpen, setIsImportModalOpen] = React.useState(false);
+  const [importFile, setImportFile] = React.useState<File | null>(null);
+  const [importResult, setImportResult] = React.useState<TransactionImportResult | null>(null);
+  const [newTagName, setNewTagName] = React.useState("");
 
   const notifySuccess = React.useCallback(
     (message: string) => {
@@ -204,7 +227,7 @@ export const Transactions: React.FC = () => {
     setInputValue,
     currentPage,
     handlePageChange,
-    filters: { type: selectedType, category: selectedCategory, startDate: selectedStartDate, endDate: selectedEndDate, account: selectedAccount },
+    filters: { type: selectedType, category: selectedCategory, startDate: selectedStartDate, endDate: selectedEndDate, account: selectedAccount, tag: selectedTag },
     handleFilterChange,
     resetFilters,
   } = useSearchPagination({
@@ -217,11 +240,13 @@ export const Transactions: React.FC = () => {
   const handleAccountChange = (value: string) => handleFilterChange("account", value);
   const handleStartDateChange = (value: string) => handleFilterChange("startDate", value);
   const handleEndDateChange = (value: string) => handleFilterChange("endDate", value);
+  const handleTagChange = (value: string) => handleFilterChange("tag", value);
 
   const { transactions, pagination, isLoading, deleteTransaction, isDeleting } = useTransactions({
     type: selectedType as TransactionFilter["type"],
     categoryId: selectedCategory,
     accountId: selectedAccount,
+    tagId: selectedTag,
     startDate: selectedStartDate,
     endDate: selectedEndDate,
     search: searchQuery,
@@ -232,13 +257,13 @@ export const Transactions: React.FC = () => {
   const [formData, setFormData] = React.useState<FormData>(INITIAL_FORM_DATA);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
-  /** Set while the modal is editing an existing row; null means it is adding a new one. */
   const [editingTransaction, setEditingTransaction] = React.useState<Transaction | null>(null);
   const isEditing = editingTransaction !== null;
 
   const sourceAccount = React.useMemo(() => accounts.find((a) => a.id === formData.accountId) ?? null, [accounts, formData.accountId]);
   const destAccount = React.useMemo(() => accounts.find((a) => a.id === formData.toAccountId) ?? null, [accounts, formData.toAccountId]);
   const isSourceCreditCard = isCreditCard(sourceAccount);
+  const needsExchangeRate = formData.type === "TRANSFER" && !!sourceAccount && !!destAccount && sourceAccount.currency !== destAccount.currency;
 
   const allowedTypes = React.useMemo<SelectOption[]>(() => {
     const base: SelectOption[] = [
@@ -295,10 +320,11 @@ export const Transactions: React.FC = () => {
       type,
       description: transaction.description ?? "",
       date: toDateTimeInputValue(new Date(transaction.date)),
-      // The schedule is not editable here - see the note in the modal.
       isRecurring: transaction.isRecurring,
       recurrenceInterval: (transaction.recurrenceInterval as RecurrenceInterval) ?? "MONTHLY",
       recurrenceEndDate: transaction.recurrenceEndDate ? toDateTimeInputValue(new Date(transaction.recurrenceEndDate)) : "",
+      tagIds: transaction.tags?.map((tag) => tag.id) ?? [],
+      exchangeRate: transaction.exchangeRate != null ? String(transaction.exchangeRate) : "",
     });
 
     setEditingTransaction(transaction);
@@ -336,6 +362,28 @@ export const Transactions: React.FC = () => {
 
   const handleToggleRecurring = React.useCallback((isRecurring: boolean) => setFormData((prev) => ({ ...prev, isRecurring, recurrenceEndDate: isRecurring ? prev.recurrenceEndDate : "" })), []);
 
+  const handleToggleTag = React.useCallback(
+    (tagId: string) => setFormData((prev) => ({ ...prev, tagIds: prev.tagIds.includes(tagId) ? prev.tagIds.filter((id) => id !== tagId) : [...prev.tagIds, tagId] })),
+    [],
+  );
+
+  const handleCreateTag = React.useCallback(() => {
+    const name = newTagName.trim();
+    if (!name) return;
+    createTag(
+      { name },
+      {
+        onSuccess: (response) => {
+          setFormData((prev) => ({ ...prev, tagIds: [...prev.tagIds, response.data.id] }));
+          setNewTagName("");
+        },
+        onError: (error: Error) => {
+          addToast({ message: error.message || t("error.tagCreate"), type: "error" });
+        },
+      },
+    );
+  }, [newTagName, createTag, addToast, t]);
+
   const handleSubmitForm = React.useCallback(
     (e: React.MouseEvent<HTMLButtonElement>) => {
       e.preventDefault();
@@ -353,6 +401,10 @@ export const Transactions: React.FC = () => {
       }
       if (formData.type === "TRANSFER" && formData.toAccountId && formData.toAccountId === formData.accountId) {
         addToast({ message: t("validation.sameAccount"), type: "error" });
+        return;
+      }
+      if (needsExchangeRate && (!formData.exchangeRate || parseFloat(formData.exchangeRate) <= 0)) {
+        addToast({ message: t("validation.exchangeRate"), type: "error" });
         return;
       }
       if (formData.type !== "TRANSFER" && !formData.categoryId) {
@@ -378,6 +430,8 @@ export const Transactions: React.FC = () => {
               amount: parseFloat(formData.amount),
               description: formData.description.trim(),
               date: new Date(formData.date).toISOString(),
+              tagIds: formData.tagIds,
+              ...(needsExchangeRate && { exchangeRate: parseFloat(formData.exchangeRate) }),
             }
           : {
               type: formData.type,
@@ -386,11 +440,10 @@ export const Transactions: React.FC = () => {
               amount: parseFloat(formData.amount),
               description: formData.description.trim(),
               date: new Date(formData.date).toISOString(),
+              tagIds: formData.tagIds,
             };
 
       if (editingTransaction) {
-        // No recurrence fields on the way out: the schedule is owned by the recurring screen, and
-        // sending them here would silently rewrite a whole series from a form that never showed it.
         updateTransaction(
           { id: editingTransaction.id, data: fields },
           {
@@ -419,8 +472,25 @@ export const Transactions: React.FC = () => {
         },
       );
     },
-    [formData, createTransaction, updateTransaction, editingTransaction, addToast, notifySuccess, closeModal, t, isSourceCreditCard],
+    [formData, createTransaction, updateTransaction, editingTransaction, addToast, notifySuccess, closeModal, t, isSourceCreditCard, needsExchangeRate],
   );
+
+  const closeImportModal = React.useCallback(() => {
+    setIsImportModalOpen(false);
+    setImportFile(null);
+    setImportResult(null);
+  }, []);
+
+  const handleImportSubmit = React.useCallback(async () => {
+    if (!importFile) return;
+    try {
+      const response = await importTransactionsAsync(importFile);
+      setImportResult(response.data);
+      if (response.data.created > 0) notifySuccess(t("import.success", { count: response.data.created }));
+    } catch (error) {
+      addToast({ message: error instanceof Error ? error.message : t("import.error"), type: "error" });
+    }
+  }, [importFile, importTransactionsAsync, notifySuccess, addToast, t]);
 
   const handleDeleteClick = React.useCallback((id: string) => setDeleteId(id), []);
   const handleDeleteConfirm = React.useCallback(() => {
@@ -438,8 +508,8 @@ export const Transactions: React.FC = () => {
   }, [deleteId, deleteTransaction, addToast, notifySuccess, t]);
 
   const hasActiveFilters = React.useMemo(
-    () => selectedType || selectedCategory || selectedAccount || selectedStartDate || selectedEndDate || searchQuery,
-    [selectedType, selectedCategory, selectedAccount, selectedStartDate, selectedEndDate, searchQuery],
+    () => selectedType || selectedCategory || selectedAccount || selectedTag || selectedStartDate || selectedEndDate || searchQuery,
+    [selectedType, selectedCategory, selectedAccount, selectedTag, selectedStartDate, selectedEndDate, searchQuery],
   );
   const previewConfig = TYPE_CONFIG[formData.type];
   const previewSubtitle = React.useMemo(() => {
@@ -459,8 +529,19 @@ export const Transactions: React.FC = () => {
 
   return (
     <div className="space-y-3 sm:space-y-5 lg:space-y-6">
-      {/* The title and the tab bar belong to the workspace around this - only the action is left. */}
-      <div className="flex sm:justify-end">
+      <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <Button variant="outline" size="lg" onClick={() => setIsImportModalOpen(true)} className="w-full sm:w-auto">
+          📥 {t("importButton")}
+        </Button>
+        <Button
+          variant="outline"
+          size="lg"
+          onClick={() => exportTransactions({ type: selectedType as TransactionFilter["type"], categoryId: selectedCategory, accountId: selectedAccount, tagId: selectedTag, startDate: selectedStartDate, endDate: selectedEndDate, search: searchQuery })}
+          isLoading={isExporting}
+          className="w-full sm:w-auto"
+        >
+          📤 {t("exportButton")}
+        </Button>
         <Button variant="primary" size="lg" onClick={openModal} className="w-full sm:w-auto">
           + {t("addButton")}
         </Button>
@@ -501,6 +582,12 @@ export const Transactions: React.FC = () => {
                 value={selectedAccount}
                 onChange={(e) => handleAccountChange(e.target.value)}
               />
+              <Select
+                label={t("filter.tag")}
+                options={[{ value: "", label: t("filter.allTags") }, ...tags.map((tag) => ({ value: tag.id, label: `🏷️ ${tag.name}` }))]}
+                value={selectedTag}
+                onChange={(e) => handleTagChange(e.target.value)}
+              />
               <Input label={t("filter.search")} placeholder={t("filter.searchPlaceholder")} value={inputValue} onChange={(e) => setInputValue(e.target.value)} />
               <Input type="datetime-local" label={t("filter.startDate")} value={selectedStartDate} onChange={(e) => handleStartDateChange(e.target.value)} />
               <Input type="datetime-local" label={t("filter.endDate")} value={selectedEndDate} onChange={(e) => handleEndDateChange(e.target.value)} />
@@ -520,6 +607,11 @@ export const Transactions: React.FC = () => {
                 {selectedAccount && (
                   <Badge variant="default" className="text-xs">
                     {t("filter.account")}: {accounts.find((c) => c.id === selectedAccount)?.name}
+                  </Badge>
+                )}
+                {selectedTag && (
+                  <Badge variant="default" className="text-xs">
+                    {t("filter.tag")}: {tags.find((tag) => tag.id === selectedTag)?.name}
                   </Badge>
                 )}
                 {selectedStartDate && (
@@ -627,6 +719,25 @@ export const Transactions: React.FC = () => {
               />
             )}
           </div>
+          {needsExchangeRate && (
+            <div className="p-3 border rounded-lg sm:p-4 border-secondary-100 dark:border-secondary-300 bg-secondary-50 dark:bg-secondary-100">
+              <Input
+                type="number"
+                label={`${t("modal.exchangeRate", { from: sourceAccount?.currency, to: destAccount?.currency })} *`}
+                placeholder={t("modal.exchangeRatePlaceholder")}
+                value={formData.exchangeRate}
+                onChange={(e) => handleChangeForm("exchangeRate", e.target.value)}
+                min="0"
+                step="any"
+                required
+              />
+              {formData.amount && formData.exchangeRate && parseFloat(formData.exchangeRate) > 0 && (
+                <p className="mt-2 text-xs text-secondary-600 dark:text-secondary-400">
+                  {t("modal.exchangeRatePreview", { amount: format(parseFloat(formData.amount) * parseFloat(formData.exchangeRate), destAccount?.currency) })}
+                </p>
+              )}
+            </div>
+          )}
           {contextHint && (
             <div
               className={`flex items-start gap-2 p-3 rounded-lg border text-xs sm:text-sm ${
@@ -651,9 +762,37 @@ export const Transactions: React.FC = () => {
             required
           />
 
+          <div>
+            <label className="block mb-1.5 text-xs font-medium sm:text-sm text-primary-900 dark:text-primary-900">{t("modal.tags")}</label>
+            <div className="flex flex-wrap gap-1.5 mb-2">
+              {tags.map((tag) => {
+                const selected = formData.tagIds.includes(tag.id);
+                return (
+                  <button
+                    key={tag.id}
+                    type="button"
+                    onClick={() => handleToggleTag(tag.id)}
+                    className={`px-2 py-1 text-xs font-medium rounded-full border transition-colors ${
+                      selected
+                        ? "bg-secondary-400 border-secondary-400 text-on-bright"
+                        : "bg-transparent border-primary-200 dark:border-primary-400 text-primary-600 dark:text-primary-700 hover:bg-primary-50 dark:hover:bg-primary-300"
+                    }`}
+                  >
+                    🏷️ {tag.name}
+                  </button>
+                );
+              })}
+              {tags.length === 0 && <p className="text-xs text-primary-400 dark:text-primary-600">{t("modal.noTags")}</p>}
+            </div>
+            <div className="flex gap-2">
+              <Input type="text" placeholder={t("modal.newTagPlaceholder")} value={newTagName} onChange={(e) => setNewTagName(e.target.value)} maxLength={30} className="flex-1" />
+              <Button type="button" variant="outline" size="sm" onClick={handleCreateTag} isLoading={isCreatingTag} disabled={!newTagName.trim()}>
+                + {t("modal.addTag")}
+              </Button>
+            </div>
+          </div>
+
           {isEditing ? (
-            // The update endpoint deliberately ignores recurrence, and a series is rewritten across
-            // every row that belongs to it - that lives on one screen, not two.
             <div className="p-3 border rounded-lg sm:p-4 border-primary-100 dark:border-primary-400 bg-primary-50 dark:bg-primary-300">
               <p className="text-xs sm:text-sm text-primary-600 dark:text-primary-700">{formData.isRecurring ? `🔁 ${t("modal.recurringLocked")}` : `🔁 ${t("modal.recurringUnavailable")}`}</p>
             </div>
@@ -698,7 +837,7 @@ export const Transactions: React.FC = () => {
                 </div>
                 <div className="ml-2 text-right shrink-0">
                   <p className={`text-sm sm:text-base font-bold tabular-nums ${previewConfig.color}`}>
-                    {previewConfig.prefix} {format(formData.amount)}
+                    {previewConfig.prefix} {format(formData.amount, sourceAccount?.currency)}
                   </p>
                   <Badge variant={formData.type === "INCOME" ? "success" : formData.type === "TRANSFER" ? "info" : "error"} className="text-xs">
                     {formData.type}
@@ -720,6 +859,53 @@ export const Transactions: React.FC = () => {
               className="text-xs sm:text-sm"
             >
               {isEditing ? t("modal.update") : t("modal.create")}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      <Modal isOpen={isImportModalOpen} onClose={closeImportModal} title={`📥 ${t("import.title")}`} size="md">
+        <div className="space-y-3 sm:space-y-4">
+          <div className="p-2.5 sm:p-3 rounded-lg border bg-primary-50 dark:bg-primary-300 border-primary-100 dark:border-primary-400">
+            <p className="text-xs font-medium sm:text-sm text-primary-700 dark:text-primary-800">💡 {t("import.hint")}</p>
+          </div>
+
+          <div>
+            <label className="block mb-1.5 text-xs font-medium sm:text-sm text-primary-900 dark:text-primary-900">{t("import.file")}</label>
+            <input
+              type="file"
+              accept=".csv,text/csv"
+              onChange={(e) => {
+                setImportFile(e.target.files?.[0] ?? null);
+                setImportResult(null);
+              }}
+              className="block w-full text-xs sm:text-sm text-primary-700 dark:text-primary-800 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-secondary-400 file:text-on-bright hover:file:opacity-90"
+            />
+          </div>
+
+          {importResult && (
+            <div className="p-3 space-y-2 border rounded-lg sm:p-4 border-primary-100 dark:border-primary-400 bg-primary-50 dark:bg-primary-300">
+              <p className="text-sm font-medium text-primary-900 dark:text-primary-900">
+                ✅ {t("import.created", { count: importResult.created })} · {importResult.skipped > 0 && `⚠️ ${t("import.skipped", { count: importResult.skipped })}`}
+              </p>
+              {importResult.errors.length > 0 && (
+                <div className="max-h-40 overflow-y-auto space-y-1 text-xs sm:text-sm text-danger-600 dark:text-danger-400">
+                  {importResult.errors.map((err) => (
+                    <p key={err.row}>
+                      {t("import.rowError", { row: err.row })}: {err.message}
+                    </p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="flex justify-end gap-2 pt-3 border-t border-primary-100 dark:border-primary-400 sm:gap-3 sm:pt-4">
+            <Button type="button" variant="ghost" onClick={closeImportModal} className="text-xs sm:text-sm">
+              {t("import.close")}
+            </Button>
+            <Button onClick={handleImportSubmit} variant="primary" isLoading={isImporting} disabled={!importFile} className="text-xs sm:text-sm">
+              📥 {t("import.submit")}
             </Button>
           </div>
         </div>

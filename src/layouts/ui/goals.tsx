@@ -2,9 +2,10 @@
 
 import * as React from "react";
 import { useTranslations } from "next-intl";
-import { useGoals } from "@/hooks";
+import { useGoals, usePreferences } from "@/hooks";
 import { useCurrency } from "@/providers";
-import { Card, CardContent, Button, Input, Modal, Badge, useToast } from "@/components";
+import { Card, CardContent, Button, Input, Select, Modal, Badge, useToast } from "@/components";
+import { BASE_CURRENCY } from "@/static";
 import { calculateGoalStatus } from "@/utils";
 import type { Goal } from "@/types";
 
@@ -12,6 +13,7 @@ interface FormData {
   name: string;
   targetAmount: string;
   currentAmount: string;
+  currency: string;
   deadline: string;
 }
 interface GoalCardProps {
@@ -71,8 +73,8 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onUpdateProgress, onDelete })
 
         <div className="mb-3 space-y-2 sm:mb-4 sm:space-y-3">
           <div>
-            <p className="text-xl font-bold sm:text-3xl text-primary-900 dark:text-primary-900 tabular-nums">{format(Number(goal.currentAmount))}</p>
-            <p className="mt-0.5 text-xs sm:mt-1 sm:text-sm text-primary-500 dark:text-primary-700">{t("ofTarget", { amount: format(Number(goal.targetAmount)) })}</p>
+            <p className="text-xl font-bold sm:text-3xl text-primary-900 dark:text-primary-900 tabular-nums">{format(Number(goal.currentAmount), goal.currency)}</p>
+            <p className="mt-0.5 text-xs sm:mt-1 sm:text-sm text-primary-500 dark:text-primary-700">{t("ofTarget", { amount: format(Number(goal.targetAmount), goal.currency) })}</p>
           </div>
 
           <div className="space-y-1.5 sm:space-y-2">
@@ -87,7 +89,7 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onUpdateProgress, onDelete })
             </div>
             <div className="flex justify-between text-xs text-primary-500 dark:text-primary-700">
               <span className="font-medium">{t("achieved", { percentage: status.percentage.toFixed(1) })}</span>
-              {!status.isCompleted && <span>{t("toGo", { amount: format(remainingAmount) })}</span>}
+              {!status.isCompleted && <span>{t("toGo", { amount: format(remainingAmount, goal.currency) })}</span>}
             </div>
           </div>
         </div>
@@ -137,8 +139,11 @@ const EmptyState: React.FC<{ onCreateClick: () => void }> = ({ onCreateClick }) 
 export const Goals: React.FC = () => {
   const t = useTranslations("goalsPage");
   const { goals, createGoal, isCreating, updateProgress, deleteGoal, isDeleting } = useGoals("ACTIVE");
-  const { format } = useCurrency();
+  const { format, convert } = useCurrency();
+  const { preferences, optionsFor } = usePreferences();
   const { addToast } = useToast();
+
+  const currencyOptions = optionsFor("currency");
 
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [isProgressModalOpen, setIsProgressModalOpen] = React.useState(false);
@@ -146,18 +151,24 @@ export const Goals: React.FC = () => {
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [progressAmount, setProgressAmount] = React.useState("");
 
-  const [formData, setFormData] = React.useState<FormData>({ name: "", targetAmount: "", currentAmount: "", deadline: "" });
+  const [formData, setFormData] = React.useState<FormData>({ name: "", targetAmount: "", currentAmount: "", currency: "", deadline: "" });
 
   const summary = React.useMemo(() => {
     const totalGoals = goals.length;
     const completedGoals = goals.filter((g) => (Number(g.currentAmount) / Number(g.targetAmount)) * 100 >= 100).length;
-    const totalTarget = goals.reduce((sum, g) => sum + Number(g.targetAmount), 0);
-    const totalSaved = goals.reduce((sum, g) => sum + Number(g.currentAmount), 0);
+    // Goals can each be in a different currency, so totals are normalized to BASE_CURRENCY before
+    // summing - `format()` below converts that to the display currency the same way it already
+    // does for every other base-currency figure in the app.
+    const totalTarget = goals.reduce((sum, g) => sum + convert(Number(g.targetAmount), g.currency, BASE_CURRENCY), 0);
+    const totalSaved = goals.reduce((sum, g) => sum + convert(Number(g.currentAmount), g.currency, BASE_CURRENCY), 0);
     const overallProgress = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;
     return { totalGoals, completedGoals, totalTarget, totalSaved, overallProgress };
-  }, [goals]);
+  }, [goals, convert]);
 
-  const resetForm = React.useCallback((): void => setFormData({ name: "", targetAmount: "", currentAmount: "", deadline: "" }), []);
+  const resetForm = React.useCallback(
+    (): void => setFormData({ name: "", targetAmount: "", currentAmount: "", currency: preferences.currency || BASE_CURRENCY, deadline: "" }),
+    [preferences.currency],
+  );
   const openModal = React.useCallback((): void => {
     resetForm();
     setIsModalOpen(true);
@@ -314,6 +325,7 @@ export const Goals: React.FC = () => {
             required
             maxLength={100}
           />
+          <Select label={`${t("modal.currency")} *`} options={currencyOptions} value={formData.currency} onChange={(e) => handleFormChange("currency", e.target.value)} />
           <Input
             type="number"
             label={`${t("modal.targetAmount")} *`}
@@ -361,8 +373,8 @@ export const Goals: React.FC = () => {
             <p className="text-sm font-bold sm:text-base text-primary-900 dark:text-primary-900">{selectedGoal?.name}</p>
             <p className="mt-1.5 text-xs text-primary-500 dark:text-primary-700 sm:mt-2">
               {t("progressModal.currentInfo", {
-                current: format(Number(selectedGoal?.currentAmount || 0)),
-                target: format(Number(selectedGoal?.targetAmount || 0)),
+                current: format(Number(selectedGoal?.currentAmount || 0), selectedGoal?.currency),
+                target: format(Number(selectedGoal?.targetAmount || 0), selectedGoal?.currency),
               })}
             </p>
           </div>

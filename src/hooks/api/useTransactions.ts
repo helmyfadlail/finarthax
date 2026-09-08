@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiClient } from "@/utils";
-import type { ApiResponse, Transaction, TransactionFilter, PaginatedResponse, RecurrenceInterval } from "@/types/api";
+import type { ApiResponse, Transaction, TransactionFilter, PaginatedResponse, RecurrenceInterval, TransactionImportResult } from "@/types/api";
 
 interface CreateTransactionData {
   accountId: string;
@@ -16,6 +16,8 @@ interface CreateTransactionData {
   isRecurring?: boolean;
   recurrenceInterval?: RecurrenceInterval;
   recurrenceEndDate?: string;
+  tagIds?: string[];
+  exchangeRate?: number;
 }
 
 export const useTransactions = (filters?: TransactionFilter) => {
@@ -62,6 +64,38 @@ export const useTransactions = (filters?: TransactionFilter) => {
     },
   });
 
+  const importMutation = useMutation({
+    mutationFn: (file: File) => {
+      const formData = new FormData();
+      formData.append("file", file);
+      return apiClient.postFormData<ApiResponse<TransactionImportResult>>("/transactions/import", formData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["transactions"] });
+      queryClient.invalidateQueries({ queryKey: ["accounts"] });
+      queryClient.invalidateQueries({ queryKey: ["budgets"] });
+      queryClient.invalidateQueries({ queryKey: ["dashboard"] });
+      queryClient.invalidateQueries({ queryKey: ["tags"] });
+    },
+  });
+
+  const exportMutation = useMutation({
+    mutationFn: async (exportFilters?: TransactionFilter) => {
+      const blob = await apiClient.getBlob("/transactions/export", { params: exportFilters as Record<string, string | number | boolean | undefined> });
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `transactions-${new Date().toISOString().split("T")[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+
+      return { success: true };
+    },
+  });
+
   return {
     transactions: data?.data.data || [],
     pagination: data?.data.pagination,
@@ -76,5 +110,11 @@ export const useTransactions = (filters?: TransactionFilter) => {
     deleteTransaction: deleteMutation.mutate,
     deleteTransactionAsync: deleteMutation.mutateAsync,
     isDeleting: deleteMutation.isPending,
+    exportTransactions: exportMutation.mutate,
+    exportTransactionsAsync: exportMutation.mutateAsync,
+    isExporting: exportMutation.isPending,
+    importTransactions: importMutation.mutate,
+    importTransactionsAsync: importMutation.mutateAsync,
+    isImporting: importMutation.isPending,
   };
 };

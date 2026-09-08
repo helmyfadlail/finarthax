@@ -12,7 +12,15 @@
       "budgets": "预算",
       "goals": "目标",
       "reports": "报告",
-      "appSettings": "应用设置"
+      "auditLog": "活动日志",
+      "appSettings": "应用设置",
+      "more": "更多"
+    },
+    "navGroups": {
+      "overview": "概览",
+      "manage": "管理",
+      "insights": "洞察",
+      "admin": "管理员"
     },
     "menu": {
       "settings": "设置",
@@ -108,6 +116,8 @@
     "title": "交易",
     "subtitle": "跟踪和管理您的收入和支出",
     "addButton": "添加交易",
+    "exportButton": "导出 CSV",
+    "importButton": "导入 CSV",
     "income": "收入",
     "expense": "支出",
     "transfer": "转账",
@@ -121,8 +131,10 @@
       "allTypes": "所有类型",
       "category": "类别",
       "account": "账户",
+      "tag": "标签",
       "allCategories": "所有类别",
       "allAccounts": "所有账户",
+      "allTags": "所有标签",
       "search": "搜索",
       "searchPlaceholder": "按描述搜索...",
       "startDate": "开始日期",
@@ -167,7 +179,14 @@
       "editHint": "可修改任意字段，账户余额会随之重新计算。",
       "update": "保存修改",
       "recurringLocked": "该交易属于定期系列，其排程在「定期」页面管理。",
-      "recurringUnavailable": "重复设置在创建交易时添加，或在「定期」页面设置。"
+      "recurringUnavailable": "重复设置在创建交易时添加，或在「定期」页面设置。",
+      "tags": "标签",
+      "noTags": "暂无标签——在下方创建一个",
+      "newTagPlaceholder": "新标签名称",
+      "addTag": "添加",
+      "exchangeRate": "汇率（{from} → {to}）",
+      "exchangeRatePlaceholder": "例如：15800",
+      "exchangeRatePreview": "对方将收到 ≈ {amount}"
     },
     "deleteModal": {
       "title": "删除交易",
@@ -182,7 +201,8 @@
       "category": "请选择类别",
       "description": "请添加描述",
       "sameAccount": "来源账户和目标账户必须不同",
-      "creditCardNoIncome": "信用卡不允许收入交易。请使用从银行账户到信用卡的转账来还款。"
+      "creditCardNoIncome": "信用卡不允许收入交易。请使用从银行账户到信用卡的转账来还款。",
+      "exchangeRate": "请为此跨货币转账输入有效汇率"
     },
     "hints": {
       "creditCardNoIncome": "⚠️ 信用卡不允许收入交易。如需减少余额，请使用从银行账户转账到此信用卡的方式。",
@@ -199,7 +219,8 @@
     "error": {
       "create": "创建交易失败",
       "delete": "删除交易失败",
-      "update": "更新交易失败"
+      "update": "更新交易失败",
+      "tagCreate": "创建标签失败"
     },
     "interval": {
       "DAILY": "每天",
@@ -212,7 +233,19 @@
       "all": "全部交易",
       "recurring": "定期交易"
     },
-    "editButton": "编辑交易"
+    "editButton": "编辑交易",
+    "import": {
+      "title": "导入交易",
+      "hint": "上传与本应用导出格式相同的 CSV 文件：Date, Type, Amount, Description, Category, Account, To Account, Tags。类别和账户按名称匹配——不存在的标签会自动创建。",
+      "file": "CSV 文件",
+      "created": "已创建 {count} 条",
+      "skipped": "已跳过 {count} 条",
+      "rowError": "第 {row} 行",
+      "close": "关闭",
+      "submit": "导入",
+      "success": "已成功导入 {count} 条交易",
+      "error": "导入 CSV 文件失败"
+    }
   },
   "recurringPage": {
     "title": "定期交易",
@@ -398,6 +431,8 @@
       "name": "账户名称",
       "namePlaceholder": "例如：现金钱包、BCA储蓄、GoPay",
       "type": "账户类型",
+      "currency": "货币",
+      "currencyLockedHint": "账户产生交易记录后将无法更改货币。",
       "balance": "初始余额",
       "currentBalance": "当前余额",
       "balancePlaceholder": "输入起始余额",
@@ -435,6 +470,27 @@
       "create": "创建账户失败",
       "update": "更新账户失败",
       "delete": "删除账户失败。可能正在使用中。"
+    },
+    "valueUpdate": {
+      "checkInButton": "更新价值",
+      "title": "更新投资价值",
+      "hint": "随时查看“{name}”的价值——每天、每周、每月，或任何您喜欢的时间——并记录其当前价值以跟踪盈亏。",
+      "currentValue": "当前价值",
+      "newValue": "新价值",
+      "newValuePlaceholder": "输入当前价值",
+      "gain": "盈利",
+      "loss": "亏损",
+      "note": "备注（可选）",
+      "notePlaceholder": "例如：市场更新、每月检查",
+      "save": "保存更新",
+      "history": "价值历史",
+      "loadingHistory": "正在加载历史记录...",
+      "noHistory": "尚无价值更新记录",
+      "validation": {
+        "invalidValue": "请输入有效的价值（必须为0或更多）"
+      },
+      "success": "投资价值更新成功！📊",
+      "error": "更新投资价值失败"
     }
   },
   "categoriesPage": {
@@ -528,6 +584,7 @@
       "onTrack": "按计划进行"
     },
     "overBudgetBy": "超出预算 {amount}",
+    "autoRenew": "下月自动续订",
     "filter": {
       "month": "月份",
       "year": "年份",
@@ -565,6 +622,8 @@
       "category": "类别",
       "amount": "预算金额",
       "amountPlaceholder": "输入金额",
+      "autoRenew": "下月自动续订",
+      "autoRenewHint": "自动为该类别以相同金额创建下个月的预算。",
       "cancel": "取消",
       "save": "保存预算"
     },
@@ -583,12 +642,46 @@
     "success": {
       "created": "预算保存成功！🎉",
       "updated": "预算更新成功！✓",
-      "deleted": "预算删除成功"
+      "deleted": "预算删除成功",
+      "autoRenewEnabled": "自动续订已开启 ✓",
+      "autoRenewDisabled": "自动续订已关闭"
     },
     "error": {
       "create": "保存预算失败。请重试。",
       "update": "更新预算失败",
       "delete": "删除预算失败"
+    }
+  },
+  "auditLogPage": {
+    "title": "活动日志",
+    "subtitle": "账户、交易、预算和目标的变更历史",
+    "noFieldChanges": "未记录字段更改",
+    "actions": {
+      "create": "已创建",
+      "update": "已更新",
+      "delete": "已删除"
+    },
+    "entities": {
+      "account": "账户",
+      "transaction": "交易",
+      "budget": "预算",
+      "goal": "目标"
+    },
+    "filter": {
+      "entityType": "类型",
+      "allEntities": "所有类型",
+      "startDate": "从",
+      "endDate": "到"
+    },
+    "pagination": {
+      "page": "第",
+      "of": "共",
+      "previous": "上一页",
+      "next": "下一页"
+    },
+    "empty": {
+      "title": "暂无活动记录",
+      "description": "您账户、交易、预算和目标的变更将显示在此处"
     }
   },
   "goalsPage": {
@@ -624,6 +717,7 @@
       "hint": "设定具有明确目标金额的清晰目标以保持动力！",
       "name": "目标名称",
       "namePlaceholder": "例如：应急基金、买车、度假",
+      "currency": "货币",
       "targetAmount": "目标金额",
       "targetAmountPlaceholder": "输入目标金额",
       "currentAmount": "当前金额",
@@ -1114,6 +1208,13 @@
       "deleted": "{key} 已删除",
       "error": "出了点问题，请重试。"
     }
+  },
+  "notificationsPage": {
+    "title": "通知",
+    "bellLabel": "通知",
+    "markAllRead": "全部标记为已读",
+    "loading": "加载中…",
+    "empty": "全部已读——暂无新通知。"
   },
   "notFoundPage": {
     "title": "页面未找到",

@@ -12,7 +12,15 @@
       "budgets": "Anggaran",
       "goals": "Tujuan",
       "reports": "Laporan",
-      "appSettings": "Pengaturan Aplikasi"
+      "auditLog": "Log Aktivitas",
+      "appSettings": "Pengaturan Aplikasi",
+      "more": "Lainnya"
+    },
+    "navGroups": {
+      "overview": "Ringkasan",
+      "manage": "Kelola",
+      "insights": "Wawasan",
+      "admin": "Admin"
     },
     "menu": {
       "settings": "Pengaturan",
@@ -108,6 +116,8 @@
     "title": "Transaksi",
     "subtitle": "Lacak dan kelola pemasukan dan pengeluaran Anda",
     "addButton": "Tambah Transaksi",
+    "exportButton": "Ekspor CSV",
+    "importButton": "Impor CSV",
     "income": "Pemasukan",
     "expense": "Pengeluaran",
     "transfer": "Transfer",
@@ -121,8 +131,10 @@
       "allTypes": "Semua Tipe",
       "category": "Kategori",
       "account": "Akun",
+      "tag": "Tag",
       "allCategories": "Semua Kategori",
       "allAccounts": "Semua Akun",
+      "allTags": "Semua Tag",
       "search": "Cari",
       "searchPlaceholder": "Cari berdasarkan deskripsi...",
       "startDate": "Tanggal Mulai",
@@ -167,7 +179,14 @@
       "editHint": "Ubah bidang mana pun — saldo akun Anda dihitung ulang agar sesuai.",
       "update": "Simpan Perubahan",
       "recurringLocked": "Transaksi ini bagian dari seri berulang. Jadwalnya dikelola di halaman Berulang.",
-      "recurringUnavailable": "Pengaturan pengulangan ditambahkan saat transaksi dibuat, atau dari halaman Berulang."
+      "recurringUnavailable": "Pengaturan pengulangan ditambahkan saat transaksi dibuat, atau dari halaman Berulang.",
+      "tags": "Tag",
+      "noTags": "Belum ada tag — buat satu di bawah",
+      "newTagPlaceholder": "Nama tag baru",
+      "addTag": "Tambah",
+      "exchangeRate": "Kurs tukar ({from} → {to})",
+      "exchangeRatePlaceholder": "contoh: 15800",
+      "exchangeRatePreview": "Penerima akan mendapat ≈ {amount}"
     },
     "deleteModal": {
       "title": "Hapus Transaksi",
@@ -182,7 +201,8 @@
       "category": "Pilih kategori",
       "description": "Tambahkan deskripsi",
       "sameAccount": "Akun sumber dan tujuan harus berbeda",
-      "creditCardNoIncome": "Pemasukan tidak diizinkan pada kartu kredit. Gunakan Transfer dari rekening bank untuk membayar tagihan."
+      "creditCardNoIncome": "Pemasukan tidak diizinkan pada kartu kredit. Gunakan Transfer dari rekening bank untuk membayar tagihan.",
+      "exchangeRate": "Masukkan kurs tukar yang valid untuk transfer lintas mata uang ini"
     },
     "hints": {
       "creditCardNoIncome": "⚠️ Transaksi pemasukan tidak diizinkan pada kartu kredit. Untuk mengurangi saldo, gunakan Transfer dari rekening bank ke kartu kredit ini.",
@@ -199,7 +219,8 @@
     "error": {
       "create": "Gagal membuat transaksi",
       "delete": "Gagal menghapus transaksi",
-      "update": "Gagal memperbarui transaksi"
+      "update": "Gagal memperbarui transaksi",
+      "tagCreate": "Gagal membuat tag"
     },
     "interval": {
       "DAILY": "Harian",
@@ -212,7 +233,19 @@
       "all": "Semua transaksi",
       "recurring": "Berulang"
     },
-    "editButton": "Ubah transaksi"
+    "editButton": "Ubah transaksi",
+    "import": {
+      "title": "Impor Transaksi",
+      "hint": "Unggah file CSV dengan kolom yang sama seperti hasil ekspor aplikasi ini: Date, Type, Amount, Description, Category, Account, To Account, Tags. Kategori dan Akun dicocokkan berdasarkan nama — tag yang belum ada akan dibuat otomatis.",
+      "file": "File CSV",
+      "created": "{count} dibuat",
+      "skipped": "{count} dilewati",
+      "rowError": "Baris {row}",
+      "close": "Tutup",
+      "submit": "Impor",
+      "success": "Berhasil mengimpor {count} transaksi",
+      "error": "Gagal mengimpor file CSV"
+    }
   },
   "recurringPage": {
     "title": "Transaksi Berulang",
@@ -398,6 +431,8 @@
       "name": "Nama Akun",
       "namePlaceholder": "contoh: Dompet Tunai, Tabungan BCA, GoPay",
       "type": "Tipe Akun",
+      "currency": "Mata Uang",
+      "currencyLockedHint": "Mata uang tidak dapat diubah setelah akun ini memiliki transaksi.",
       "balance": "Saldo Awal",
       "currentBalance": "Saldo Saat Ini",
       "balancePlaceholder": "Masukkan saldo awal",
@@ -435,6 +470,27 @@
       "create": "Gagal membuat akun",
       "update": "Gagal memperbarui akun",
       "delete": "Gagal menghapus akun. Mungkin sedang digunakan."
+    },
+    "valueUpdate": {
+      "checkInButton": "Perbarui Nilai",
+      "title": "Perbarui Nilai Investasi",
+      "hint": "Cek nilai \"{name}\" kapan saja — harian, mingguan, bulanan, atau sesuka Anda — dan catat nilainya saat ini untuk melacak keuntungan dan kerugian.",
+      "currentValue": "Nilai saat ini",
+      "newValue": "Nilai baru",
+      "newValuePlaceholder": "Masukkan nilai saat ini",
+      "gain": "Untung",
+      "loss": "Rugi",
+      "note": "Catatan (opsional)",
+      "notePlaceholder": "contoh: Update pasar, cek bulanan",
+      "save": "Simpan Pembaruan",
+      "history": "Riwayat Nilai",
+      "loadingHistory": "Memuat riwayat...",
+      "noHistory": "Belum ada riwayat nilai yang tercatat",
+      "validation": {
+        "invalidValue": "Masukkan nilai yang valid (harus 0 atau lebih)"
+      },
+      "success": "Nilai investasi berhasil diperbarui! 📊",
+      "error": "Gagal memperbarui nilai investasi"
     }
   },
   "categoriesPage": {
@@ -528,6 +584,7 @@
       "onTrack": "Sesuai Target"
     },
     "overBudgetBy": "Melebihi anggaran sebesar {amount}",
+    "autoRenew": "Perpanjang otomatis bulan depan",
     "filter": {
       "month": "Bulan",
       "year": "Tahun",
@@ -565,6 +622,8 @@
       "category": "Kategori",
       "amount": "Jumlah Anggaran",
       "amountPlaceholder": "Masukkan jumlah",
+      "autoRenew": "Perpanjang otomatis bulan depan",
+      "autoRenewHint": "Otomatis membuat anggaran bulan depan dengan jumlah yang sama untuk kategori ini.",
       "cancel": "Batal",
       "save": "Simpan Anggaran"
     },
@@ -583,12 +642,46 @@
     "success": {
       "created": "Anggaran berhasil disimpan! 🎉",
       "updated": "Anggaran berhasil diperbarui! ✓",
-      "deleted": "Anggaran berhasil dihapus"
+      "deleted": "Anggaran berhasil dihapus",
+      "autoRenewEnabled": "Perpanjangan otomatis diaktifkan ✓",
+      "autoRenewDisabled": "Perpanjangan otomatis dinonaktifkan"
     },
     "error": {
       "create": "Gagal menyimpan anggaran. Silakan coba lagi.",
       "update": "Gagal memperbarui anggaran",
       "delete": "Gagal menghapus anggaran"
+    }
+  },
+  "auditLogPage": {
+    "title": "Log Aktivitas",
+    "subtitle": "Riwayat perubahan pada akun, transaksi, anggaran, dan tujuan Anda",
+    "noFieldChanges": "Tidak ada perubahan kolom yang tercatat",
+    "actions": {
+      "create": "Dibuat",
+      "update": "Diperbarui",
+      "delete": "Dihapus"
+    },
+    "entities": {
+      "account": "Akun",
+      "transaction": "Transaksi",
+      "budget": "Anggaran",
+      "goal": "Tujuan"
+    },
+    "filter": {
+      "entityType": "Tipe",
+      "allEntities": "Semua Tipe",
+      "startDate": "Dari",
+      "endDate": "Sampai"
+    },
+    "pagination": {
+      "page": "Halaman",
+      "of": "dari",
+      "previous": "Sebelumnya",
+      "next": "Berikutnya"
+    },
+    "empty": {
+      "title": "Belum Ada Aktivitas",
+      "description": "Perubahan pada akun, transaksi, anggaran, dan tujuan Anda akan muncul di sini"
     }
   },
   "goalsPage": {
@@ -624,6 +717,7 @@
       "hint": "Tetapkan tujuan yang jelas dengan jumlah target spesifik agar tetap termotivasi!",
       "name": "Nama Tujuan",
       "namePlaceholder": "contoh: Dana Darurat, Beli Mobil, Liburan",
+      "currency": "Mata Uang",
       "targetAmount": "Jumlah Target",
       "targetAmountPlaceholder": "Masukkan jumlah target",
       "currentAmount": "Jumlah Saat Ini",
@@ -1114,6 +1208,13 @@
       "deleted": "{key} dihapus",
       "error": "Terjadi kesalahan. Silakan coba lagi."
     }
+  },
+  "notificationsPage": {
+    "title": "Notifikasi",
+    "bellLabel": "Notifikasi",
+    "markAllRead": "Tandai semua dibaca",
+    "loading": "Memuat…",
+    "empty": "Semua sudah dibaca — tidak ada yang baru."
   },
   "notFoundPage": {
     "title": "Halaman Tidak Ditemukan",

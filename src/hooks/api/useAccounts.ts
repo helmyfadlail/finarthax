@@ -8,6 +8,7 @@ interface CreateAccountData {
   name: string;
   type: "CASH" | "BANK" | "EWALLET" | "CREDIT_CARD" | "INVESTMENT";
   balance?: number;
+  currency?: string;
   creditLimit?: number;
   color?: string;
   icon?: string;

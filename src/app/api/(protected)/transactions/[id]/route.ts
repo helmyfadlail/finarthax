@@ -1,5 +1,19 @@
 import { NextRequest } from "next/server";
-import { applyBalanceChange, applyBudgetChange, logger, prisma, requireAuth, TRANSACTION_INCLUDE, validateAccount, validateCategory, validateCreditCardRules, withApi } from "@/lib";
+import {
+  applyBalanceChange,
+  applyBudgetChange,
+  logger,
+  prisma,
+  recordAuditLog,
+  requireAuth,
+  resolveTransferExchangeRate,
+  TRANSACTION_INCLUDE,
+  validateAccount,
+  validateCategory,
+  validateCreditCardRules,
+  validateTags,
+  withApi,
+} from "@/lib";
 import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
 import z from "zod";
 import { updateTransactionSchema } from "@/types";
@@ -37,17 +51,31 @@ export const PUT = withApi<{ id: string }>("transactions.update", async (req: Ne
   const { error: categoryError } = await validateCategory(user.id, newCategoryId);
   if (categoryError) return errorResponse(categoryError, 404);
 
+  const { error: tagsError } = await validateTags(user.id, data.tagIds);
+  if (tagsError) return errorResponse(tagsError, 404);
+
+  const newAmount = data.amount ?? existing.amount.toNumber();
+  const newExchangeRate = "exchangeRate" in data ? data.exchangeRate : (existing.exchangeRate?.toNumber() ?? undefined);
+  const { error: fxError, exchangeRate } = newType === "TRANSFER" ? await resolveTransferExchangeRate(newAccountId, newToAccountId, newExchangeRate) : { error: null, exchangeRate: null };
+  if (fxError) return errorResponse(fxError, 422);
+  const convertedAmount = exchangeRate ? newAmount * exchangeRate : null;
+
   const transaction = await prisma.$transaction(async (tx) => {
     await applyBalanceChange(tx, existing, "reverse");
     await applyBudgetChange(tx, user.id, existing, "reverse");
 
+    const { tagIds, ...rest } = data;
+
     const updated = await tx.transaction.update({
       where: { id },
       data: {
-        ...data,
+        ...rest,
         ...(data.date && { date: new Date(data.date) }),
         ...(data.type && data.type !== "TRANSFER" && { toAccountId: null }),
         ...(data.type === "TRANSFER" && !("categoryId" in data) && { categoryId: null }),
+        ...(tagIds !== undefined && { tags: { set: tagIds.map((tagId) => ({ id: tagId })) } }),
+        exchangeRate,
+        convertedAmount,
       },
       include: TRANSACTION_INCLUDE,
     });
@@ -65,6 +93,15 @@ export const PUT = withApi<{ id: string }>("transactions.update", async (req: Ne
     fields: Object.keys(data),
     previous: { type: existing.type, amount: Number(existing.amount), accountId: existing.accountId },
     current: { type: transaction.type, amount: Number(transaction.amount), accountId: transaction.accountId },
+  });
+
+  await recordAuditLog({
+    entityType: "transaction",
+    entityId: id,
+    action: "update",
+    previousValue: { type: existing.type, amount: existing.amount.toNumber(), accountId: existing.accountId },
+    newValue: { type: transaction.type, amount: transaction.amount.toNumber(), accountId: transaction.accountId },
+    actor: user,
   });
 
   return successResponse(transaction, "Transaction updated successfully");
@@ -88,6 +125,14 @@ export const DELETE = withApi<{ id: string }>("transactions.delete", async (req:
     type: transaction.type,
     amount: Number(transaction.amount),
     accountId: transaction.accountId,
+  });
+
+  await recordAuditLog({
+    entityType: "transaction",
+    entityId: id,
+    action: "delete",
+    previousValue: { type: transaction.type, amount: transaction.amount.toNumber(), accountId: transaction.accountId },
+    actor: user,
   });
 
   return successResponse(null, "Transaction deleted successfully");

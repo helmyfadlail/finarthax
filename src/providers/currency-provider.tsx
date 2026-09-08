@@ -79,8 +79,6 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return getUserSetting("currency")?.value ?? BASE_CURRENCY;
   }, [isAuthenticated, getUserSetting]);
 
-  const needsConversion = currency !== BASE_CURRENCY;
-
   const { data: exchangeRates = null, isLoading: isLoadingRates } = useQuery({
     queryKey: ["exchange-rates", BASE_CURRENCY],
     queryFn: async () => {
@@ -90,7 +88,10 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       return data.rates;
     },
-    enabled: needsConversion,
+    // Rates are needed whenever any amount's own currency differs from the display currency -
+    // not just when the display currency differs from BASE_CURRENCY, since an individual
+    // account can be in a different currency than both.
+    enabled: isAuthenticated,
     staleTime: 1000 * 60 * 60,
     gcTime: 1000 * 60 * 60 * 24,
     retry: 3,

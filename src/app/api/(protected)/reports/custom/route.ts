@@ -1,5 +1,6 @@
 import { NextRequest } from "next/server";
-import { logger, prisma, requireAuth, withApi } from "@/lib";
+import { convertToBase, getExchangeRates, logger, prisma, requireAuth, withApi } from "@/lib";
+import { BASE_CURRENCY } from "@/static";
 import { errorResponse, successResponse } from "@/utils";
 import { z } from "zod";
 
@@ -30,10 +31,15 @@ export const POST = withApi("reports.custom", async (req: NextRequest) => {
     orderBy: { date: "desc" },
   });
 
+  // Normalized to BASE_CURRENCY throughout - including the account breakdown below, so every
+  // figure in this report stays comparable even when accounts hold different currencies.
+  const rates = transactions.some((t) => t.account.currency !== BASE_CURRENCY) ? await getExchangeRates() : null;
+  const amt = (t: (typeof transactions)[number]) => convertToBase(t.amount.toNumber(), t.account.currency, rates);
+
   // ── Totals ─────────────────────────────────────────────────────────────
-  const income = transactions.filter((t) => t.type === "INCOME").reduce((s, t) => s + Number(t.amount), 0);
-  const expense = transactions.filter((t) => t.type === "EXPENSE").reduce((s, t) => s + Number(t.amount), 0);
-  const transfer = transactions.filter((t) => t.type === "TRANSFER").reduce((s, t) => s + Number(t.amount), 0);
+  const income = transactions.filter((t) => t.type === "INCOME").reduce((s, t) => s + amt(t), 0);
+  const expense = transactions.filter((t) => t.type === "EXPENSE").reduce((s, t) => s + amt(t), 0);
+  const transfer = transactions.filter((t) => t.type === "TRANSFER").reduce((s, t) => s + amt(t), 0);
   const balance = income - expense;
 
   const daySpan = Math.max(1, Math.ceil((endDate.getTime() - startDate.getTime()) / 86_400_000));
@@ -70,8 +76,8 @@ export const POST = withApi("reports.custom", async (req: NextRequest) => {
         income: 0,
         expense: 0,
       };
-      if (t.type === "INCOME") prev.income += Number(t.amount);
-      if (t.type === "EXPENSE") prev.expense += Number(t.amount);
+      if (t.type === "INCOME") prev.income += amt(t);
+      if (t.type === "EXPENSE") prev.expense += amt(t);
       categoryTotals.set(t.categoryId!, prev);
     });
 
@@ -108,9 +114,9 @@ export const POST = withApi("reports.custom", async (req: NextRequest) => {
 
   transactions.forEach((t) => {
     const acc = ensureAccount(t.accountId, t);
-    if (t.type === "INCOME") acc.income += Number(t.amount);
-    if (t.type === "EXPENSE") acc.expense += Number(t.amount);
-    if (t.type === "TRANSFER") acc.transferOut += Number(t.amount);
+    if (t.type === "INCOME") acc.income += amt(t);
+    if (t.type === "EXPENSE") acc.expense += amt(t);
+    if (t.type === "TRANSFER") acc.transferOut += amt(t);
 
     if (t.type === "TRANSFER" && t.toAccountId && t.toAccount) {
       if (!accountTotals.has(t.toAccountId)) {
@@ -124,7 +130,7 @@ export const POST = withApi("reports.custom", async (req: NextRequest) => {
           transferIn: 0,
         });
       }
-      accountTotals.get(t.toAccountId)!.transferIn += Number(t.amount);
+      accountTotals.get(t.toAccountId)!.transferIn += convertToBase((t.convertedAmount ?? t.amount).toNumber(), t.toAccount.currency, rates);
     }
   });
 
@@ -134,9 +140,9 @@ export const POST = withApi("reports.custom", async (req: NextRequest) => {
   transactions.forEach((t) => {
     const key = t.date.toISOString().split("T")[0];
     const prev = dailyTotals.get(key) ?? { income: 0, expense: 0, transfer: 0 };
-    if (t.type === "INCOME") prev.income += Number(t.amount);
-    if (t.type === "EXPENSE") prev.expense += Number(t.amount);
-    if (t.type === "TRANSFER") prev.transfer += Number(t.amount);
+    if (t.type === "INCOME") prev.income += amt(t);
+    if (t.type === "EXPENSE") prev.expense += amt(t);
+    if (t.type === "TRANSFER") prev.transfer += amt(t);
     dailyTotals.set(key, prev);
   });
 
@@ -145,10 +151,11 @@ export const POST = withApi("reports.custom", async (req: NextRequest) => {
     .sort((a, b) => a.date.localeCompare(b.date));
 
   const transferWithDest = transactions.filter((t) => t.type === "TRANSFER" && t.toAccountId);
+  const totalReceived = transferWithDest.reduce((s, t) => s + convertToBase((t.convertedAmount ?? t.amount).toNumber(), t.toAccount?.currency ?? BASE_CURRENCY, rates), 0);
   const transferSummary = {
     totalMoved: transfer,
-    totalReceived: transferWithDest.reduce((s, t) => s + Number(t.amount), 0),
-    withdrawals: transfer - transferWithDest.reduce((s, t) => s + Number(t.amount), 0),
+    totalReceived,
+    withdrawals: transfer - totalReceived,
     count: counts.transfer,
   };
 

@@ -2,16 +2,18 @@
 
 import * as React from "react";
 import { useTranslations } from "next-intl";
-import { useAccounts } from "@/hooks";
+import { useAccounts, useAccountValueHistory, usePreferences } from "@/hooks";
 import { useCurrency } from "@/providers";
 import { Card, CardContent, Button, Input, Select, Modal, Badge, useToast } from "@/components";
-import { ACCENT_PALETTE, ACCENT_DEFAULT, accentTile } from "@/static";
+import { ACCENT_PALETTE, ACCENT_DEFAULT, accentTile, BASE_CURRENCY } from "@/static";
 import type { Account } from "@/types";
+import { formattedDateTime } from "@/utils";
 
 interface FormData {
   name: string;
   type: Account["type"];
   balance: string;
+  currency: string;
   creditLimit: string;
   color: string;
   icon: string;
@@ -21,6 +23,13 @@ interface AccountCardProps {
   account: Account;
   onEdit: (account: Account) => void;
   onDelete: (id: string) => void;
+  onUpdateValue: (account: Account) => void;
+}
+interface ValueUpdateModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  account: Account | null;
+  dateFormat: string;
 }
 interface EmptyStateProps {
   onCreateClick: () => void;
@@ -38,6 +47,7 @@ interface FormModalProps {
   onFormChange: (field: keyof FormData, value: string | boolean) => void;
   isUpdateModal: boolean;
   accountTypeOptions: { value: string; label: string }[];
+  currencyOptions: { value: string; label: string }[];
 }
 
 const ACCOUNT_TYPE_CONFIG: Record<Account["type"], { label: string; icon: string; color: string }> = {
@@ -50,19 +60,22 @@ const ACCOUNT_TYPE_CONFIG: Record<Account["type"], { label: string; icon: string
 
 const COLOR_PALETTE = [...ACCENT_PALETTE];
 const ICON_SUGGESTIONS = ["💵", "🏦", "💳", "📱", "💰", "💸", "🏧", "💎", "🪙", "📈"];
-const INITIAL_FORM: FormData = { name: "", type: "CASH", balance: "", creditLimit: "", color: ACCENT_DEFAULT, icon: "💵", isDefault: false };
+const INITIAL_FORM: FormData = { name: "", type: "CASH", balance: "", currency: "", creditLimit: "", color: ACCENT_DEFAULT, icon: "💵", isDefault: false };
 
-const AccountCard: React.FC<AccountCardProps> = ({ account, onEdit, onDelete }) => {
+const AccountCard: React.FC<AccountCardProps> = ({ account, onEdit, onDelete, onUpdateValue }) => {
   const { format } = useCurrency();
   const t = useTranslations("accountsPage");
   const accountConfig = ACCOUNT_TYPE_CONFIG[account.type];
   const isCreditCard = account.type === "CREDIT_CARD";
+  const isInvestment = account.type === "INVESTMENT";
   const balance = Number(account.balance);
   const displayBalance = isCreditCard ? Math.abs(balance) : balance;
   const balanceColor = isCreditCard || balance < 0 ? "text-danger-500 dark:text-danger-400" : "text-primary-900 dark:text-primary-900";
   const creditLimit = account.creditLimit ? Number(account.creditLimit) : null;
   const utilisation = creditLimit && creditLimit > 0 ? Math.min((Math.abs(balance) / creditLimit) * 100, 100) : null;
   const utilisationColor = utilisation === null ? "" : utilisation >= 90 ? "bg-danger-500" : utilisation >= 70 ? "bg-warning-500" : "bg-success-500";
+  const lastChange = account.valueHistories?.[0] ?? null;
+  const isUp = !!lastChange && Number(lastChange.changeAmount) >= 0;
 
   return (
     <Card variant="elevated" className="transition-all duration-300 hover:shadow-xl group dark:bg-primary-200 dark:border-primary-400">
@@ -99,12 +112,12 @@ const AccountCard: React.FC<AccountCardProps> = ({ account, onEdit, onDelete }) 
           {isCreditCard ? (
             <div className="space-y-1">
               <p className="text-xs font-medium text-danger-500 dark:text-danger-400">{t("creditCard.debtLabel", { defaultValue: "Debt owed" })}</p>
-              <p className={`text-xl sm:text-3xl font-bold tabular-nums ${balanceColor}`}>{format(displayBalance)}</p>
+              <p className={`text-xl sm:text-3xl font-bold tabular-nums ${balanceColor}`}>{format(displayBalance, account.currency)}</p>
               {creditLimit !== null && (
                 <div className="mt-2 space-y-1">
                   <div className="flex justify-between text-xs text-primary-500 dark:text-primary-700">
                     <span>{t("creditCard.limitLabel", { defaultValue: "Credit limit" })}</span>
-                    <span className="tabular-nums">{format(creditLimit)}</span>
+                    <span className="tabular-nums">{format(creditLimit, account.currency)}</span>
                   </div>
                   <div className="w-full h-1.5 rounded-full bg-primary-100 dark:bg-primary-400 overflow-hidden">
                     <div className={`h-full rounded-full transition-all duration-500 ${utilisationColor}`} style={{ width: `${utilisation ?? 0}%` }} />
@@ -116,7 +129,20 @@ const AccountCard: React.FC<AccountCardProps> = ({ account, onEdit, onDelete }) 
               )}
             </div>
           ) : (
-            <p className={`text-xl sm:text-3xl font-bold tabular-nums ${balanceColor}`}>{format(balance)}</p>
+            <p className={`text-xl sm:text-3xl font-bold tabular-nums ${balanceColor}`}>{format(balance, account.currency)}</p>
+          )}
+          {isInvestment && lastChange && (
+            <div
+              className={`inline-flex items-center gap-1 mt-1.5 text-xs font-semibold ${isUp ? "text-success-600 dark:text-success-400" : "text-danger-600 dark:text-danger-400"}`}
+              title={new Date(lastChange.recordedAt).toLocaleDateString()}
+            >
+              <span>{isUp ? "▲" : "▼"}</span>
+              <span className="tabular-nums">{format(Math.abs(Number(lastChange.changeAmount)), account.currency)}</span>
+              <span className="tabular-nums">
+                ({isUp ? "+" : "-"}
+                {Math.abs(Number(lastChange.changePercent)).toFixed(2)}%)
+              </span>
+            </div>
           )}
         </div>
         <div className="flex gap-2">
@@ -127,6 +153,11 @@ const AccountCard: React.FC<AccountCardProps> = ({ account, onEdit, onDelete }) 
             🗑️
           </Button>
         </div>
+        {isInvestment && (
+          <Button variant="secondary" size="sm" className="w-full mt-2 text-xs sm:text-sm" onClick={() => onUpdateValue(account)}>
+            📊 {t("valueUpdate.checkInButton")}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
@@ -150,7 +181,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({ onCreateClick }) => {
   );
 };
 
-const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, title, onSubmit, isSubmitting, hint, hintClass, submitLabel, formData, onFormChange, isUpdateModal, accountTypeOptions }) => {
+const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, title, onSubmit, isSubmitting, hint, hintClass, submitLabel, formData, onFormChange, isUpdateModal, accountTypeOptions, currencyOptions }) => {
   const t = useTranslations("accountsPage");
   const isCreditCard = formData.type === "CREDIT_CARD";
 
@@ -170,6 +201,8 @@ const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, title, onSubmit,
           required
         />
         <Select label={`${t("modal.type")} *`} options={accountTypeOptions} value={formData.type} onChange={(e) => onFormChange("type", e.target.value)} />
+        <Select label={`${t("modal.currency")} *`} options={currencyOptions} value={formData.currency} onChange={(e) => onFormChange("currency", e.target.value)} />
+        {isUpdateModal && <p className="text-xs text-primary-500 dark:text-primary-700">{t("modal.currencyLockedHint")}</p>}
         {isCreditCard && (
           <div className="flex items-start gap-2 p-3 border border-danger-300 dark:border-danger-700 rounded-lg bg-danger-100 dark:bg-danger-800">
             <span className="text-lg shrink-0">💳</span>
@@ -280,22 +313,152 @@ const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, title, onSubmit,
   );
 };
 
+const ValueUpdateModal: React.FC<ValueUpdateModalProps> = ({ isOpen, onClose, account, dateFormat }) => {
+  const t = useTranslations("accountsPage");
+  const { format } = useCurrency();
+  const { addToast } = useToast();
+  const { history, isLoading, addValueUpdate, isAddingValueUpdate } = useAccountValueHistory(isOpen ? (account?.id ?? null) : null);
+
+  const [newBalance, setNewBalance] = React.useState(account ? account.balance.toString() : "");
+  const [note, setNote] = React.useState("");
+
+  const currentBalance = account ? Number(account.balance) : 0;
+  const parsedBalance = parseFloat(newBalance);
+  const hasPreview = !isNaN(parsedBalance) && newBalance !== "";
+  const changeAmount = hasPreview ? parsedBalance - currentBalance : 0;
+  const changePercent = hasPreview && currentBalance !== 0 ? (changeAmount / Math.abs(currentBalance)) * 100 : hasPreview && parsedBalance !== 0 ? 100 : 0;
+  const isUp = changeAmount >= 0;
+
+  const handleSubmit = (e: React.MouseEvent<HTMLButtonElement>): void => {
+    e.preventDefault();
+    if (!account || !hasPreview || parsedBalance < 0) {
+      addToast({ message: t("valueUpdate.validation.invalidValue"), type: "error" });
+      return;
+    }
+    addValueUpdate(
+      { id: account.id, data: { newBalance: parsedBalance, note: note.trim() || undefined } },
+      {
+        onSuccess: () => {
+          addToast({ message: t("valueUpdate.success"), type: "success" });
+          onClose();
+        },
+        onError: (error: Error) => {
+          addToast({ message: error.message || t("valueUpdate.error"), type: "error" });
+        },
+      },
+    );
+  };
+
+  if (!account) return null;
+
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} title={`📊 ${t("valueUpdate.title")}`} size="md">
+      <div className="space-y-3 sm:space-y-4">
+        <div className="p-2.5 sm:p-3 rounded-lg border bg-secondary-50 dark:bg-secondary-100 border-secondary-100 dark:border-secondary-300 text-secondary-600 dark:text-secondary-400">
+          <p className="text-xs font-medium sm:text-sm">ℹ️ {t("valueUpdate.hint", { name: account.name })}</p>
+        </div>
+
+        <div className="flex items-center justify-between p-3 rounded-lg bg-primary-50 dark:bg-primary-300">
+          <span className="text-xs sm:text-sm text-primary-500 dark:text-primary-700">{t("valueUpdate.currentValue")}</span>
+          <span className="text-sm font-bold sm:text-base text-primary-900 dark:text-primary-900 tabular-nums">{format(currentBalance, account.currency)}</span>
+        </div>
+
+        <Input
+          type="number"
+          label={`${t("valueUpdate.newValue")} *`}
+          placeholder={t("valueUpdate.newValuePlaceholder")}
+          value={newBalance}
+          onChange={(e) => setNewBalance(e.target.value)}
+          icon={<span className="text-primary-500 dark:text-primary-700">Rp</span>}
+          step="1000"
+          min="0"
+          required
+        />
+
+        {hasPreview && (
+          <div
+            className={`flex items-center justify-between p-3 rounded-lg border ${
+              isUp ? "bg-success-50 dark:bg-success-100 border-success-200 dark:border-success-300" : "bg-danger-50 dark:bg-danger-100 border-danger-200 dark:border-danger-300"
+            }`}
+          >
+            <span className={`text-xs sm:text-sm font-medium ${isUp ? "text-success-600 dark:text-success-400" : "text-danger-600 dark:text-danger-400"}`}>
+              {isUp ? t("valueUpdate.gain") : t("valueUpdate.loss")}
+            </span>
+            <span className={`text-sm font-bold sm:text-base tabular-nums ${isUp ? "text-success-600 dark:text-success-400" : "text-danger-600 dark:text-danger-400"}`}>
+              {isUp ? "▲" : "▼"} {format(Math.abs(changeAmount), account.currency)} ({isUp ? "+" : "-"}
+              {Math.abs(changePercent).toFixed(2)}%)
+            </span>
+          </div>
+        )}
+
+        <Input type="text" label={t("valueUpdate.note")} placeholder={t("valueUpdate.notePlaceholder")} value={note} onChange={(e) => setNote(e.target.value)} maxLength={200} />
+
+        <div className="flex justify-end gap-2 pt-3 border-t border-primary-100 dark:border-primary-400 sm:gap-3 sm:pt-4">
+          <Button type="button" variant="ghost" onClick={onClose} disabled={isAddingValueUpdate} className="text-xs sm:text-sm">
+            {t("modal.cancel")}
+          </Button>
+          <Button onClick={handleSubmit} variant="primary" isLoading={isAddingValueUpdate} className="text-xs sm:text-sm">
+            {t("valueUpdate.save")}
+          </Button>
+        </div>
+
+        <div className="pt-3 border-t border-primary-100 dark:border-primary-400 sm:pt-4">
+          <h4 className="mb-2 text-xs font-bold sm:text-sm text-primary-900 dark:text-primary-900">{t("valueUpdate.history")}</h4>
+          {isLoading ? (
+            <p className="py-4 text-xs text-center text-primary-500 dark:text-primary-700">{t("valueUpdate.loadingHistory")}</p>
+          ) : history.length === 0 ? (
+            <p className="py-4 text-xs text-center text-primary-500 dark:text-primary-700">{t("valueUpdate.noHistory")}</p>
+          ) : (
+            <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1">
+              {history.map((entry) => {
+                const entryUp = Number(entry.changeAmount) >= 0;
+                return (
+                  <div key={entry.id} className="flex items-center justify-between p-2 text-xs rounded-lg bg-primary-50 dark:bg-primary-300">
+                    <div className="min-w-0">
+                      <p className="font-medium text-primary-900 dark:text-primary-900">{formattedDateTime(entry.recordedAt, dateFormat)}</p>
+                      {entry.note && (
+                        <p className="truncate text-primary-500 dark:text-primary-700" title={entry.note}>
+                          {entry.note}
+                        </p>
+                      )}
+                    </div>
+                    <span className={`shrink-0 font-semibold tabular-nums ${entryUp ? "text-success-600 dark:text-success-400" : "text-danger-600 dark:text-danger-400"}`}>
+                      {entryUp ? "▲" : "▼"} {format(Math.abs(Number(entry.changeAmount)), account.currency)} ({entryUp ? "+" : "-"}
+                      {Math.abs(Number(entry.changePercent)).toFixed(2)}%)
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </Modal>
+  );
+};
+
 export const Accounts: React.FC = () => {
   const t = useTranslations("accountsPage");
+  const { preferences, optionsFor } = usePreferences();
+  const currencyOptions = optionsFor("currency");
+
   const { accounts, createAccount, isCreating, deleteAccount, updateAccount, isUpdating, isDeleting } = useAccounts();
-  const { format } = useCurrency();
+  const { format, convert } = useCurrency();
   const { addToast } = useToast();
 
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = React.useState(false);
   const [deleteId, setDeleteId] = React.useState<string | null>(null);
   const [selectedAccount, setSelectedAccount] = React.useState<string | null>(null);
+  const [valueUpdateAccount, setValueUpdateAccount] = React.useState<Account | null>(null);
 
   const [formData, setFormData] = React.useState<FormData>(INITIAL_FORM);
 
   const summary = React.useMemo(() => {
-    const totalAssets = accounts.filter((a) => a.type !== "CREDIT_CARD").reduce((sum, a) => sum + Number(a.balance), 0);
-    const totalDebt = accounts.filter((a) => a.type === "CREDIT_CARD").reduce((sum, a) => sum + Math.abs(Number(a.balance)), 0);
+    // Normalized to BASE_CURRENCY before summing - `format()` below converts that to the display
+    // currency the same way it already does for every other base-currency figure in the app.
+    const totalAssets = accounts.filter((a) => a.type !== "CREDIT_CARD").reduce((sum, a) => sum + convert(Number(a.balance), a.currency, BASE_CURRENCY), 0);
+    const totalDebt = accounts.filter((a) => a.type === "CREDIT_CARD").reduce((sum, a) => sum + Math.abs(convert(Number(a.balance), a.currency, BASE_CURRENCY)), 0);
     const netWorth = totalAssets - totalDebt;
     const accountsByType = accounts.reduce(
       (acc, account) => {
@@ -305,11 +468,11 @@ export const Accounts: React.FC = () => {
       {} as Record<Account["type"], number>,
     );
     return { total: accounts.length, totalAssets, totalDebt, netWorth, accountsByType };
-  }, [accounts]);
+  }, [accounts, convert]);
 
   const resetForm = React.useCallback((): void => {
-    setFormData(INITIAL_FORM);
-  }, []);
+    setFormData({ ...INITIAL_FORM, currency: preferences.currency || BASE_CURRENCY });
+  }, [preferences.currency]);
   const openCreateModal = React.useCallback((): void => {
     resetForm();
     setIsModalOpen(true);
@@ -324,6 +487,7 @@ export const Accounts: React.FC = () => {
       name: account.name,
       type: account.type,
       balance: account.type === "CREDIT_CARD" ? Math.abs(Number(account.balance)).toString() : account.balance.toString(),
+      currency: account.currency,
       creditLimit: account.creditLimit?.toString() ?? "",
       color: account.color || "",
       icon: account.icon || "",
@@ -511,7 +675,7 @@ export const Accounts: React.FC = () => {
         ) : (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-5 xl:grid-cols-4">
             {accounts.map((account) => (
-              <AccountCard key={account.id} account={account} onEdit={openUpdateModal} onDelete={handleDeleteClick} />
+              <AccountCard key={account.id} account={account} onEdit={openUpdateModal} onDelete={handleDeleteClick} onUpdateValue={setValueUpdateAccount} />
             ))}
           </div>
         )}
@@ -530,6 +694,7 @@ export const Accounts: React.FC = () => {
         onFormChange={handleFormChange}
         isUpdateModal={false}
         accountTypeOptions={accountTypeOptions}
+        currencyOptions={currencyOptions}
       />
 
       <FormModal
@@ -545,6 +710,7 @@ export const Accounts: React.FC = () => {
         onFormChange={handleFormChange}
         isUpdateModal={true}
         accountTypeOptions={accountTypeOptions}
+        currencyOptions={currencyOptions}
       />
 
       <Modal isOpen={!!deleteId} onClose={() => setDeleteId(null)} title={t("deleteModal.title")} size="sm">
@@ -566,6 +732,14 @@ export const Accounts: React.FC = () => {
           </div>
         </div>
       </Modal>
+
+      <ValueUpdateModal
+        key={valueUpdateAccount?.id ?? "closed"}
+        isOpen={!!valueUpdateAccount}
+        onClose={() => setValueUpdateAccount(null)}
+        account={valueUpdateAccount}
+        dateFormat={preferences.dateFormat}
+      />
     </div>
   );
 };
