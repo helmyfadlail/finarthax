@@ -1,38 +1,5 @@
 name: Deploy
 
-# Updates the install that is already running on the VPS. The checkout, the systemd unit and the
-# sealed .env were provisioned once by hand (DEPLOYMENT.md) - this workflow never creates anything
-# on the server, it only asks it to move to a newer commit.
-#
-# All the real work happens in scripts/deploy.sh, on the server: it checks out the commit, installs,
-# builds, asks Prisma whether any migration is pending (backing the database up first if so),
-# restarts the unit and waits for it to answer its health check.
-#
-# Required secrets, held by the `finarthax` environment (see `environment:` on the deploy job):
-#   VPS_HOST             host or IP
-#   VPS_USER             the service user that owns the checkout
-#   VPS_SSH_KEY          private key whose public half is in that user's authorized_keys
-#   VPS_SSH_KNOWN_HOSTS  output of `ssh-keyscan -H <host>`
-# Optional:
-#   VPS_PORT (22)  VPS_APP_DIR (/opt/finarthax/app)  VPS_SERVICE_NAME (finarthax)
-#   APP_PUBLIC_URL - smoke-tested from the runner after the deploy
-#
-# Where each piece lives, because it is split across two machines:
-#   this file          runs on a GitHub runner; it only opens an SSH session and reports the result
-#   scripts/deploy.sh  runs on the VPS, in $APP_DIR, and does every actual step of the release
-#   the checkout       /opt/finarthax/app - left on a detached HEAD by deploy.sh, so `git pull`
-#                      there does nothing useful. `git rev-parse HEAD` is what tells you the version.
-#
-# To deploy without waiting for CI, run the same thing by hand on the server:
-#   sudo -u finarthax -H bash -c '
-#     cd /opt/finarthax/app
-#     git fetch --prune --tags origin
-#     git checkout origin/main -- scripts/deploy.sh
-#     APP_DIR=/opt/finarthax/app SERVICE_NAME=finarthax bash scripts/deploy.sh origin/main'
-#
-# To roll back: run this workflow manually with `ref` set to the last good commit SHA - deploying an
-# older commit is all a rollback is. The same works by hand with the block above.
-
 on:
   push:
     branches: [main]
@@ -61,8 +28,6 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
-    # The secrets below are Environment secrets, not repository ones. Without this line the job
-    # cannot see them and every `secrets.VPS_*` silently resolves to an empty string.
     environment: finarthax
 
     env:
@@ -76,8 +41,6 @@ jobs:
 
     steps:
       - name: Check the required secrets are present
-        # Without this, a missing VPS_HOST/VPS_USER reaches ssh as an empty destination and the only
-        # clue in the log is ssh's usage screen and exit 255.
         env:
           SSH_KEY: ${{ secrets.VPS_SSH_KEY }}
           KNOWN_HOSTS: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
@@ -127,8 +90,6 @@ jobs:
           REMOTE
 
       - name: Smoke-test the public URL
-        # /api/health is loopback-only on the server, so this checks what a user actually reaches:
-        # Nginx, TLS and the app behind them.
         if: ${{ success() && env.APP_PUBLIC_URL != '' }}
         run: |
           set -euo pipefail

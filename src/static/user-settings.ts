@@ -1,5 +1,4 @@
 export const USER_SETTINGS = [
-  // notifications
   {
     key: "emailNotifications",
     value: "true",
@@ -48,8 +47,6 @@ export const USER_SETTINGS = [
     description: "Surface recurring transactions that are due",
     icon: "🔁",
   },
-
-  // appearance
   {
     key: "language",
     value: "en",
@@ -82,8 +79,6 @@ export const USER_SETTINGS = [
     description: "How dates are written across the app",
     icon: "📅",
   },
-
-  // privacy
   {
     key: "hideAmounts",
     value: "false",
@@ -108,8 +103,6 @@ export const USER_SETTINGS = [
     description: "Show your recent transactions and due recurring transactions on the public quick-entry page, and allow logging them from there",
     icon: "🧾",
   },
-
-  // general
   {
     key: "itemsPerPage",
     value: "20",

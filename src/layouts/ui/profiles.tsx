@@ -392,7 +392,8 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
                 />
                 <button
                   type="button"
-                  className="absolute right-3 top-8 sm:top-9 text-primary-500 dark:text-primary-700 hover:text-primary-900 dark:hover:text-primary-900"
+                  className="absolute right-1 top-6 sm:top-7 p-2 text-primary-500 dark:text-primary-700 hover:text-primary-900 dark:hover:text-primary-900"
+                  aria-label={show ? t("security.hidePassword") : t("security.showPassword")}
                   onClick={() => toggle((v) => !v)}
                 >
                   {show ? "🙈" : "👁️"}
@@ -413,7 +414,8 @@ const ProfileForm: React.FC<ProfileFormProps> = ({
               />
               <button
                 type="button"
-                className="absolute right-3 top-8 sm:top-9 text-primary-500 dark:text-primary-700 hover:text-primary-900 dark:hover:text-primary-900"
+                className="absolute right-1 top-6 sm:top-7 p-2 text-primary-500 dark:text-primary-700 hover:text-primary-900 dark:hover:text-primary-900"
+                aria-label={showConfirmPassword ? t("security.hidePassword") : t("security.showPassword")}
                 onClick={() => setShowConfirmPassword((v) => !v)}
               >
                 {showConfirmPassword ? "🙈" : "👁️"}
@@ -474,7 +476,7 @@ export const Profiles: React.FC = () => {
 
       {profile && (
         <ProfileForm
-          key={profile.id ?? profile.email}
+          key={profile.id}
           profile={profile}
           sessionUser={session?.user}
           updateProfile={updateProfile}

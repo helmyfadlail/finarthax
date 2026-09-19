@@ -347,6 +347,10 @@
       "hint": "Transaksi baru untuk “{name}” akan dibuat dan saldo Anda diperbarui.",
       "date": "Tanggal",
       "amount": "Jumlah",
+      "tags": "Tag",
+      "noTags": "Belum ada tag — buat satu di bawah",
+      "newTagPlaceholder": "Nama tag baru",
+      "addTag": "Tambah",
       "cancel": "Batal",
       "submit": "Catat transaksi"
     },
@@ -375,7 +379,8 @@
       "track": "Gagal melacak seri",
       "stop": "Gagal menghentikan pelacakan",
       "dismiss": "Gagal mengabaikan rekomendasi",
-      "restore": "Gagal memulihkan rekomendasi"
+      "restore": "Gagal memulihkan rekomendasi",
+      "tagCreate": "Gagal membuat tag"
     },
     "duePanel": {
       "title": "Jatuh tempo",
@@ -916,6 +921,8 @@
       "newPasswordPlaceholder": "Masukkan kata sandi baru",
       "confirmPassword": "Konfirmasi Kata Sandi Baru",
       "confirmPasswordPlaceholder": "Masukkan kembali kata sandi baru",
+      "showPassword": "Tampilkan kata sandi",
+      "hidePassword": "Sembunyikan kata sandi",
       "changePassword": "Ubah Kata Sandi",
       "tipsTitle": "Tips Keamanan Kata Sandi",
       "tips": {

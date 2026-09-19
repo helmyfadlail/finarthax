@@ -75,7 +75,7 @@ const CategoryCard: React.FC<CategoryCardProps> = ({ category, onEdit, onDelete 
               <Button variant="outline" size="sm" className="flex-1 text-xs sm:text-sm" onClick={() => onEdit(category)}>
                 ✏️ {t("editButton")}
               </Button>
-              <Button variant="danger" size="sm" onClick={() => onDelete(category.id)} aria-label={t("deleteButton")} className="w-9 px-0 sm:w-auto sm:px-3">
+              <Button variant="danger" size="sm" onClick={() => onDelete(category.id)} aria-label={t("deleteButton")} className="w-10 h-10 px-0 sm:w-auto sm:h-auto sm:px-3">
                 🗑️
               </Button>
             </>
@@ -313,7 +313,7 @@ export const Categories: React.FC = () => {
 
   const handleEdit = React.useCallback((category: Category): void => {
     setEditingCategory(category);
-    setFormData({ name: category.name, type: category.type, icon: category.icon || "📁", color: category.color || ACCENT_DEFAULT, isDefault: category.isDefault || false });
+    setFormData({ name: category.name, type: category.type, icon: category.icon || "📁", color: category.color || ACCENT_DEFAULT, isDefault: category.isDefault });
     setIsModalOpen(true);
   }, []);
 

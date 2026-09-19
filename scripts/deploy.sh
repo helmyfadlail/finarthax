@@ -1,20 +1,4 @@
 #!/usr/bin/env bash
-#
-# Deploys a commit onto the VPS (native Node + systemd, Path B in DEPLOYMENT.md).
-#
-# Runs *on the server*, as the service user, in $APP_DIR. CI calls it over SSH, but it is a normal
-# script - run it by hand any time:
-#
-#   scripts/deploy.sh origin/main     # deploy the latest commit
-#   scripts/deploy.sh <sha>           # go back to an older one (this is how you roll back)
-#
-# Build first, restart last: the old version keeps serving for the couple of minutes the build takes,
-# so the only downtime is the restart itself. If the new version does not come up, the script says so
-# and stops - it does not rebuild anything behind your back. Going back is one command, printed for
-# you at that point.
-#
-# Requires, once, a sudo rule for the service user (see DEPLOYMENT.md):
-#   finarthax ALL=(root) NOPASSWD: /bin/systemctl restart finarthax
 
 set -Eeuo pipefail
 
@@ -36,15 +20,11 @@ TARGET_REF="${1:-}"
 
 cd "$APP_DIR"
 
-# The sealed .env cannot be opened without this, so every npm/prisma call below needs it. The service
-# itself gets it from its EnvironmentFile.
 if [ -z "${ENV_ENCRYPTION_KEY:-}" ] && [ -r "$ENV_KEY_FILE" ]; then
   ENV_ENCRYPTION_KEY="$(cat "$ENV_KEY_FILE")"
   export ENV_ENCRYPTION_KEY
 fi
 
-# The port comes from the unit, not from a constant here: this machine also hosts other apps, and a
-# health check aimed at a port one of them happens to own reports someone else's 404 as our failure.
 if [ -z "${PORT:-}" ]; then
   PORT="$(systemctl show "$SERVICE_NAME" -p Environment --value 2>/dev/null | tr ' ' '\n' | sed -n 's/^PORT=//p' | tail -1)"
 fi
@@ -67,9 +47,9 @@ log "Checking out $TARGET_SHA"
 git checkout --detach --force "$TARGET_SHA"
 
 log "Installing dependencies"
-# `npm ci`, not `npm install`: the lockfile is what makes this the same build CI verified. Dev
-# dependencies are needed - next build uses typescript and tailwind.
 npm ci --no-audit --no-fund
+
+export NODE_ENV=production
 
 log "Generating the Prisma client"
 npx prisma generate
@@ -79,12 +59,16 @@ npm run build
 
 # ── Database ─────────────────────────────────────────────────────────────────
 
-# `migrate status` exits non-zero when anything is unapplied; the wording is what tells the reasons
-# apart, so that is what is matched.
-if npx prisma migrate status 2>&1 | grep -qiE 'not yet been applied|following migrations? have not'; then
-  log "Applying migrations"
+if MIGRATE_STATUS="$(npx prisma migrate status 2>&1)"; then
+  MIGRATE_STATUS_OK=1
+else
+  MIGRATE_STATUS_OK=0
+fi
+printf '%s\n' "$MIGRATE_STATUS"
 
-  # A migration is the one step going back to the old commit cannot undo, so it gets a backup first.
+if [ "$MIGRATE_STATUS_OK" -ne 1 ]; then
+  log "Backing up before migrating"
+
   if command -v pg_dump >/dev/null 2>&1; then
     DATABASE_URL="$(npx tsx -e 'import "dotenv/config"; import { loadEncryptedEnv } from "./scripts/load-encrypted-env"; loadEncryptedEnv(); process.stdout.write(process.env.DATABASE_URL ?? "")' 2>/dev/null || true)"
     if [ -n "$DATABASE_URL" ] && mkdir -p "$BACKUP_DIR" 2>/dev/null; then
@@ -97,18 +81,13 @@ if npx prisma migrate status 2>&1 | grep -qiE 'not yet been applied|following mi
   else
     warn "pg_dump is not installed - continuing without a backup."
   fi
-
-  # `migrate deploy` and never `migrate dev`: it applies committed migrations without prompting and
-  # without the reset that `dev` is willing to perform.
-  npx prisma migrate deploy
-else
-  info "No pending migrations"
 fi
+
+log "Applying migrations"
+npx prisma migrate deploy
 
 if [ "$RUN_SEED" = "true" ]; then
   log "Syncing the app-settings catalogue"
-  # Idempotent: fills in settings a release added, leaves values edited from the admin screen alone.
-  # Also what promotes SUPERADMIN_EMAIL.
   npx prisma db seed || warn "Seeding failed - the app still runs on its built-in defaults."
 fi
 
@@ -128,8 +107,6 @@ while [ "$waited" -lt "$HEALTH_TIMEOUT" ]; do
   waited=$((waited + 3))
 done
 
-# Failed. Say what is known and hand over - the new version is running and broken, and which way to
-# go from here is a decision, not something to guess at.
 warn "No answer from $HEALTH_URL after ${HEALTH_TIMEOUT}s."
 info "unit: $(systemctl is-active "$SERVICE_NAME" 2>&1 || true)"
 info ""

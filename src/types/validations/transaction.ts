@@ -22,7 +22,6 @@ const transferBaseSchema = z.object({
   date: z.string().min(1, "Date is required"),
   attachment: z.string().optional(),
   tagIds: z.array(z.string()).optional(),
-  /** Required only when the source and destination accounts hold different currencies. */
   exchangeRate: z.number().positive("Exchange rate must be positive").optional(),
 });
 
@@ -57,27 +56,23 @@ export const updateTransactionSchema = z.discriminatedUnion("type", [
     }),
 ]);
 
-/**
- * The quick-entry form is the same transaction the dashboard writes, so it carries the same
- * recurrence fields - a subscription entered from the public page is tracked like any other.
- */
 export const quickTransactionSchema = z.discriminatedUnion("type", [
   incomeExpenseSchema.extend({
     ...recurrenceFields,
-    email: z.string().email("Invalid email address"),
+    email: z.email("Invalid email address"),
     type: z.literal("INCOME"),
   }),
 
   incomeExpenseSchema.extend({
     ...recurrenceFields,
-    email: z.string().email("Invalid email address"),
+    email: z.email("Invalid email address"),
     type: z.literal("EXPENSE"),
   }),
 
   transferBaseSchema
     .extend({
       ...recurrenceFields,
-      email: z.string().email("Invalid email address"),
+      email: z.email("Invalid email address"),
     })
     .refine((d) => !d.toAccountId || d.toAccountId !== d.accountId, {
       message: "Source and destination accounts must be different",

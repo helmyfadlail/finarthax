@@ -149,7 +149,7 @@ const AccountCard: React.FC<AccountCardProps> = ({ account, onEdit, onDelete, on
           <Button variant="outline" size="sm" className="flex-1 text-xs sm:text-sm" onClick={() => onEdit(account)}>
             ✏️ {t("editButton")}
           </Button>
-          <Button variant="danger" size="sm" onClick={() => onDelete(account.id)} aria-label={t("deleteButton")} className="w-9 px-0 sm:w-auto sm:px-3">
+          <Button variant="danger" size="sm" onClick={() => onDelete(account.id)} aria-label={t("deleteButton")} className="w-10 h-10 px-0 sm:w-auto sm:h-auto sm:px-3">
             🗑️
           </Button>
         </div>
@@ -181,7 +181,21 @@ const EmptyState: React.FC<EmptyStateProps> = ({ onCreateClick }) => {
   );
 };
 
-const FormModal: React.FC<FormModalProps> = ({ isOpen, onClose, title, onSubmit, isSubmitting, hint, hintClass, submitLabel, formData, onFormChange, isUpdateModal, accountTypeOptions, currencyOptions }) => {
+const FormModal: React.FC<FormModalProps> = ({
+  isOpen,
+  onClose,
+  title,
+  onSubmit,
+  isSubmitting,
+  hint,
+  hintClass,
+  submitLabel,
+  formData,
+  onFormChange,
+  isUpdateModal,
+  accountTypeOptions,
+  currencyOptions,
+}) => {
   const t = useTranslations("accountsPage");
   const isCreditCard = formData.type === "CREDIT_CARD";
 
@@ -455,8 +469,6 @@ export const Accounts: React.FC = () => {
   const [formData, setFormData] = React.useState<FormData>(INITIAL_FORM);
 
   const summary = React.useMemo(() => {
-    // Normalized to BASE_CURRENCY before summing - `format()` below converts that to the display
-    // currency the same way it already does for every other base-currency figure in the app.
     const totalAssets = accounts.filter((a) => a.type !== "CREDIT_CARD").reduce((sum, a) => sum + convert(Number(a.balance), a.currency, BASE_CURRENCY), 0);
     const totalDebt = accounts.filter((a) => a.type === "CREDIT_CARD").reduce((sum, a) => sum + Math.abs(convert(Number(a.balance), a.currency, BASE_CURRENCY)), 0);
     const netWorth = totalAssets - totalDebt;

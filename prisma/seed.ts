@@ -7,10 +7,6 @@ async function main() {
   // ============================================
   // 1. RECONCILE APP SETTINGS
   // ============================================
-
-  // Additive on purpose. Every deploy runs this seed, and app_settings is now edited from the admin
-  // screen - wiping the table first (as this used to) would silently undo every change a superadmin
-  // made, on every release. New keys are created; existing rows keep the value they hold.
   const existing = await prisma.appSetting.findMany({ select: { key: true } });
   const existingKeys = new Set(existing.map((setting) => setting.key));
 
@@ -25,9 +21,6 @@ async function main() {
   // ============================================
   // 2. PROMOTE THE SUPERADMIN
   // ============================================
-
-  // The role is granted by email from the environment, not from anything a user can send: there is
-  // no screen that hands out SUPERADMIN, so the first one has to come from the deploy.
   const superAdminEmail = process.env.SUPERADMIN_EMAIL?.trim().toLowerCase();
 
   if (!superAdminEmail) {
@@ -38,7 +31,6 @@ async function main() {
     if (promoted.count > 0) {
       console.log(`  ✓ ${superAdminEmail} promoted to SUPERADMIN`);
     } else {
-      // Registration comes first, promotion second - the seed cannot invent a password.
       console.log(`  ⚠ No account found for ${superAdminEmail} — register it first, then run the seed again`);
     }
   }

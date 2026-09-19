@@ -15,7 +15,7 @@ async function getResetPasswordSuccessSettings() {
   });
 
   const settingsMap = settings.reduce<Record<string, string>>((acc, setting) => {
-    acc[setting.key] = setting.value ?? "";
+    acc[setting.key] = setting.value;
     return acc;
   }, {});
 
@@ -44,8 +44,6 @@ export const POST = withApi("auth.reset_password", async (req: NextRequest) => {
   const resetToken = await prisma.verificationToken.findFirst({ where: { token: hashedToken, expires: { gt: new Date() } } });
 
   if (!resetToken) {
-    // Expired vs. forged looks identical to the user - the ip in this line is what
-    // distinguishes a slow user from someone probing tokens.
     logger.warn("auth.reset_token_invalid");
     return errorResponse("Invalid or expired token", 400);
   }
@@ -65,7 +63,7 @@ export const POST = withApi("auth.reset_password", async (req: NextRequest) => {
     prisma.verificationToken.delete({ where: { identifier_token: { identifier: resetToken.identifier, token: hashedToken } } }),
   ]);
 
-  logger.info("auth.password_reset", { targetUserId: user.id, expiresAt: passwordExpiresAt?.toISOString() ?? null });
+  logger.info("auth.password_reset", { targetUserId: user.id, expiresAt: passwordExpiresAt.toISOString() });
 
   const successSettings = await getResetPasswordSuccessSettings();
   const successParams = new URLSearchParams(successSettings);

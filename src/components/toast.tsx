@@ -38,10 +38,6 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
 };
 
 const ToastContainer = ({ toasts, removeToast }: { toasts: Toast[]; removeToast: (id: string) => void }) => (
-  // The mobile stack is bottom-anchored, so its bottom padding has to clear the iOS home
-  // indicator or the newest toast sits under it. `pointer-events-none` on the container with
-  // `pointer-events-auto` on each toast keeps the full-width strip from swallowing taps on
-  // whatever is behind it.
   <div
     className={cn(
       "fixed flex flex-col z-100 pointer-events-none",
@@ -58,9 +54,6 @@ const ToastContainer = ({ toasts, removeToast }: { toasts: Toast[]; removeToast:
 
 const ToastItem = ({ toast, onClose }: { toast: Toast; onClose: () => void }) => {
   const styles = {
-    // `text-on-solid`, not `text-white` — `--color-white` is redefined to a dark navy under
-    // `.dark` (it doubles as the raised-surface token), so `text-white` on these fills came
-    // out near-invisible in dark mode.
     success: "bg-success-500 dark:bg-success-600 text-on-solid",
     error: "bg-danger-500 dark:bg-danger-600 text-on-solid",
     warning: "bg-warning-500 dark:bg-warning-600 text-on-solid",

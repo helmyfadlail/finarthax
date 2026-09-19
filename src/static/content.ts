@@ -1,4 +1,3 @@
-/** Used when the reset-password success page loads before its settings exist. */
 export const RESET_PASSWORD_SUCCESS_DEFAULTS = {
   reset_password_success_title: "Password Reset Successful",
   reset_password_success_description: "Your password has been reset successfully. You can now sign in with your new password.",
@@ -7,16 +6,9 @@ export const RESET_PASSWORD_SUCCESS_DEFAULTS = {
   reset_password_success_auto_redirect: "true",
 };
 
-/**
- * Label for the link the auth pages carry back to the quick-entry home page.
- *
- * Also the value the seed stores, but the pages fall back to it: the setting only exists after the
- * release that adds it has been seeded, and an unlabelled link is worse than a stale one.
- */
 export const QUICK_TRANSACTION_LINK_DEFAULT = "Record a transaction without signing in";
 
 export const CONTENT_SETTINGS = [
-  // general information settings
   {
     key: "footer_copyright",
     value: "© 2026 Finarthax. All rights reserved.",
@@ -77,8 +69,6 @@ export const CONTENT_SETTINGS = [
     sortOrder: 0,
     isPublic: true,
   },
-
-  // Home page information settings
   {
     key: "home_title",
     value: "Finarthax",
@@ -144,8 +134,6 @@ export const CONTENT_SETTINGS = [
     sortOrder: 0,
     isPublic: true,
   },
-
-  // Login page information settings
   {
     key: "login_title",
     value: "Welcome back",
@@ -186,8 +174,6 @@ export const CONTENT_SETTINGS = [
     sortOrder: 0,
     isPublic: true,
   },
-
-  // Register page information settings
   {
     key: "register_title",
     value: "Create account",
@@ -258,8 +244,6 @@ export const CONTENT_SETTINGS = [
     sortOrder: 0,
     isPublic: true,
   },
-
-  // Forgot password page information settings
   {
     key: "forgot_password_title",
     value: "Forgot your password?",
@@ -310,8 +294,6 @@ export const CONTENT_SETTINGS = [
     sortOrder: 0,
     isPublic: true,
   },
-
-  // Reset password page information settings
   {
     key: "reset_password_title",
     value: "Reset your password",
@@ -372,8 +354,6 @@ export const CONTENT_SETTINGS = [
     sortOrder: 0,
     isPublic: true,
   },
-
-  // Reset password success page information settings
   {
     key: "reset_password_success_title",
     value: "Password Reset Successful",

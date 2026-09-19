@@ -15,11 +15,6 @@ export const accountSchema = z.object({
   isDefault: z.boolean().default(false),
 });
 
-/**
- * `.partial()` alone would still apply `accountSchema`'s `.default(...)` fields whenever they are
- * omitted from an update - silently resetting balance/creditLimit/isDefault to 0/0/false instead
- * of leaving them untouched. These three are re-declared as plain optionals with no default.
- */
 export const updateAccountSchema = accountSchema.partial().extend({
   balance: z.number().optional(),
   creditLimit: z.number().nullable().optional(),

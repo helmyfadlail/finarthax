@@ -35,12 +35,6 @@ export const validateTags = async (userId: string, tagIds?: string[]): Promise<{
   return { error: null };
 };
 
-/**
- * A transfer between accounts held in different currencies needs a rate to know how much lands
- * in the destination account. It is entered by hand rather than looked up live: a transfer is a
- * settled, historical event, and repricing it with today's rate would misstate what actually
- * happened at the time.
- */
 export const resolveTransferExchangeRate = async (accountId: string, toAccountId: string | null | undefined, exchangeRate?: number): Promise<{ error: string | null; exchangeRate: number | null }> => {
   if (!toAccountId) return { error: null, exchangeRate: null };
 
@@ -79,7 +73,6 @@ export const applyBalanceChange = async (
     accountId: string;
     toAccountId?: string | null;
     amount: { toNumber(): number } | number;
-    /** Set only for a transfer whose source and destination accounts hold different currencies. */
     convertedAmount?: { toNumber(): number } | number | null;
   },
   direction: "apply" | "reverse",
@@ -89,8 +82,6 @@ export const applyBalanceChange = async (
   const multiplier = direction === "reverse" ? -1 : 1;
 
   if (transaction.type === "TRANSFER") {
-    // The destination side moves by the converted amount when currencies differ, and by the
-    // same `amount` otherwise - so an ordinary same-currency transfer is unaffected.
     const destAmount = transaction.convertedAmount != null ? (typeof transaction.convertedAmount === "number" ? transaction.convertedAmount : transaction.convertedAmount.toNumber()) : amount;
 
     await tx.account.update({ where: { id: transaction.accountId }, data: { balance: { increment: -amount * multiplier } } });

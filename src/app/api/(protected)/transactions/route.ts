@@ -115,7 +115,11 @@ export const POST = withApi("transactions.create", async (req: NextRequest) => {
   const { error: tagsError } = await validateTags(user.id, data.tagIds);
   if (tagsError) return errorResponse(tagsError, 404);
 
-  const { error: fxError, exchangeRate } = await resolveTransferExchangeRate(data.accountId, "toAccountId" in data ? data.toAccountId : undefined, "exchangeRate" in data ? data.exchangeRate : undefined);
+  const { error: fxError, exchangeRate } = await resolveTransferExchangeRate(
+    data.accountId,
+    "toAccountId" in data ? data.toAccountId : undefined,
+    "exchangeRate" in data ? data.exchangeRate : undefined,
+  );
   if (fxError) return errorResponse(fxError, 422);
   const convertedAmount = exchangeRate ? data.amount * exchangeRate : null;
 
@@ -195,8 +199,6 @@ export const POST = withApi("transactions.create", async (req: NextRequest) => {
   });
 
   after(async () => {
-    // Background work runs after the response is flushed, so its failures would
-    // otherwise never reach the client - they have to be logged here.
     try {
       await notifyTransactionRecorded(user.id, {
         type: transaction.type,

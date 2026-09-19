@@ -10,15 +10,13 @@ const PAGE_W = 595.28;
 const PAGE_H = 841.89;
 const CONTENT_W = PAGE_W - MARGIN * 2;
 
-// Mirrors the app theme: brand ramp for chrome, clear green/red for money.
-// Paper is always white, so these are the light-mode steps only.
 const C = {
-  primary: "#1f4356", // primary-700
-  secondary: "#336580", // primary-500 — the logo colour
-  accent: "#0284c7", // accent sky
-  success: "#077a3e", // success-600
-  danger: "#c02418", // danger-600
-  light: "#eff6fa", // primary-50
+  primary: "#1f4356",
+  secondary: "#336580",
+  accent: "#0284c7",
+  success: "#077a3e",
+  danger: "#c02418",
+  light: "#eff6fa",
   white: "#ffffff",
 } as const;
 
@@ -50,7 +48,7 @@ interface Transaction {
   type: string;
   amount: number;
   category?: { name: string } | null;
-  account?: { name: string } | null;
+  account: { name: string };
 }
 
 const sum = (txs: Transaction[], type: string) => txs.filter((t) => t.type === type).reduce((acc, t) => acc + t.amount, 0);
@@ -111,13 +109,13 @@ const drawTableRow = (doc: PDFKit.PDFDocument, t: Transaction, idx: number) => {
   doc.text(date, COLS[0].x, y + 4, { width: COLS[0].w });
   doc.text(t.type, COLS[1].x, y + 4, { width: COLS[1].w });
   doc.text(t.category?.name ?? "—", COLS[2].x, y + 4, { width: COLS[2].w });
-  doc.text(t.account?.name ?? "—", COLS[3].x, y + 4, { width: COLS[3].w });
+  doc.text(t.account.name, COLS[3].x, y + 4, { width: COLS[3].w });
   doc.fillColor(t.type === "INCOME" ? C.success : C.danger).text(formattedCurrency(t.amount), COLS[4].x, y + 4, { width: COLS[4].w });
 
   doc.y = y + ROW_H;
 };
 
-const buildPDF = (user: { name: string | null; email: string | null }, transactions: Transaction[]): Promise<Buffer> =>
+const buildPDF = (user: { name: string; email: string }, transactions: Transaction[]): Promise<Buffer> =>
   new Promise((resolve, reject) => {
     const doc = new PDFDocument({ margin: MARGIN, size: "A4", bufferPages: true });
     doc.registerFont(FONT, FONT_BUFFER).font(FONT);
@@ -145,8 +143,8 @@ const buildPDF = (user: { name: string | null; email: string | null }, transacti
     doc.moveDown(1.5);
 
     doc.fontSize(10).fillColor(C.secondary);
-    doc.text(`User: ${user.name ?? "Unknown"}`, MARGIN);
-    doc.text(`Email: ${user.email ?? "N/A"}`, MARGIN);
+    doc.text(`User: ${user.name}`, MARGIN);
+    doc.text(`Email: ${user.email}`, MARGIN);
     doc.text(`Period: ${new Date(firstDate).toLocaleDateString()} – ${new Date(lastDate).toLocaleDateString()}`, MARGIN);
     doc.moveDown(1.5);
 
@@ -243,8 +241,6 @@ export const GET = withApi("users.export", async () => {
 
   const transactions: Transaction[] = userData.transactions.map((t) => ({ ...t, amount: Number(t.amount) }));
 
-  // PDF generation is the slow, memory-hungry part and it can fail on a missing
-  // font in a fresh deploy - keep its own boundary so the cause stays specific.
   const done = logger.time("users.export.render_pdf", { transactions: transactions.length });
 
   let pdf: Buffer;

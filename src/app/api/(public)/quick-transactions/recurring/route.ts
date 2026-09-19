@@ -36,7 +36,7 @@ export const POST = withApi("quick_transactions.recurring", async (req: NextRequ
       ? await confirmOccurrence(user.id, transactionId, { amount: validation.data.amount, date: validation.data.date })
       : await trackSeries(user.id, transactionId, { isRecurring: true, interval: validation.data.interval, endDate: validation.data.endDate });
 
-  if (result.error) return errorResponse(result.error, result.status ?? 400);
+  if (result.error) return errorResponse(result.error, result.status);
 
   logger.info("quick_transactions.recurring_done", { targetUserId: user.id, action, sourceId: transactionId, transactionId: result.transaction?.id });
 

@@ -3,20 +3,18 @@ import { logger } from "./logger";
 import { prisma } from "./prisma";
 import type { Prisma } from "prisma-client/client";
 
-const RATES_TTL_MS = 60 * 60 * 1000;
+const RATES_CACHE_TTL_MS = process.env.NODE_ENV === "production" ? Number(process.env.RATES_CACHE_TTL_MS) : 0;
 
 let cachedRates: { rates: Record<string, number>; fetchedAt: number } | null = null;
 
 export const getExchangeRates = async (): Promise<Record<string, number> | null> => {
-  if (cachedRates && Date.now() - cachedRates.fetchedAt < RATES_TTL_MS) return cachedRates.rates;
+  if (cachedRates && Date.now() - cachedRates.fetchedAt < RATES_CACHE_TTL_MS) return cachedRates.rates;
 
   try {
     const done = logger.time("currency.fetch_rates");
     const response = await fetch(`${EXCHANGE_RATE_URL}/${BASE_CURRENCY}`);
     done({ status: response.status });
 
-    // Every failure path here silently falls back to stale rates, which is exactly
-    // the kind of "wrong numbers, no error" problem that is invisible without a log.
     if (!response.ok) {
       logger.warn("currency.rates_unavailable", { status: response.status, servingStale: cachedRates !== null });
       return cachedRates?.rates ?? null;
@@ -41,23 +39,12 @@ const convert = (amount: number, to: string, rates: Record<string, number> | nul
   return rates[to] ? amount * rates[to] : amount;
 };
 
-/**
- * The rates table is anchored at `BASE_CURRENCY` (`rates[x]` = units of `x` per 1 base unit), so
- * going the other way - an account's own currency back to base - is a division, not the
- * multiplication `convert` above does for base -> target.
- */
 export const convertToBase = (amount: number, fromCurrency: string, rates: Record<string, number> | null): number => {
   if (fromCurrency === BASE_CURRENCY || !rates) return amount;
   const rate = rates[fromCurrency];
   return rate ? amount / rate : amount;
 };
 
-/**
- * Same shape as `prisma.transaction.aggregate({ _sum: { amount } })`, except every row is folded
- * into `BASE_CURRENCY` first. Accounts are still overwhelmingly single-currency, so this only
- * reaches for live rates when the row set actually contains a foreign-currency account - the
- * common case pays for a `findMany` instead of an `aggregate` and nothing else.
- */
 export const sumTransactionAmounts = async (where: Prisma.TransactionWhereInput): Promise<number> => {
   const rows = await prisma.transaction.findMany({ where, select: { amount: true, account: { select: { currency: true } } } });
   if (rows.length === 0) return 0;

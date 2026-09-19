@@ -12,7 +12,6 @@ export interface NotificationOutcome {
   reason?: "not-configured" | "no-recipient" | "master-disabled" | "preference-disabled" | "nothing-to-send" | "failed";
 }
 
-/** The default a preference ships with, so no number is restated here. */
 const catalogueNumber = (key: string): number => Number(USER_SETTINGS.find((setting) => setting.key === key)?.value ?? 0);
 
 type Translator = Awaited<ReturnType<typeof getEmailTranslator>>;
@@ -61,14 +60,8 @@ const buildContext = async (userId: string): Promise<NotificationContext | null>
   };
 };
 
-/** Strips the app origin off a CTA url, so the in-app list can `router.push` it directly. */
-const toRelativeLink = (url: string): string => url.replace(appUrl(), "") || "/admin/dashboard";
+const toRelativeLink = (url: string): string => url.replace(appUrl(), "");
 
-/**
- * The in-app row is independent of email: it is written whenever there is something to say,
- * whether or not Resend is configured or the user has email notifications turned off. Email is
- * an extra channel on top of this, not the other way around.
- */
 const createInAppNotification = async (userId: string, kind: EmailNotificationKind, message: BuiltEmail): Promise<void> => {
   try {
     await prisma.notification.create({

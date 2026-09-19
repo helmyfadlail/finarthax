@@ -13,8 +13,6 @@ export const GET = withApi("users.settings.list", async () => {
   const retired = [...existingKeys].filter((key) => !catalogueKeys.has(key));
 
   if (missing.length > 0 || retired.length > 0) {
-    // This GET silently writes when the settings catalogue changes - a deploy that
-    // renames a key shows up here as a burst of adds and removes.
     logger.info("users.settings_reconciled", { added: missing.map((setting) => setting.key), removed: retired });
 
     await prisma.$transaction(async (tx) => {

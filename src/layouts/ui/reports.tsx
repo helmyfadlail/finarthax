@@ -34,10 +34,6 @@ interface TransferStripProps {
 
 const YEAR_OPTIONS = ["2025", "2026", "2027", "2028", "2029", "2030"].map((y) => ({ value: y, label: y }));
 
-// `green` is income, `red` expense, `teal` transfers, `primary` the net figure.
-// Filled solid, matching the dashboard summary cards — a white body with a coloured edge
-// leaves the top of the page colourless. primary/secondary invert under `.dark`, so their
-// dark step comes from the low end of the ramp; success/danger do not invert.
 const COLOR_CONFIG = {
   green: "bg-success-500 dark:bg-success-600",
   red: "bg-danger-500 dark:bg-danger-600",
@@ -333,7 +329,7 @@ export const Reports: React.FC = () => {
             <StatCard label={t("stats.transfers")} value={format(monthly.summary.transfer)} icon="🔄" color="teal" subtitle={`${monthly.summary.counts.transfer} ${t("stats.txn")}`} />
             <StatCard
               label={t("stats.savingsRate")}
-              value={`${(monthly.summary.savingsRate ?? 0).toFixed(1)}%`}
+              value={`${monthly.summary.savingsRate.toFixed(1)}%`}
               icon="🎯"
               color="primary"
               subtitle={monthly.summary.savingsRate >= 20 ? t("stats.greatJob") : t("stats.keepImproving")}
@@ -402,7 +398,7 @@ export const Reports: React.FC = () => {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-sm sm:text-base dark:text-primary-900">📈 {t("topCategories")}</CardTitle>
                 <Badge variant="default">
-                  {monthly.topCategories?.length ?? 0} {t("categoriesCount")}
+                  {monthly.topCategories.length} {t("categoriesCount")}
                 </Badge>
               </div>
             </CardHeader>
@@ -435,7 +431,7 @@ export const Reports: React.FC = () => {
             <StatCard label={t("stats.totalTransfers")} value={format(yearly.summary.totalTransfer)} icon="🔄" color="teal" subtitle={`${yearly.summary.counts.transfer} ${t("stats.txn")}`} />
             <StatCard
               label={t("stats.savingsRate")}
-              value={`${(yearly.summary.savingsRate ?? 0).toFixed(1)}%`}
+              value={`${yearly.summary.savingsRate.toFixed(1)}%`}
               icon="🎯"
               color="primary"
               subtitle={yearly.summary.savingsRate >= 20 ? t("stats.excellent") : t("stats.roomToImprove")}
@@ -504,7 +500,7 @@ export const Reports: React.FC = () => {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-sm sm:text-base dark:text-primary-900">📈 {t("topCategories")}</CardTitle>
                 <Badge variant="default">
-                  {yearly.topCategories?.length ?? 0} {t("categoriesCount")}
+                  {yearly.topCategories.length} {t("categoriesCount")}
                 </Badge>
               </div>
             </CardHeader>
@@ -526,7 +522,7 @@ export const Reports: React.FC = () => {
               <div className="flex items-center justify-between">
                 <CardTitle className="flex items-center gap-2 text-sm sm:text-base dark:text-primary-900">📆 {t("monthlyBreakdown")}</CardTitle>
                 <Badge variant="default">
-                  {yearly.monthlyBreakdown?.length ?? 0} {t("monthsCount")}
+                  {yearly.monthlyBreakdown.length} {t("monthsCount")}
                 </Badge>
               </div>
             </CardHeader>
@@ -571,7 +567,7 @@ export const Reports: React.FC = () => {
                 <StatCard label={t("stats.transfers")} value={format(custom.summary.transfer)} icon="🔄" color="teal" subtitle={`${custom.summary.counts.transfer} ${t("stats.txn")}`} />
                 <StatCard
                   label={t("stats.savingsRate")}
-                  value={`${(custom.summary.savingsRate ?? 0).toFixed(1)}%`}
+                  value={`${custom.summary.savingsRate.toFixed(1)}%`}
                   icon="🎯"
                   color="primary"
                   subtitle={`${t("stats.balance")}: ${format(custom.summary.balance)}`}
@@ -627,7 +623,7 @@ export const Reports: React.FC = () => {
                   <div className="flex items-center justify-between">
                     <CardTitle className="flex items-center gap-2 text-sm sm:text-base dark:text-primary-900">📈 {t("custom.categoryBreakdown")}</CardTitle>
                     <Badge variant="default">
-                      {custom.categoryBreakdown?.length ?? 0} {t("categoriesCount")}
+                      {custom.categoryBreakdown.length} {t("categoriesCount")}
                     </Badge>
                   </div>
                 </CardHeader>

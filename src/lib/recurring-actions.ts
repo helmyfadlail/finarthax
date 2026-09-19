@@ -3,7 +3,7 @@ import { createId } from "@paralleldrive/cuid2";
 import { Prisma } from "prisma-client/client";
 import { prisma } from "./prisma";
 import { addRecurrence, advanceToFuture, diffInDays, findSeriesSiblings, monthlyEquivalent, resolveStatus } from "./recurring";
-import { applyBalanceChange, applyBudgetChange, TRANSACTION_INCLUDE, validateAccount, validateCategory, validateCreditCardRules } from "./transaction";
+import { applyBalanceChange, applyBudgetChange, TRANSACTION_INCLUDE, validateAccount, validateCategory, validateCreditCardRules, validateTags } from "./transaction";
 import { notifyBudgetThresholdCrossed, notifyTransactionRecorded } from "./notifications";
 import { logger } from "./logger";
 import type { RecurrenceInterval, ScheduledRecurrence, TransactionType } from "@/types";
@@ -23,6 +23,7 @@ export interface ConfirmOccurrenceInput {
   description?: string;
   interval?: RecurrenceInterval;
   keepTracking?: boolean;
+  tagIds?: string[];
 }
 
 export interface TrackSeriesInput {
@@ -104,7 +105,7 @@ const notifyRecorded = (userId: string, created: TransactionWithRelations): void
 };
 
 export const confirmOccurrence = async (userId: string, transactionId: string, input: ConfirmOccurrenceInput = {}): Promise<RecurringActionResult> => {
-  const { amount, date, description, keepTracking = true } = input;
+  const { amount, date, description, keepTracking = true, tagIds } = input;
 
   const source = await prisma.transaction.findFirst({ where: { id: transactionId, userId } });
   if (!source) return { error: "Transaction not found", status: 404 };
@@ -114,6 +115,9 @@ export const confirmOccurrence = async (userId: string, transactionId: string, i
 
   const { error: accountError } = await validateAccount(userId, source.accountId, source.toAccountId ?? undefined);
   if (accountError) return { error: accountError, status: 404 };
+
+  const { error: tagsError } = await validateTags(userId, tagIds);
+  if (tagsError) return { error: tagsError, status: 404 };
 
   const creditCardError = await validateCreditCardRules(source.accountId, source.type, source.toAccountId);
   if (creditCardError) return { error: creditCardError, status: 422 };
@@ -161,6 +165,7 @@ export const confirmOccurrence = async (userId: string, transactionId: string, i
         recurrenceKey,
         recurrenceEndDate,
         nextOccurrence,
+        ...(tagIds && tagIds.length > 0 && { tags: { connect: tagIds.map((id) => ({ id })) } }),
       },
       include: TRANSACTION_INCLUDE,
     });
@@ -225,7 +230,7 @@ export const trackSeries = async (userId: string, transactionId: string, input: 
 
   if (!interval) return { error: "Interval is required when tracking a transaction as recurring", status: 422 };
 
-  const recurrenceEndDate = endDate ? new Date(endDate) : (transaction.recurrenceEndDate ?? null);
+  const recurrenceEndDate = endDate ? new Date(endDate) : transaction.recurrenceEndDate;
 
   const siblings = transaction.recurrenceKey
     ? await prisma.transaction.findMany({

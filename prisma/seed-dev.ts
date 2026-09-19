@@ -5,8 +5,38 @@ import { APP_SETTINGS } from "@/static";
 async function main() {
   console.log("🌱 Starting database seeding...\n");
 
+  if (process.env.NODE_ENV === "production") {
+    throw new Error("seed-dev.ts must never run with NODE_ENV=production. The production seed is prisma/seed.ts - `npx prisma db seed` picks it automatically when NODE_ENV=production.");
+  }
+
+  if (process.env.FORCE_DEV_SEED !== "true") {
+    const realUsers = await prisma.user.count({ where: { email: { not: "demo@finance.com" } } });
+
+    if (realUsers > 0) {
+      throw new Error(
+        `Refusing to run the demo seed: the database has ${realUsers} non-demo user(s). ` +
+          `This seed deletes all budgets, transactions, goals, accounts and categories. ` +
+          `To reset a local database anyway, run \`npm run db:reset\` or set FORCE_DEV_SEED=true.`,
+      );
+    }
+  }
+
   // ============================================
-  // 1. CLEAN EXISTING DATA
+  // 1. APP SETTINGS
+  // ============================================
+  console.log("🔄 Creating app settings data...");
+
+  for (const setting of APP_SETTINGS) {
+    await prisma.appSetting.upsert({
+      where: { key: setting.key },
+      update: {},
+      create: { ...setting },
+    });
+  }
+  console.log(`✅ ${APP_SETTINGS.length} app settings seeded\n`);
+
+  // ============================================
+  // 2. CLEAN EXISTING DATA
   // ============================================
   console.log("🧹 Cleaning existing data...");
   await prisma.budget.deleteMany({});
@@ -20,7 +50,7 @@ async function main() {
   const now = new Date();
 
   // ============================================
-  // 2. CREATE DEMO USER
+  // 3. CREATE DEMO USER
   // ============================================
   console.log("👤 Creating demo user...");
   const hashedPassword = await bcrypt.hash("password123", 10);
@@ -41,7 +71,7 @@ async function main() {
   console.log("✅ Demo user created: demo@finance.com / password123 (SUPERADMIN)\n");
 
   // ============================================
-  // 3. CREATE DEFAULT CATEGORIES
+  // 4. CREATE DEFAULT CATEGORIES
   // ============================================
   console.log("📁 Creating default categories...");
 
@@ -87,13 +117,7 @@ async function main() {
   console.log(`✅ Created ${defaultCategories.length} categories\n`);
 
   // ============================================
-  // 4. CREATE ACCOUNTS
-  //    All start at 0; balances are computed
-  //    by replaying every transaction below.
-  //
-  //    CREDIT CARD balance semantics (liability):
-  //      positive value = debt owed to the bank
-  //      0              = fully paid off
+  // 5. CREATE ACCOUNTS
   // ============================================
   console.log("💳 Creating accounts...");
 
@@ -112,7 +136,7 @@ async function main() {
         userId: demoUser.id,
         name: "Credit Card",
         type: "CREDIT_CARD",
-        balance: 0, // starts fully paid off
+        balance: 0,
         creditLimit: 15_000_000,
         color: "#dc2626",
         icon: "💳",
@@ -131,7 +155,7 @@ async function main() {
   console.log(`✅ Created ${accounts.length} accounts\n`);
 
   // ============================================
-  // 5. BUILD TRANSACTION LIST
+  // 6. BUILD TRANSACTION LIST
   // ============================================
   console.log("💰 Building transactions...");
 
@@ -149,8 +173,6 @@ async function main() {
 
   const transactions: TxRow[] = [];
 
-  // ── Helpers ──────────────────────────────────────────────────────────────
-
   const getRandom = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
   const randBetween = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
   const dateIn = (year: number, month: number, dayMin = 1, dayMax?: number) => {
@@ -162,8 +184,6 @@ async function main() {
   const currentYear = now.getFullYear();
   const currentMonth = now.getMonth();
 
-  // ── 6-month loop ─────────────────────────────────────────────────────────
-
   for (let i = 5; i >= 0; i--) {
     const rawMonth = currentMonth - i;
     const year = rawMonth < 0 ? currentYear - 1 : currentYear;
@@ -171,8 +191,6 @@ async function main() {
     const isThisMonth = i === 0;
 
     // ── INCOME ──────────────────────────────────────────────────────────
-
-    // Salary — always on the 25th, paid to bank
     transactions.push({
       accountId: bankAccount.id,
       categoryId: categoryIds["Salary"],
@@ -182,7 +200,6 @@ async function main() {
       date: new Date(year, month, 25, 9, 0),
     });
 
-    // Bonus — months 0 and 3 of the 6-month window
     if (i === 5 || i === 2) {
       transactions.push({
         accountId: bankAccount.id,
@@ -194,7 +211,6 @@ async function main() {
       });
     }
 
-    // Freelance — every month
     transactions.push({
       accountId: bankAccount.id,
       categoryId: categoryIds["Freelance"],
@@ -204,7 +220,6 @@ async function main() {
       date: dateIn(year, month),
     });
 
-    // Investment return — every 2 months, goes to investment account
     if (i % 2 === 0) {
       transactions.push({
         accountId: investmentAccount.id,
@@ -216,7 +231,6 @@ async function main() {
       });
     }
 
-    // Gift — random months
     if (Math.random() > 0.6) {
       transactions.push({
         accountId: cashAccount.id,
@@ -229,14 +243,6 @@ async function main() {
     }
 
     // ── EXPENSE ─────────────────────────────────────────────────────────
-    //
-    // NOTE on credit card expenses:
-    //   The credit card is used for shopping and tech purchases.
-    //   Each EXPENSE on the credit card INCREASES its balance (debt).
-    //   Credit card payments are modelled as TRANSFER bank → credit card
-    //   which DECREASES the balance (debt).
-
-    // Food & Drinks — ~20 per month, cash or e-wallet only (not CC)
     for (let j = 0; j < 20; j++) {
       transactions.push({
         accountId: getRandom([cashAccount.id, ewalletAccount.id]),
@@ -248,7 +254,6 @@ async function main() {
       });
     }
 
-    // Transportation — 15 per month, cash or e-wallet
     for (let j = 0; j < 15; j++) {
       transactions.push({
         accountId: getRandom([cashAccount.id, ewalletAccount.id]),
@@ -260,7 +265,6 @@ async function main() {
       });
     }
 
-    // Bills & Utilities — fixed days, paid from bank
     transactions.push(
       {
         accountId: bankAccount.id,
@@ -275,7 +279,6 @@ async function main() {
       { accountId: bankAccount.id, categoryId: categoryIds["Bills & Utilities"], amount: 75_000, type: "EXPENSE", description: "Phone Plan", date: new Date(year, month, 20) },
     );
 
-    // Shopping — 3–5 per month, e-wallet or CREDIT CARD (raises CC debt)
     const shopCount = randBetween(3, 5);
     for (let j = 0; j < shopCount; j++) {
       transactions.push({
@@ -288,7 +291,6 @@ async function main() {
       });
     }
 
-    // Entertainment — 1–3 per month, cash or e-wallet
     const entCount = randBetween(1, 3);
     for (let j = 0; j < entCount; j++) {
       transactions.push({
@@ -301,7 +303,6 @@ async function main() {
       });
     }
 
-    // Healthcare — occasional
     if (Math.random() > 0.5) {
       transactions.push({
         accountId: getRandom([cashAccount.id, bankAccount.id]),
@@ -313,7 +314,6 @@ async function main() {
       });
     }
 
-    // Clothing — occasional, e-wallet or CREDIT CARD
     if (Math.random() > 0.6) {
       transactions.push({
         accountId: getRandom([ewalletAccount.id, creditAccount.id]),
@@ -325,7 +325,6 @@ async function main() {
       });
     }
 
-    // Technology — bigger, rare, on CREDIT CARD
     if (Math.random() > 0.75) {
       transactions.push({
         accountId: creditAccount.id,
@@ -337,7 +336,6 @@ async function main() {
       });
     }
 
-    // Sports & Fitness — gym, always from bank
     transactions.push({
       accountId: bankAccount.id,
       categoryId: categoryIds["Sports & Fitness"],
@@ -347,7 +345,6 @@ async function main() {
       date: new Date(year, month, 1),
     });
 
-    // Beauty — occasional
     if (Math.random() > 0.65) {
       transactions.push({
         accountId: getRandom([cashAccount.id, ewalletAccount.id]),
@@ -359,7 +356,6 @@ async function main() {
       });
     }
 
-    // Donation — occasional
     if (Math.random() > 0.7) {
       transactions.push({
         accountId: getRandom([cashAccount.id, ewalletAccount.id]),
@@ -371,7 +367,6 @@ async function main() {
       });
     }
 
-    // Education — occasional
     if (Math.random() > 0.7) {
       transactions.push({
         accountId: bankAccount.id,
@@ -383,7 +378,6 @@ async function main() {
       });
     }
 
-    // Household — monthly supplies
     transactions.push({
       accountId: getRandom([cashAccount.id, ewalletAccount.id]),
       categoryId: categoryIds["Household"],
@@ -395,7 +389,6 @@ async function main() {
 
     // ── TRANSFERS ────────────────────────────────────────────────────────
 
-    // Top-up e-wallet from bank (3–4 per month)
     const topUpCount = randBetween(3, 4);
     for (let j = 0; j < topUpCount; j++) {
       transactions.push({
@@ -408,7 +401,6 @@ async function main() {
       });
     }
 
-    // Monthly savings transfer (bank → savings, day after salary)
     transactions.push({
       accountId: bankAccount.id,
       toAccountId: savingsAccount.id,
@@ -418,7 +410,6 @@ async function main() {
       date: new Date(year, month, 26, 10, 0),
     });
 
-    // Monthly investment top-up (bank → investment)
     transactions.push({
       accountId: bankAccount.id,
       toAccountId: investmentAccount.id,
@@ -428,7 +419,6 @@ async function main() {
       date: new Date(year, month, 27, 10, 0),
     });
 
-    // ATM cash withdrawal (bank → no destination = pure outflow from bank)
     transactions.push({
       accountId: bankAccount.id,
       amount: randBetween(500_000, 1_500_000),
@@ -437,9 +427,6 @@ async function main() {
       date: dateIn(year, month),
     });
 
-    // Credit card payment: TRANSFER bank → credit card
-    //   This REDUCES credit card debt (destination is CC → balance -=)
-    //   Only include if past the 15th of the current month (realistic)
     if (!isThisMonth || now.getDate() >= 15) {
       transactions.push({
         accountId: bankAccount.id,
@@ -453,24 +440,12 @@ async function main() {
   }
 
   // ============================================
-  // 6. INSERT TRANSACTIONS & COMPUTE BALANCES
-  //
-  //    All accounts use the same arithmetic:
-  //      INCOME            → balance += amount
-  //      EXPENSE           → balance -= amount
-  //      TRANSFER (source) → balance -= amount
-  //      TRANSFER (dest)   → balance += amount
-  //
-  //    Credit card starts at 0 (fully paid off).
-  //    Every EXPENSE or cash-advance TRANSFER makes it more negative.
-  //    Every payment TRANSFER makes it less negative (toward 0).
-  //    Final balance is negative = amount of debt owed.
+  // 7a. INSERT TRANSACTIONS & COMPUTE BALANCES
   // ============================================
   console.log("💾 Inserting transactions & computing balances...");
 
   transactions.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-  // accountType lookup so we can apply the right balance rule
   const accountTypeMap: Record<string, string> = {};
   for (const acc of accounts) {
     accountTypeMap[acc.id] = acc.type;
@@ -501,23 +476,20 @@ async function main() {
     if (tx.type === "TRANSFER") {
       // Source
       if (sourceIsCreditCard) {
-        // Cash advance: debt increases → balance goes more negative
         balances[tx.accountId] -= tx.amount;
       } else {
-        balances[tx.accountId] -= tx.amount; // money leaves normal account
+        balances[tx.accountId] -= tx.amount;
       }
       // Destination
       if (tx.toAccountId) {
         if (destIsCreditCard) {
-          // Payment: debt decreases → balance goes less negative (toward 0)
           balances[tx.toAccountId] += tx.amount;
         } else {
-          balances[tx.toAccountId] += tx.amount; // money arrives at normal account
+          balances[tx.toAccountId] += tx.amount;
         }
       }
     } else if (tx.type === "INCOME") {
       if (sourceIsCreditCard) {
-        // Not used in seed, but defensive: income on CC reduces debt
         balances[tx.accountId] += tx.amount;
       } else {
         balances[tx.accountId] += tx.amount;
@@ -525,7 +497,6 @@ async function main() {
     } else {
       // EXPENSE
       if (sourceIsCreditCard) {
-        // Spending on CC increases debt → balance goes more negative
         balances[tx.accountId] -= tx.amount;
       } else {
         balances[tx.accountId] -= tx.amount;
@@ -535,7 +506,6 @@ async function main() {
     txCreated++;
   }
 
-  // Write computed balances back to accounts
   for (const [accountId, balance] of Object.entries(balances)) {
     await prisma.account.update({
       where: { id: accountId },
@@ -548,7 +518,6 @@ async function main() {
   for (const acc of accounts) {
     const bal = balances[acc.id];
     if (acc.type === "CREDIT_CARD") {
-      // Balance is stored as negative; show absolute value as debt
       console.log(`   ${acc.icon} ${acc.name.padEnd(16)} Debt: Rp ${Math.abs(bal).toLocaleString("id-ID")} (limit: Rp 15,000,000)`);
     } else {
       const sign = bal >= 0 ? "" : "-";
@@ -558,12 +527,7 @@ async function main() {
   console.log();
 
   // ============================================
-  // 6b. TRACK A FEW RECURRING SERIES
-  //
-  //    Every transaction of a series shares a recurrenceKey; the most recent one
-  //    carries `nextOccurrence`, which is what the Recurring page schedules from.
-  //    The remaining repeats (gym, subscriptions, ...) are left untracked on
-  //    purpose so the pattern detector has something to suggest.
+  // 7b. TRACK A FEW RECURRING SERIES
   // ============================================
   console.log("🔁 Tracking recurring series...");
 
@@ -596,7 +560,7 @@ async function main() {
   console.log();
 
   // ============================================
-  // 7. CREATE BUDGETS (current month, real spent)
+  // 8. CREATE BUDGETS (current month, real spent)
   // ============================================
   console.log("📊 Creating budgets...");
 
@@ -644,7 +608,7 @@ async function main() {
   console.log(`✅ Created ${budgetDefs.length} budgets\n`);
 
   // ============================================
-  // 8. CREATE FINANCIAL GOALS
+  // 9. CREATE FINANCIAL GOALS
   // ============================================
   console.log("🎯 Creating financial goals...");
 
@@ -706,30 +670,13 @@ async function main() {
   console.log("✅ Created 5 financial goals\n");
 
   // ============================================
-  // 9. APP SETTINGS
-  // ============================================
-  console.log("🔄 Creating app settings data...");
-
-  for (const setting of APP_SETTINGS) {
-    await prisma.appSetting.upsert({
-      where: { key: setting.key },
-      update: {},
-      create: { ...setting },
-    });
-  }
-
-  console.log(`✅ ${APP_SETTINGS.length} app settings seeded\n`);
-
-  // ============================================
   // SUMMARY
   // ============================================
   const totalIncome = transactions.filter((t) => t.type === "INCOME").reduce((s, t) => s + t.amount, 0);
   const totalExpense = transactions.filter((t) => t.type === "EXPENSE").reduce((s, t) => s + t.amount, 0);
   const totalTransfer = transactions.filter((t) => t.type === "TRANSFER").reduce((s, t) => s + t.amount, 0);
 
-  // Net worth: assets (positive balances) minus credit card debt (stored negative)
   const netWorth = Object.values(balances).reduce((sum, bal) => {
-    // Credit card balance is negative, so adding it directly subtracts from net worth
     return sum + bal;
   }, 0);
 

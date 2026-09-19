@@ -242,9 +242,6 @@ export const POST = withApi("auth.forgot_password", async (req: NextRequest) => 
 
   await prisma.verificationToken.create({ data: { identifier: email, token: hashedToken, expires } });
 
-  // Reset mail not arriving is a common support case - the send is logged
-  // separately from the token so you can tell which half failed. The token
-  // itself is never logged; only that one was issued and when it expires.
   logger.info("auth.reset_token_issued", { targetUserId: user.id, expiresAt: expires.toISOString() });
 
   const resetUrl = `${url}/reset-password?token=${resetToken}`;

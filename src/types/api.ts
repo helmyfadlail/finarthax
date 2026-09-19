@@ -65,10 +65,6 @@ export type UserRole = "USER" | "SUPERADMIN";
 
 export type AppSettingType = "string" | "number" | "boolean" | "json";
 
-/**
- * An `app_settings` row as the superadmin screen sees it: the value stays the raw string it is
- * stored as, rather than the parsed shape `/api/settings` hands the rest of the app.
- */
 export interface ManagedAppSetting {
   id: string;
   key: string;
@@ -79,7 +75,6 @@ export interface ManagedAppSetting {
   description: string | null;
   sortOrder: number;
   isPublic: boolean;
-  /** Owned by the seed catalogue: retunable, but not deletable. */
   isCatalogue: boolean;
   createdAt: string;
   updatedAt: string;
@@ -131,7 +126,6 @@ export interface Transaction {
   nextOccurrence?: string | null;
   recurrenceEndDate?: string | null;
   recurrenceDismissedAt?: string | null;
-  /** Set only for a transfer whose source and destination accounts hold different currencies. */
   exchangeRate?: number | null;
   convertedAmount?: number | null;
   createdAt: string;
@@ -268,10 +262,6 @@ export interface PublicAccount {
   creditLimit?: number | null;
 }
 
-/**
- * A transaction as the public quick-entry page is allowed to see it: no ids beyond the ones an
- * action needs, no attachment, no audit fields.
- */
 export interface PublicTransaction {
   id: string;
   type: TransactionType;
@@ -291,10 +281,8 @@ export interface QuickTransactionResources {
   categories: Category[];
   accounts: PublicAccount[];
   showsBalances: boolean;
-  /** The owner's `publicQuickActivity` preference: with it off, the two lists below are empty and the actions are refused. */
   showsActivity: boolean;
   recentTransactions: PublicTransaction[];
-  /** Tracked series that are due, plus those falling inside the owner's lookahead window. */
   dueRecurring: ScheduledRecurrence[];
 }
 

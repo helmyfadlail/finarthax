@@ -9,7 +9,6 @@ export const GET = withApi("recurring.overview", async (req: NextRequest) => {
   const user = await requireAuth();
   const { searchParams } = new URL(req.url);
 
-  // Query string wins, then the account's own preference, then the instance tuning.
   const [preferences, tuning] = await Promise.all([getUserPreferences(user.id), getTuning()]);
 
   const validation = recurringFilterSchema.safeParse({

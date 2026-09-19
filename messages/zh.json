@@ -347,6 +347,10 @@
       "hint": "将为 “{name}” 创建一笔新交易并更新您的余额。",
       "date": "日期",
       "amount": "金额",
+      "tags": "标签",
+      "noTags": "暂无标签——在下方创建一个",
+      "newTagPlaceholder": "新标签名称",
+      "addTag": "添加",
       "cancel": "取消",
       "submit": "记录交易"
     },
@@ -375,7 +379,8 @@
       "track": "跟踪定期交易失败",
       "stop": "停止跟踪失败",
       "dismiss": "忽略建议失败",
-      "restore": "恢复建议失败"
+      "restore": "恢复建议失败",
+      "tagCreate": "创建标签失败"
     },
     "duePanel": {
       "title": "待确认",
@@ -916,6 +921,8 @@
       "newPasswordPlaceholder": "输入新密码",
       "confirmPassword": "确认新密码",
       "confirmPasswordPlaceholder": "重新输入新密码",
+      "showPassword": "显示密码",
+      "hidePassword": "隐藏密码",
       "changePassword": "更改密码",
       "tipsTitle": "密码安全提示",
       "tips": {

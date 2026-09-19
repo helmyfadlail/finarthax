@@ -32,7 +32,6 @@ export const DELETE = withApi<{ fileId: string }>("imagekit.delete", async (req:
 
   const data = await response.json().catch(() => ({}));
 
-  // Third-party failures are the hardest to reproduce later - record what ImageKit said.
   logger.error("imagekit.delete_failed", { fileId, status: response.status, upstreamMessage: data.message });
 
   return errorResponse(data.message || "Failed to delete file from ImageKit", response.status);

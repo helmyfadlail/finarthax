@@ -83,14 +83,14 @@ const getTransactionHint = (
 const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, dateFormat, onEdit, onDelete, isDeleting }) => {
   const t = useTranslations("transactionsPage");
   const { format } = useCurrency();
-  const config = TYPE_CONFIG[transaction.type as TransactionType] ?? TYPE_CONFIG.EXPENSE;
+  const config = TYPE_CONFIG[transaction.type];
   const isTransfer = transaction.type === "TRANSFER";
   const isCCExp = transaction.type === "EXPENSE" && transaction.account?.type === "CREDIT_CARD";
   const badgeVariant = transaction.type === "INCOME" ? "success" : transaction.type === "TRANSFER" ? "info" : "error";
   const badgeLabel = transaction.type === "INCOME" ? `${config.icon} ${t("income")}` : transaction.type === "TRANSFER" ? `${config.icon} ${t("transfer")}` : `${config.icon} ${t("expense")}`;
 
   return (
-    <div className="flex items-center justify-between gap-2 p-3 transition-all rounded-lg group sm:p-4 sm:gap-4 bg-primary-50 hover:bg-primary-100 hover:shadow-md dark:bg-primary-200 dark:hover:bg-primary-300">
+    <div className="flex flex-col gap-2.5 p-3 transition-all rounded-lg group sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:p-4 bg-primary-50 hover:bg-primary-100 hover:shadow-md dark:bg-primary-200 dark:hover:bg-primary-300">
       <div className="flex items-center flex-1 min-w-0 gap-2 sm:gap-4">
         <div className={`flex items-center justify-center shrink-0 w-9 h-9 text-lg sm:w-12 sm:h-12 sm:text-2xl rounded-full transition-transform group-hover:scale-110 ${config.bg}`}>
           {isTransfer ? "🔄" : (transaction.category?.icon ?? "💰")}
@@ -145,23 +145,23 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction, dateForm
           )}
         </div>
       </div>
-      <div className="flex items-center gap-2 shrink-0 sm:gap-4">
-        <div className="text-right">
-          <p className={`text-sm sm:text-lg lg:text-xl font-bold tabular-nums ${config.color}`}>
+      <div className="flex items-center justify-between gap-2 pl-11 sm:justify-end sm:gap-4 sm:pl-0 sm:shrink-0">
+        <div className="text-left sm:text-right">
+          <p className={`text-base sm:text-lg lg:text-xl font-bold tabular-nums ${config.color}`}>
             {config.prefix} {format(transaction.amount, transaction.account?.currency)}
           </p>
           {isTransfer && transaction.convertedAmount != null && transaction.toAccount && (
             <p className="text-xs tabular-nums text-primary-500 dark:text-primary-700">≈ {format(transaction.convertedAmount, transaction.toAccount.currency)}</p>
           )}
-          <Badge variant={badgeVariant} className="hidden mt-1 sm:inline-flex">
+          <Badge variant={badgeVariant} className="mt-1 inline-flex">
             {badgeLabel}
           </Badge>
         </div>
-        <div className="flex items-center gap-1 sm:gap-2">
-          <Button variant="outline" size="sm" onClick={() => onEdit(transaction)} aria-label={t("editButton")} title={t("editButton")} className="w-9 px-0 sm:w-auto sm:px-3">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          <Button variant="outline" size="sm" onClick={() => onEdit(transaction)} aria-label={t("editButton")} title={t("editButton")} className="w-10 h-10 px-0 sm:w-auto sm:h-auto sm:px-3">
             ✏️
           </Button>
-          <Button variant="danger" size="sm" onClick={() => onDelete(transaction.id)} disabled={isDeleting} aria-label={t("deleteButton")} className="w-9 px-0 sm:w-auto sm:px-3">
+          <Button variant="danger" size="sm" onClick={() => onDelete(transaction.id)} disabled={isDeleting} aria-label={t("deleteButton")} className="w-10 h-10 px-0 sm:w-auto sm:h-auto sm:px-3">
             🗑️
           </Button>
         </div>
@@ -657,7 +657,7 @@ export const Transactions: React.FC = () => {
                 ))}
               </div>
               {pagination && pagination.totalPages > 1 && (
-                <div className="flex items-center justify-center gap-2 pt-4 mt-4 border-t border-primary-100 dark:border-primary-400 sm:gap-3 sm:pt-6 sm:mt-6">
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-4 mt-4 border-t border-primary-100 dark:border-primary-400 sm:gap-3 sm:pt-6 sm:mt-6">
                   <Button variant="outline" size="sm" onClick={() => handlePageChange(currentPage - 1)} disabled={currentPage === 1} className="text-xs sm:text-sm">
                     ← {t("pagination.previous")}
                   </Button>

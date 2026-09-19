@@ -36,7 +36,7 @@ export const PUT = withApi<{ id: string }>("transactions.update", async (req: Ne
   const data = validation.data;
 
   const newAccountId = data.accountId ?? existing.accountId;
-  const newType = data.type ?? existing.type;
+  const newType = data.type;
 
   const newToAccountId = newType === "TRANSFER" ? ("toAccountId" in data ? data.toAccountId : (existing.toAccountId ?? undefined)) : undefined;
 
@@ -86,8 +86,6 @@ export const PUT = withApi<{ id: string }>("transactions.update", async (req: Ne
     return updated;
   });
 
-  // Balances are rewritten here, so the before/after amounts are what you need
-  // when a user reports that an account total looks wrong.
   logger.info("transactions.updated", {
     transactionId: id,
     fields: Object.keys(data),

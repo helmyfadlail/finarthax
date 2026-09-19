@@ -109,7 +109,7 @@ const GoalCard: React.FC<GoalCardProps> = ({ goal, onUpdateProgress, onDelete })
           <Button variant="primary" size="sm" className="flex-1 text-xs sm:text-sm" onClick={() => onUpdateProgress(goal)} disabled={status.isCompleted}>
             💰 {t("updateProgress")}
           </Button>
-          <Button variant="danger" size="sm" onClick={() => onDelete(goal.id)} aria-label={t("deleteButton")} className="w-9 px-0 sm:w-auto sm:px-3">
+          <Button variant="danger" size="sm" onClick={() => onDelete(goal.id)} aria-label={t("deleteButton")} className="w-10 h-10 px-0 sm:w-auto sm:h-auto sm:px-3">
             🗑️
           </Button>
         </div>
@@ -156,9 +156,6 @@ export const Goals: React.FC = () => {
   const summary = React.useMemo(() => {
     const totalGoals = goals.length;
     const completedGoals = goals.filter((g) => (Number(g.currentAmount) / Number(g.targetAmount)) * 100 >= 100).length;
-    // Goals can each be in a different currency, so totals are normalized to BASE_CURRENCY before
-    // summing - `format()` below converts that to the display currency the same way it already
-    // does for every other base-currency figure in the app.
     const totalTarget = goals.reduce((sum, g) => sum + convert(Number(g.targetAmount), g.currency, BASE_CURRENCY), 0);
     const totalSaved = goals.reduce((sum, g) => sum + convert(Number(g.currentAmount), g.currency, BASE_CURRENCY), 0);
     const overallProgress = totalTarget > 0 ? (totalSaved / totalTarget) * 100 : 0;

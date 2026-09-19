@@ -4,7 +4,6 @@ import { errorResponse, successResponse, validationErrorResponse } from "@/utils
 import z from "zod";
 import { updateAppSettingSchema } from "@/types";
 
-/** A value is stored as text whatever its declared type, so it is checked against that type here. */
 const valueError = (type: string, value: string): string | null => {
   if (type === "number" && !Number.isFinite(Number(value))) return "Value must be a number";
   if (type === "boolean" && !["true", "false"].includes(value)) return 'Value must be "true" or "false"';
@@ -27,8 +26,6 @@ export const GET = withApi<{ key: string }>("app_settings.detail", async (_req: 
   const setting = await prisma.appSetting.findUnique({ where: { key } });
   if (!setting) return errorResponse("Setting not found", 404);
 
-  // The last few changes travel with the row: on this screen the previous value is the fastest
-  // way back out of a bad edit.
   const history = await prisma.appSettingAudit.findMany({ where: { key }, orderBy: { createdAt: "desc" }, take: 10 });
 
   return successResponse({ ...setting, isCatalogue: isCatalogueKey(setting.key), history });
@@ -51,8 +48,6 @@ export const PATCH = withApi<{ key: string }>("app_settings.update", async (req:
   const existing = await prisma.appSetting.findUnique({ where: { key } });
   if (!existing) return errorResponse("Setting not found", 404);
 
-  // A value sent without a type is checked against the stored one, and a type sent without a value
-  // is checked against the stored value - either half alone can still make the row inconsistent.
   const effectiveType = data.type ?? existing.type;
   const effectiveValue = data.value ?? existing.value;
   const error = valueError(effectiveType, effectiveValue);
@@ -83,8 +78,6 @@ export const DELETE = withApi<{ key: string }>("app_settings.delete", async (_re
   const existing = await prisma.appSetting.findUnique({ where: { key } });
   if (!existing) return errorResponse("Setting not found", 404);
 
-  // Catalogue rows are read by name inside features and rewritten by the seed on every deploy, so
-  // deleting one buys nothing and breaks something until the next seed. Retune it instead.
   if (isCatalogueKey(key)) {
     return errorResponse(`"${key}" is a built-in setting and cannot be deleted. Change its value instead.`, 409);
   }

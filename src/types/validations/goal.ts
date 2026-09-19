@@ -9,7 +9,6 @@ export const goalSchema = z.object({
   status: z.enum(["ACTIVE", "COMPLETED", "CANCELLED"]).default("ACTIVE"),
 });
 
-/** See the comment on updateAccountSchema: `.partial()` alone would reset currentAmount/status to their defaults whenever omitted. */
 export const updateGoalSchema = goalSchema.partial().extend({
   currentAmount: z.number().min(0, "Current amount cannot be negative").optional(),
   status: z.enum(["ACTIVE", "COMPLETED", "CANCELLED"]).optional(),

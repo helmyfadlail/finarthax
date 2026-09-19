@@ -2,10 +2,6 @@ type FetchOptions = RequestInit & {
   params?: Record<string, string | number | boolean | undefined>;
 };
 
-/**
- * Carries the server's `x-request-id` back to the UI, so a user-visible failure can
- * be traced to the exact server log line ("error id: 4f2c..." in a toast is enough).
- */
 export class ApiError extends Error {
   readonly status: number;
   readonly requestId: string | null;
@@ -20,9 +16,28 @@ export class ApiError extends Error {
   }
 }
 
+let isHandlingSessionExpiry = false;
+
+const handleSessionExpired = () => {
+  if (typeof window === "undefined" || isHandlingSessionExpiry) return;
+  if (window.location.pathname.startsWith("/login")) return;
+
+  isHandlingSessionExpiry = true;
+  localStorage.removeItem("finarthax_had_session");
+
+  import("next-auth/react")
+    .then(({ signOut }) => signOut({ redirect: false }))
+    .catch(() => undefined)
+    .finally(() => {
+      window.location.href = "/login?reason=session_expired";
+    });
+};
+
 const throwApiError = (response: Response, payload: unknown, fallback: string): never => {
   const body = (payload ?? {}) as { message?: string; requestId?: string; errors?: Record<string, string[]> };
   const requestId = response.headers.get("x-request-id") ?? body.requestId ?? null;
+
+  if (response.status === 401) handleSessionExpired();
 
   throw new ApiError(body.message || fallback, response.status, requestId, body.errors);
 };
@@ -120,7 +135,6 @@ class ApiClient {
     return this.request<TResponse, TBody>(endpoint, { ...options, method: "POST", body });
   }
 
-  /** For multipart bodies (file uploads) - skips the JSON stringify/Content-Type the plain `post` always applies. */
   async postFormData<TResponse>(endpoint: string, formData: FormData): Promise<TResponse> {
     const response = await fetch(`${this.baseURL}${endpoint}`, { method: "POST", body: formData });
 

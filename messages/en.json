@@ -347,6 +347,10 @@
       "hint": "A new transaction for “{name}” will be created and your balance updated.",
       "date": "Date",
       "amount": "Amount",
+      "tags": "Tags",
+      "noTags": "No tags yet — create one below",
+      "newTagPlaceholder": "New tag name",
+      "addTag": "Add",
       "cancel": "Cancel",
       "submit": "Log transaction"
     },
@@ -375,7 +379,8 @@
       "track": "Failed to track the series",
       "stop": "Failed to stop tracking",
       "dismiss": "Failed to dismiss the suggestion",
-      "restore": "Failed to restore the suggestion"
+      "restore": "Failed to restore the suggestion",
+      "tagCreate": "Failed to create tag"
     },
     "duePanel": {
       "title": "Due now",
@@ -916,6 +921,8 @@
       "newPasswordPlaceholder": "Enter new password",
       "confirmPassword": "Confirm New Password",
       "confirmPasswordPlaceholder": "Re-enter new password",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
       "changePassword": "Change Password",
       "tipsTitle": "Password Security Tips",
       "tips": {

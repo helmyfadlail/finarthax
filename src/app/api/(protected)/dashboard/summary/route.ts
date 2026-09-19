@@ -50,7 +50,6 @@ export const GET = withApi("dashboard.summary", async () => {
 
   const accounts = await prisma.account.findMany({ where: { userId: user.id }, orderBy: { isDefault: "desc" } });
 
-  // Net worth only needs live rates when an account actually holds a foreign currency.
   const needsRates = accounts.some((acc) => acc.currency !== BASE_CURRENCY);
   const rates = needsRates ? await getExchangeRates() : null;
   const totalBalance = accounts.reduce((sum, acc) => sum + convertToBase(acc.balance.toNumber(), acc.currency, rates), 0);

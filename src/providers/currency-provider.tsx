@@ -88,9 +88,6 @@ export const CurrencyProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
       return data.rates;
     },
-    // Rates are needed whenever any amount's own currency differs from the display currency -
-    // not just when the display currency differs from BASE_CURRENCY, since an individual
-    // account can be in a different currency than both.
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 60,
     gcTime: 1000 * 60 * 60 * 24,

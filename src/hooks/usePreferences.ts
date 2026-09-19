@@ -36,11 +36,6 @@ export interface Preferences {
   recurringLookaheadDays: number;
 }
 
-/**
- * Derived from the USER_SETTINGS catalogue rather than restated here, so the default a new account
- * is created with and the default the UI falls back to can never drift apart. Change the catalogue
- * and both move together.
- */
 const CATALOGUE = Object.fromEntries(USER_SETTINGS.map((setting) => [setting.key, setting.value]));
 
 const catalogueString = (key: keyof Preferences, fallback: string): string => CATALOGUE[key] ?? fallback;

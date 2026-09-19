@@ -5,19 +5,12 @@ import { logger } from "./logger";
 
 const connectionString = `${process.env.DATABASE_URL}`;
 
-/** Queries slower than this are logged at `warn` with the model and operation. */
-const SLOW_QUERY_MS = Number(process.env.LOG_SLOW_QUERY_MS ?? 300);
+const SLOW_QUERY_MS = Number(process.env.LOG_SLOW_QUERY_MS);
 
 const adapter = new PrismaPg({ connectionString });
 
 const basePrisma = new PrismaClient({ adapter });
 
-/**
- * Every query is timed and attributed to the request that issued it - the request
- * id comes from the async context, so nothing has to be threaded through by hand.
- * Slow queries surface at `warn`, and failures are logged where they happen with
- * the model and operation that the route-level error alone would not tell you.
- */
 const prisma = basePrisma.$extends({
   query: {
     async $allOperations({ model, operation, args, query }) {

@@ -25,18 +25,13 @@ export const GET = withApi("audit-log.list", async (req: NextRequest) => {
 
   const { entityType, startDate, endDate, page, limit } = validation.data;
 
-  // Financial audit rows are only ever traced back to their actor, since the entities they
-  // describe (accounts/transactions/budgets/goals) can already be deleted by the time this is read.
   const where: Prisma.AuditLogWhereInput = {
     actorId: user.id,
     ...(entityType && { entityType }),
     ...(startDate || endDate ? { createdAt: { ...(startDate && { gte: new Date(startDate) }), ...(endDate && { lte: new Date(endDate) }) } } : {}),
   };
 
-  const [data, total] = await Promise.all([
-    prisma.auditLog.findMany({ where, orderBy: { createdAt: "desc" }, skip: (page - 1) * limit, take: limit }),
-    prisma.auditLog.count({ where }),
-  ]);
+  const [data, total] = await Promise.all([prisma.auditLog.findMany({ where, orderBy: { createdAt: "desc" }, skip: (page - 1) * limit, take: limit }), prisma.auditLog.count({ where })]);
 
   logger.debug("audit-log.listed", { returned: data.length, total, page, limit });
 

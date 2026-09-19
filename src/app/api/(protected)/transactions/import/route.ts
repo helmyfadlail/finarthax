@@ -21,7 +21,6 @@ interface ResolvedRow {
 
 const VALID_TYPES = new Set(["INCOME", "EXPENSE", "TRANSFER"]);
 
-/** Column names match the CSV this app exports, matched case- and whitespace-insensitively. */
 const normalizeHeader = (header: string): string => header.trim().toLowerCase();
 
 export const POST = withApi("transactions.import", async (req) => {
@@ -59,7 +58,7 @@ export const POST = withApi("transactions.import", async (req) => {
   const resolved: ResolvedRow[] = [];
 
   parsed.data.forEach((raw, index) => {
-    const row = index + 2; // +1 for the header row, +1 to make it 1-indexed
+    const row = index + 2;
 
     const typeRaw = (raw.type ?? "").trim().toUpperCase();
     const dateRaw = (raw.date ?? "").trim();
@@ -127,7 +126,17 @@ export const POST = withApi("transactions.import", async (req) => {
       if (!tagByName.has(name.toLowerCase())) tagsToCreate.set(name.toLowerCase(), name);
     }
 
-    resolved.push({ row, date, type: typeRaw as ResolvedRow["type"], amount, description: (raw.description ?? "").trim(), accountId: account.id, toAccountId, categoryId, tagIds: tagNames.map((n) => n.toLowerCase()) });
+    resolved.push({
+      row,
+      date,
+      type: typeRaw as ResolvedRow["type"],
+      amount,
+      description: (raw.description ?? "").trim(),
+      accountId: account.id,
+      toAccountId,
+      categoryId,
+      tagIds: tagNames.map((n) => n.toLowerCase()),
+    });
   });
 
   if (tagsToCreate.size > 0) {

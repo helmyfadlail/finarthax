@@ -5,13 +5,8 @@ export const SettingCategory = z.enum(["general", "notifications", "appearance",
 
 export const updateSettingValueSchema = z.object({ value: z.string() });
 
-/** The shapes an `app_settings` row may declare. `json` covers both objects and arrays. */
 export const appSettingTypeSchema = z.enum(["string", "number", "boolean", "json"]);
 
-/**
- * A key is what the code looks a setting up by, so it is held to the same shape as the catalogue in
- * src/static/app-settings.ts: lower snake_case, and never renamed by accident.
- */
 const appSettingKeySchema = z
   .string()
   .min(2, "Key is too short")
@@ -24,10 +19,6 @@ const appSettingCategorySchema = z
   .max(32, "Category is too long")
   .regex(/^[a-z][a-z0-9_]*$/, "Category must be lower snake_case");
 
-/**
- * The value is stored as text whatever the declared type, so it is validated against that type
- * here - a `number` row holding "abc" would otherwise only fail much later, inside a feature.
- */
 const valueMatchesType = (data: { type: z.infer<typeof appSettingTypeSchema>; value: string }, ctx: z.RefinementCtx): void => {
   if (data.type === "number" && !Number.isFinite(Number(data.value))) {
     ctx.addIssue({ code: "custom", message: "Value must be a number", path: ["value"] });
@@ -59,10 +50,6 @@ export const createAppSettingSchema = z
   })
   .superRefine(valueMatchesType);
 
-/**
- * The key is deliberately absent: it is the identifier the code reads by, so renaming one is a
- * delete plus a create, not an edit that silently detaches a feature from its setting.
- */
 export const updateAppSettingSchema = z
   .object({
     value: z.string().max(20_000, "Value is too long"),
@@ -76,7 +63,5 @@ export const updateAppSettingSchema = z
   .partial()
   .superRefine((data, ctx) => {
     if (Object.keys(data).length === 0) ctx.addIssue({ code: "custom", message: "Nothing to update" });
-    // Type-checking a value needs both halves; a value sent without a type is checked against the
-    // stored one in the route, where that is known.
     if (data.value !== undefined && data.type !== undefined) valueMatchesType({ type: data.type, value: data.value }, ctx);
   });

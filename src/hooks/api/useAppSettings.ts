@@ -12,12 +12,6 @@ interface AppSettingFilters {
 
 const EMPTY_LIST: ManagedAppSettingList = { data: [], categories: [] };
 
-/**
- * The superadmin view of `app_settings`.
- *
- * Only enabled for a superadmin session: for everyone else the endpoint answers 403, and a query
- * that fires just to be refused would put a red error on a screen they are not meant to see.
- */
 export const useAppSettings = (filters?: AppSettingFilters) => {
   const queryClient = useQueryClient();
   const { data: session } = useSession();
@@ -26,8 +20,6 @@ export const useAppSettings = (filters?: AppSettingFilters) => {
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: ["managed-app-settings"] });
-    // The public catalogue is the same table, so anything reading it - the home page copy, the
-    // preference option lists - is stale the moment a row changes here.
     queryClient.invalidateQueries({ queryKey: ["app-settings"] });
   };
 

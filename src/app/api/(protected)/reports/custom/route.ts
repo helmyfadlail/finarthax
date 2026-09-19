@@ -31,12 +31,9 @@ export const POST = withApi("reports.custom", async (req: NextRequest) => {
     orderBy: { date: "desc" },
   });
 
-  // Normalized to BASE_CURRENCY throughout - including the account breakdown below, so every
-  // figure in this report stays comparable even when accounts hold different currencies.
   const rates = transactions.some((t) => t.account.currency !== BASE_CURRENCY) ? await getExchangeRates() : null;
   const amt = (t: (typeof transactions)[number]) => convertToBase(t.amount.toNumber(), t.account.currency, rates);
 
-  // ── Totals ─────────────────────────────────────────────────────────────
   const income = transactions.filter((t) => t.type === "INCOME").reduce((s, t) => s + amt(t), 0);
   const expense = transactions.filter((t) => t.type === "EXPENSE").reduce((s, t) => s + amt(t), 0);
   const transfer = transactions.filter((t) => t.type === "TRANSFER").reduce((s, t) => s + amt(t), 0);
@@ -52,10 +49,8 @@ export const POST = withApi("reports.custom", async (req: NextRequest) => {
     total: transactions.length,
   };
 
-  // An unbounded date range is the usual cause of a slow custom report.
   logger.debug("reports.custom_built", { startDate: startStr, endDate: endStr, daySpan, transactions: counts.total });
 
-  // ── Category breakdown (EXPENSE only, nullable categoryId safe) ────────
   const categoryTotals = new Map<
     string,
     {
@@ -83,7 +78,6 @@ export const POST = withApi("reports.custom", async (req: NextRequest) => {
 
   const categoryBreakdown = Array.from(categoryTotals.values()).sort((a, b) => b.expense - a.expense);
 
-  // ── Account breakdown (includes TRANSFER flow) ─────────────────────────
   const accountTotals = new Map<
     string,
     {

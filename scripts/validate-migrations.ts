@@ -1,28 +1,11 @@
-/**
- * Guards the migration history before a deploy touches a production database.
- *
- * `prisma migrate deploy` applies whatever it finds and records a checksum per migration. That
- * makes two edits fatal in ways nothing catches at review time: changing a migration that has
- * already run (the checksum no longer matches and every later deploy fails with P3005/P3009), and
- * changing the schema without generating a migration (the deploy succeeds, the column is missing,
- * and the failure lands at runtime). Both are cheap to detect here.
- *
- *   npm run db:validate                    # structure + destructive scan + history vs origin/main
- *   npm run db:validate -- --base HEAD~1   # compare against a different ref
- *   SHADOW_DATABASE_URL=... npm run db:validate   # adds the schema-vs-migrations drift check
- *
- * Exit code 1 means do not deploy.
- */
-
 import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
 const MIGRATIONS_DIR = path.join(process.cwd(), "prisma", "migrations");
-/** Forward slashes on purpose: this is compared against git output, which never uses backslashes. */
+
 const SCHEMA_PATH = "prisma/schema.prisma";
 
-/** Prisma names a migration `<14-digit timestamp>_<snake_case label>`. */
 const MIGRATION_NAME = /^\d{14}_[a-z0-9]+(?:_[a-z0-9]+)*$/;
 
 interface Finding {
@@ -48,7 +31,6 @@ const arg = (name: string): string | undefined => {
 
 const hasFlag = (name: string): boolean => process.argv.includes(`--${name}`);
 
-/** Runs a command for its output, returning null instead of throwing when it fails. */
 const run = (command: string, args: string[]): string | null => {
   try {
     return execFileSync(command, args, { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] }).trim();
@@ -95,8 +77,6 @@ const checkStructure = (migrations: string[]): void => {
       fail(`Migration "${name}" is empty`, "An empty migration still takes a slot in the history; delete the folder instead.");
     }
 
-    // A `*.sql` line in .gitignore silently swallows migrations: the folder exists locally, the
-    // deploy checks out a tree without it, and the column is simply missing in production.
     if (run("git", ["check-ignore", "-q", path.posix.join("prisma/migrations", name, "migration.sql")]) !== null) {
       fail(`Migration "${name}" is ignored by .gitignore`, "It will never reach the server. Add `!prisma/migrations/**/*.sql` to .gitignore.");
     }
@@ -109,7 +89,6 @@ const checkStructure = (migrations: string[]): void => {
   }
 
   for (const [stamp, names] of duplicateTimestamps) {
-    // Two branches generating a migration in the same second order arbitrarily on the server.
     if (names.length > 1) fail(`Two migrations share the timestamp ${stamp}`, names.join(", "));
   }
 };
@@ -141,8 +120,6 @@ const checkHistory = (base: string): { changedSchema: boolean; addedMigrations: 
       return { status, from: paths[0], to: paths[paths.length - 1] };
     });
 
-  // Work that is not committed yet counts too: run locally, before the commit, is exactly when a
-  // hand-edited migration is still cheap to undo.
   for (const line of (run("git", ["status", "--porcelain", "--untracked-files=all"]) ?? "").split("\n").filter(Boolean)) {
     const code = line.slice(0, 2);
     const filePath = line.slice(3).replace(/^"|"$/g, "").split(" -> ").pop() as string;
@@ -207,7 +184,6 @@ const DESTRUCTIVE_PATTERNS: Array<{ pattern: RegExp; what: string }> = [
   { pattern: /\bALTER\s+COLUMN\b[\s\S]*?\bTYPE\b/i, what: "changes a column type (can silently lose precision)" },
 ];
 
-/** `ADD COLUMN x TEXT NOT NULL` with no default fails on any table that already has rows. */
 const NOT_NULL_WITHOUT_DEFAULT = /\bADD\s+COLUMN\b[^;]*\bNOT\s+NULL\b(?![^;]*\bDEFAULT\b)[^;]*;/gi;
 
 const stripComments = (sql: string): string => sql.replace(/--[^\n]*/g, "").replace(/\/\*[\s\S]*?\*\//g, "");
@@ -235,7 +211,10 @@ const checkDestructive = (migrations: string[], onlyThese: string[]): void => {
     }
 
     for (const statement of sql.match(NOT_NULL_WITHOUT_DEFAULT) ?? []) {
-      record(`Migration "${name}" adds a NOT NULL column without a default`, `${statement.replace(/\s+/g, " ").trim()} - this fails on a table that already holds rows. Add a DEFAULT, or backfill in a separate migration first.`);
+      record(
+        `Migration "${name}" adds a NOT NULL column without a default`,
+        `${statement.replace(/\s+/g, " ").trim()} - this fails on a table that already holds rows. Add a DEFAULT, or backfill in a separate migration first.`,
+      );
     }
   }
 };
@@ -280,8 +259,6 @@ const main = (): void => {
 
   checkStructure(migrations);
   const { addedMigrations } = checkHistory(base);
-  // Only what this change introduces is scanned for destructive SQL - the history is already
-  // deployed, and flagging it forever would train everyone to ignore the check.
   checkDestructive(migrations, addedMigrations);
   checkDrift();
 

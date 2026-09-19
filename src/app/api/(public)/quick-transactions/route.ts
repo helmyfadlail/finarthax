@@ -28,15 +28,12 @@ import z from "zod";
 import { quickTransactionSchema } from "@/types";
 import type { PublicTransaction, RecurrenceInterval, TransactionType } from "@/types";
 
-/** How much history the quick-entry page shows when the owner has opted in. */
 const RECENT_LIMIT = 8;
 
 export const GET = withApi("quick_transactions.lookup", async (req: NextRequest) => {
   const tuning = await getTuning();
   const { allowed, retryAfter } = rateLimit(clientKey(req, "quick-lookup"), tuning.quickLookupRateLimit, tuning.quickRateLimitWindowSeconds * 1000);
   if (!allowed) {
-    // Unauthenticated endpoint: a client hitting the limit is the earliest signal
-    // of someone enumerating email addresses.
     logger.warn("quick_transactions.rate_limited", { scope: "quick-lookup", retryAfter });
     return errorResponse(`Too many lookups. Try again in ${retryAfter}s.`, 429);
   }
@@ -83,8 +80,6 @@ export const GET = withApi("quick_transactions.lookup", async (req: NextRequest)
 
   const preferences = await getUserPreferences(userData.id);
   const showsBalances = readBooleanPreference(preferences, "publicQuickBalances");
-  // Two separate opt-ins: what you own (balances) and what you spend it on (history and schedule).
-  // Neither implies the other, and both default to off.
   const showsActivity = readBooleanPreference(preferences, "publicQuickActivity");
 
   const { recentTransactions, dueRecurring } = showsActivity ? await readActivity(userData.id, preferences) : { recentTransactions: [], dueRecurring: [] };
@@ -105,7 +100,6 @@ export const GET = withApi("quick_transactions.lookup", async (req: NextRequest)
   });
 });
 
-/** The history and schedule half of the lookup, read only when the owner has opted in. */
 const readActivity = async (userId: string, preferences: Record<string, string>) => {
   const now = new Date();
   const lookaheadDays = readNumberPreference(preferences, "recurringLookaheadDays", DETECTION_DEFAULTS.lookaheadDays);
@@ -133,8 +127,6 @@ const readActivity = async (userId: string, preferences: Record<string, string>)
     category: row.category,
   }));
 
-  // Due first, then what lands inside the owner's own lookahead window - the same split the
-  // dashboard's recurring screen makes.
   const dueRecurring = scheduled.filter((item) => item.status !== "UPCOMING" || item.daysUntil <= lookaheadDays);
 
   return { recentTransactions, dueRecurring };
@@ -168,8 +160,6 @@ export const POST = withApi("quick_transactions.create", async (req: NextRequest
   const { error: categoryError } = await validateCategory(user.id, "categoryId" in data ? data.categoryId : undefined);
   if (categoryError) return errorResponse(categoryError, 404);
 
-  // Same recurrence handling as the dashboard's POST /transactions, so a series started from the
-  // public page appears on the recurring screen with a schedule rather than as a one-off.
   const transactionDate = new Date(data.date);
   const isRecurring = data.isRecurring === true && !!data.recurrenceInterval;
   const recurrenceInterval = isRecurring ? data.recurrenceInterval : null;
@@ -224,8 +214,6 @@ export const POST = withApi("quick_transactions.create", async (req: NextRequest
     return created;
   });
 
-  // No session here, so the user id has to be logged explicitly - it is the only
-  // way to attribute a public write to an account.
   logger.info("quick_transactions.created", {
     targetUserId: user.id,
     transactionId: quickTransaction.id,

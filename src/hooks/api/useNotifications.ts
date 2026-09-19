@@ -10,7 +10,6 @@ interface NotificationListResponse {
   pagination: { page: number; limit: number; total: number; totalPages: number };
 }
 
-/** No websocket infra in this app - a light poll keeps the bell's unread count close to real-time. */
 const POLL_INTERVAL_MS = 30_000;
 
 export const useNotifications = (options?: { unreadOnly?: boolean; limit?: number }) => {

@@ -56,9 +56,7 @@ export const POST = withApi(
       else bucket.skipped += 1;
     };
 
-    // Sequential on purpose: a burst of parallel sends is the fastest way to get rate limited.
     for (const user of users) {
-      // One bad recipient must not abort the whole run - record it and keep going.
       try {
         if (kind === "weekly" || kind === "all") record(tally.weekly, await sendWeeklyReport(user.id));
         if (kind === "recurring" || kind === "all") record(tally.recurring, await notifyRecurringDue(user.id));

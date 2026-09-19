@@ -7,7 +7,6 @@ import { transactionFilterSchema } from "@/types";
 
 const CSV_HEADERS = ["Date", "Type", "Amount", "Description", "Category", "Account", "To Account", "Tags"] as const;
 
-/** Quotes a field only when it needs it, matching how spreadsheet apps write CSV. */
 const csvField = (value: string): string => (/[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value);
 
 const csvRow = (fields: string[]): string => fields.map(csvField).join(",") + "\r\n";
@@ -36,7 +35,6 @@ export const GET = withApi("transactions.export", async (req: NextRequest) => {
 
   const { startDate, endDate, categoryId, type, accountId, tagId, search } = validation.data;
 
-  // Same filter shape as the list endpoint, minus pagination - an export is always the full match.
   const where: Prisma.TransactionWhereInput = {
     userId: user.id,
     ...(startDate || endDate ? { date: { ...(startDate && { gte: new Date(startDate) }), ...(endDate && { lte: new Date(endDate) }) } } : {}),
@@ -61,7 +59,7 @@ export const GET = withApi("transactions.export", async (req: NextRequest) => {
       t.amount.toString(),
       t.description ?? "",
       t.category?.name ?? "",
-      t.account?.name ?? "",
+      t.account.name,
       t.toAccount?.name ?? "",
       t.tags.map((tag) => tag.name).join("; "),
     ]);

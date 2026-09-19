@@ -1,15 +1,19 @@
+# docker compose --profile scheduler up -d
+
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:18-alpine
     container_name: finarthax-postgres
-    env_file:
-      - .env
+    environment:
+      POSTGRES_USER: postgresdev
+      POSTGRES_PASSWORD: DevFinArthax123
+      POSTGRES_DB: finarthax_db_development
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -17,7 +21,6 @@ services:
 
   app:
     image: helmyyy/finarthax:latest
-    # Swap the image for a local build with:  docker compose build app
     build:
       context: .
       dockerfile: Dockerfile
@@ -26,44 +29,34 @@ services:
       - .env
     environment:
       NODE_ENV: production
-      # Set this when .env holds sealed values (npm run encrypt). Passing it here
-      # rather than in .env keeps the key out of the file it unlocks.
-      ENV_ENCRYPTION_KEY: ${ENV_ENCRYPTION_KEY:-}
+      ENV_ENCRYPTION_KEY: 2yc7vYX8XBaJGiPOko6TfcVsdbCE2W4zg5HlKNMj5wA=
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: postgresdev
+      DATABASE_URL: postgresql://postgresdev:DevFinArthax123@postgres:5432/finarthax_db_development
     ports:
       - "3000:3000"
-    # The app logs to files, not to stdout, so `docker compose logs app` shows only
-    # the startup banner — read these instead. They survive `docker compose down`.
-    # (Set LOG_TO_CONSOLE=true in .env to mirror them to `docker compose logs`.)
-    #
-    #   tail -f ./logs/finarthax-$(date +%F).log
-    #   grep '"level":"error"' ./logs/finarthax-error-$(date +%F).log | jq .
-    #
-    # One-time setup: the app runs as uid 1001, so the host directory has to be
-    # writable by it, otherwise file logging switches itself off (the app keeps
-    # running and says so in `docker compose logs app`).
-    #
-    #   mkdir -p logs && sudo chown 1001:1001 logs
     volumes:
       - ./logs:/app/logs
     depends_on:
       postgres:
         condition: service_healthy
-    # busybox wget, so this works against the published image too — no curl needed
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/api/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://127.0.0.1:3000/api/health",
+        ]
       interval: 30s
       timeout: 5s
       start_period: 40s
       retries: 3
     restart: unless-stopped
 
-  # Delivers the weekly summary and the recurring-due reminders. Both still obey
-  # each account's notification preferences — this only decides *when* the app is
-  # asked to send. Off by default; start it with:
-  #
-  #   docker compose --profile scheduler up -d
-  #
-  # It needs CRON_SECRET set in .env, otherwise the endpoint stays disabled.
   digest:
     image: alpine:3.20
     container_name: finarthax-digest
@@ -73,8 +66,6 @@ services:
     depends_on:
       app:
         condition: service_healthy
-    # busybox crond + wget only — nothing is installed at start, so it works offline.
-    # Times follow the container clock (UTC) unless you set TZ and add tzdata.
     entrypoint:
       - /bin/sh
       - -c

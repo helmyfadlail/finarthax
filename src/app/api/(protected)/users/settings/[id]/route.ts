@@ -25,8 +25,6 @@ export const PATCH = withApi<{ id: string }>("users.settings.update", async (req
     data: { value: validation.data.value },
   });
 
-  // Settings change behaviour (currency, notifications, lookahead) - the before/after
-  // pair explains "it started acting differently" reports.
   logger.info("users.setting_changed", { key: id, from: existingSetting.value, to: validation.data.value });
 
   return successResponse(setting, "Setting value updated successfully");

@@ -3,7 +3,6 @@ import { CURRENCY_LOCALE_MAP, CURRENCY_OPTIONS, ZERO_DECIMAL_CURRENCIES } from "
 import { LANGUAGE_OPTIONS } from "./locales";
 import { BUDGET_ALERT_THRESHOLD_OPTIONS, DATE_FORMAT_OPTIONS, DEFAULT_TRANSACTION_TYPE_OPTIONS, ITEMS_PER_PAGE_OPTIONS, RECURRING_LOOKAHEAD_DAYS_OPTIONS, THEME_OPTIONS } from "./preferences";
 
-/** Choices offered by the preference selects, keyed `<preference>_options`. */
 export const OPTION_SETTINGS = [
   {
     key: "currency_options",
@@ -87,7 +86,6 @@ export const OPTION_SETTINGS = [
   },
 ];
 
-/** How amounts are formatted per currency. */
 export const CURRENCY_SETTINGS = [
   {
     key: "currency_locale_map",
@@ -111,13 +109,11 @@ export const CURRENCY_SETTINGS = [
   },
 ];
 
-/** Feature flags, read on every relevant request. */
 export const FEATURE_SETTINGS = [
   { key: "allow_registration", value: "true", type: "boolean", category: "features", label: "Allow Registration", description: "Allow new users to register", sortOrder: 0, isPublic: false },
   { key: "maintenance_mode", value: "false", type: "boolean", category: "features", label: "Maintenance Mode", description: "Put app in maintenance mode", sortOrder: 0, isPublic: false },
 ];
 
-/** Caps enforced by the API. */
 export const LIMIT_SETTINGS = [
   {
     key: "max_accounts_per_user",
@@ -151,11 +147,6 @@ export const LIMIT_SETTINGS = [
   },
 ];
 
-/**
- * Numbers the server behaves by. They live here so an instance can be retuned from the database
- * instead of a redeploy, and so no feature carries a magic constant of its own — `getTuning()` in
- * src/lib/app-settings.ts reads them, falling back to the values below.
- */
 export const TUNING_SETTINGS = [
   {
     key: "recurring_history_days",
@@ -259,7 +250,6 @@ export const TUNING_SETTINGS = [
   },
 ];
 
-/** Shown on the settings screen. */
 export const APP_INFO_SETTINGS = [
   { key: "app_version", value: "2.1.0", type: "string", category: "app_information", label: "App Version", description: "Current application version", sortOrder: 1, isPublic: true },
   { key: "app_created", value: "January 1, 2026", type: "string", category: "app_information", label: "Created", description: "Application creation date", sortOrder: 2, isPublic: true },
@@ -267,5 +257,4 @@ export const APP_INFO_SETTINGS = [
   { key: "app_environment", value: "Production", type: "string", category: "app_information", label: "Environment", description: "Current application environment", sortOrder: 4, isPublic: true },
 ];
 
-/** Everything the seed writes to `app_settings`. */
 export const APP_SETTINGS = [...OPTION_SETTINGS, ...CURRENCY_SETTINGS, ...FEATURE_SETTINGS, ...LIMIT_SETTINGS, ...TUNING_SETTINGS, ...APP_INFO_SETTINGS, ...CONTENT_SETTINGS] as const;

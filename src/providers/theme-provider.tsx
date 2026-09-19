@@ -20,13 +20,6 @@ export function useTheme(): ThemeContextValue {
   return ctx;
 }
 
-/**
- * Only the signed-in app is themed. The landing page and the whole `(auth)` group are
- * light-only designs — they paint with `bg-white`, `bg-primary-50`, `text-primary-500`,
- * all of which flip under `.dark`. Keying the class off auth state alone meant that once
- * a user signed in, visiting `/login` or `/` dragged the dashboard's dark palette onto
- * pages that have no dark treatment. Gate on the route instead.
- */
 const isThemedRoute = (pathname: string | null) => Boolean(pathname && /(^|\/)admin(\/|$)/.test(pathname));
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {

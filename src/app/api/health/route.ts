@@ -9,7 +9,6 @@ export const GET = withApi(
     const database = await checkDatabaseConnection();
     const isHealthy = database.status === "up";
 
-    // Probes hit this constantly; only the unhealthy result is worth a log line.
     if (!isHealthy) logger.error("health.unhealthy", { database });
 
     const body = {

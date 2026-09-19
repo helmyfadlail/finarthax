@@ -23,8 +23,6 @@ export const authOptions: NextAuthOptions = {
 
         const user = await prisma.user.findUnique({ where: { email: credentials.email } });
 
-        // NextAuth swallows these errors into a generic client-side message, so the
-        // real reason a login failed only exists if it is logged here.
         if (!user) {
           logger.warn("auth.login_failed", { provider: "credentials", reason: "email_not_registered", email: credentials.email });
           throw new Error("Email is not registered.");
@@ -65,7 +63,7 @@ export const authOptions: NextAuthOptions = {
 
   session: {
     strategy: "jwt",
-    maxAge: parseInt(process.env.SESSION_EXPIRATION!) || 15 * 60,
+    maxAge: parseInt(process.env.SESSION_EXPIRATION!),
   },
 
   callbacks: {
@@ -97,8 +95,6 @@ export const authOptions: NextAuthOptions = {
           session.user.id = user.id;
           session.user.name = user.name;
           session.user.email = user.email;
-          // Read from the row rather than the token: a demotion has to take effect on the next
-          // request, not whenever the JWT happens to expire.
           session.user.role = user.role;
           session.user.avatar = user.avatar;
           session.user.avatarFileId = user.avatarFileId;
@@ -172,7 +168,7 @@ export const authOptions: NextAuthOptions = {
 
   pages: {
     signIn: "/login",
-    error: "/error",
+    error: "/login",
   },
 
   debug: process.env.NODE_ENV === "development",

@@ -16,8 +16,6 @@ export const GET = withApi("reports.yearly", async (req: NextRequest) => {
     include: { category: true, account: true, toAccount: true },
   });
 
-  // Normalized to BASE_CURRENCY throughout, same as the monthly report - live rates are only
-  // fetched when a foreign-currency account actually shows up in the year's transactions.
   const rates = transactions.some((t) => t.account.currency !== BASE_CURRENCY) ? await getExchangeRates() : null;
   const amt = (t: (typeof transactions)[number]) => convertToBase(t.amount.toNumber(), t.account.currency, rates);
 
@@ -86,8 +84,6 @@ export const GET = withApi("reports.yearly", async (req: NextRequest) => {
     count: counts.transfer,
   };
 
-  // A full year is loaded into memory here; the row count is the first thing to
-  // check when this endpoint gets slow for a heavy user.
   logger.debug("reports.yearly_built", { year, transactions: counts.total });
 
   return successResponse({

@@ -4,12 +4,6 @@ import { errorResponse, successResponse, validationErrorResponse } from "@/utils
 import z from "zod";
 import { createAppSettingSchema } from "@/types";
 
-/**
- * The whole `app_settings` table, including the rows the public endpoint hides.
- *
- * `/api/settings` serves only `isPublic` rows to anyone; this one is the superadmin view of the
- * same table - feature flags, limits and tuning included.
- */
 export const GET = withApi("app_settings.list", async (req: NextRequest) => {
   await requireSuperAdmin();
 
@@ -36,8 +30,6 @@ export const GET = withApi("app_settings.list", async (req: NextRequest) => {
   logger.debug("app_settings.listed", { returned: settings.length, category, search });
 
   return successResponse({
-    // `isCatalogue` tells the screen which rows the seed owns, so it can explain why they cannot
-    // be deleted instead of failing the request with no reason.
     data: settings.map((setting) => ({ ...setting, isCatalogue: isCatalogueKey(setting.key) })),
     categories: categories.map((row) => row.category),
   });
@@ -63,8 +55,6 @@ export const POST = withApi("app_settings.create", async (req: NextRequest) => {
 
   await recordAppSettingAudit({ key: setting.key, action: "create", newValue: setting.value, actor });
 
-  // The tuning cache holds values by key for a minute; a new row has to be visible now, not
-  // whenever that window happens to close.
   clearTuningCache();
 
   logger.info("app_settings.created", { key: setting.key, type: setting.type, category: setting.category, isPublic: setting.isPublic, actorId: actor.id });

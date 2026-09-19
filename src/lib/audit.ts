@@ -13,12 +13,6 @@ interface AuditLogEntry {
   actor: { id: string; email: string };
 }
 
-/**
- * Records who changed a piece of financial data and what it held before.
- *
- * Mirrors `recordAppSettingAudit` in src/lib/app-settings.ts: a failure to write the audit must
- * never fail the mutation it is describing, so it is logged and dropped.
- */
 export const recordAuditLog = async ({ entityType, entityId, action, previousValue = null, newValue = null, actor }: AuditLogEntry): Promise<void> => {
   try {
     await prisma.auditLog.create({

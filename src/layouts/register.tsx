@@ -296,7 +296,6 @@ export const Register = () => {
             </Link>
           </p>
 
-          {/* The quick-entry page needs no account, so registering is never the only way forward. */}
           <Link
             href="/"
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary-200 px-4 py-2.5 text-sm font-medium text-primary-600 transition-colors hover:border-primary-400 hover:bg-primary-50 hover:text-primary-800"

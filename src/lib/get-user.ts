@@ -9,8 +9,6 @@ export const getCurrentUser = async () => {
     const session = await getServerSession(authOptions);
     const user = session?.user ?? null;
 
-    // Stamp the id onto the request context so every later log line - the response
-    // line, a slow query, an unhandled error - is attributable to this user.
     if (user?.id) setRequestUser(user.id);
 
     return user;
@@ -35,12 +33,6 @@ export const getUserId = async (): Promise<string> => {
   return user.id;
 };
 
-/**
- * The guard for anything that changes the instance itself rather than one account's data.
- *
- * The role is re-read from the database instead of trusted from the session, so a demotion takes
- * effect on the next request even though the JWT it was minted into is still valid.
- */
 export const requireSuperAdmin = async () => {
   const user = await requireAuth();
 

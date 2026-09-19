@@ -23,7 +23,6 @@ export const GET = withApi("users.profile.get", async () => {
   });
 
   if (!userData) {
-    // A live session pointing at a deleted row - rare, and always worth investigating.
     logger.error("users.profile_missing", { sessionUserId: user.id });
     return errorResponse("User not found", 404);
   }

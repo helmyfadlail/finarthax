@@ -2,10 +2,6 @@ import { z } from "zod";
 
 export const recurrenceIntervalSchema = z.enum(["DAILY", "WEEKLY", "BIWEEKLY", "MONTHLY", "YEARLY"]);
 
-/**
- * A date/time the caller picked - "Log now" lets the quick-entry page override the occurrence date,
- * so the raw string has to be a real, parseable timestamp before `new Date(...)` writes it to the DB.
- */
 export const occurrenceDateSchema = z
   .string()
   .trim()
@@ -35,19 +31,20 @@ export const confirmRecurringSchema = z.object({
   description: z.string().max(200, "Description is too long").optional(),
   interval: recurrenceIntervalSchema.optional(),
   keepTracking: z.boolean().optional(),
+  tagIds: z.array(z.string()).optional(),
 });
 
 export const quickRecurringActionSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("log"),
-    email: z.string("Invalid email address"),
+    email: z.email("Invalid email address"),
     transactionId: z.string().min(1, "Transaction is required"),
     amount: z.number().positive("Amount must be positive").optional(),
     date: occurrenceDateSchema.optional(),
   }),
   z.object({
     action: z.literal("track"),
-    email: z.string("Invalid email address"),
+    email: z.email("Invalid email address"),
     transactionId: z.string().min(1, "Transaction is required"),
     interval: recurrenceIntervalSchema,
     endDate: z.string().optional().nullable(),

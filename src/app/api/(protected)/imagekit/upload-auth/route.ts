@@ -12,7 +12,6 @@ export const GET = withApi("imagekit.upload_auth", async () => {
   const expiration = Math.floor(Date.now() / 1000) + expireSeconds;
 
   if (!privateKey || !publicKey) {
-    // A misconfigured deploy fails every upload, so name the missing variable.
     logger.error("imagekit.not_configured", { hasPrivateKey: Boolean(privateKey), hasPublicKey: Boolean(publicKey) });
     return errorResponse("ImageKit keys are not configured properly.", 500);
   }

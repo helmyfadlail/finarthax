@@ -8,9 +8,7 @@ interface DropdownProps {
   children: ReactNode;
   align?: "left" | "right";
   position?: string;
-  /** Defaults to the original fixed w-44/52/56 ramp; pass a wider class for richer panel content. */
   width?: string;
-  /** Set false for triggers placed inline among siblings (e.g. a header icon row) so the root doesn't stretch to fill the flex row. Defaults to true to preserve full-width triggers like sidebar rows. */
   fullWidth?: boolean;
 }
 

@@ -21,7 +21,6 @@ interface FormData {
   recurrenceEndDate: string;
 }
 
-/** Every field the two-argument change handler can set; `isRecurring` has its own toggle. */
 type FormTextField = Exclude<keyof FormData, "isRecurring">;
 
 const INITIAL_FORM_DATA: FormData = {
@@ -37,7 +36,6 @@ const INITIAL_FORM_DATA: FormData = {
   recurrenceEndDate: "",
 };
 
-/** ISO timestamp -> the `YYYY-MM-DDTHH:mm` a `datetime-local` input expects, in the viewer's own timezone. */
 const toDatetimeLocal = (iso: string): string => {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "";
@@ -62,22 +60,10 @@ const TYPE_CONFIG: Record<
 
 const isCreditCard = (account?: PublicAccount | null): boolean => account?.type === "CREDIT_CARD";
 
-/**
- * A credit-card balance is stored negative and its magnitude is what you owe. A positive one means
- * the card is in credit, so it is shown like any other balance rather than as a debt.
- */
 const isDebt = (account: PublicAccount, balance = account.balance ?? 0): boolean => isCreditCard(account) && balance < 0;
 
-/** What to print for a balance: debts read as a positive "owed" figure. */
 const displayBalance = (account: PublicAccount, balance: number): number => (isDebt(account, balance) ? Math.abs(balance) : balance);
 
-/**
- * What this transaction does to an account's balance. Mirrors applyBalanceChange on the server, so
- * the preview and the saved result agree.
- *
- * A credit-card balance is stored negative and its magnitude is the debt, which is why an expense
- * subtracts there too — it pushes the balance further below zero.
- */
 const balanceAfter = (account: PublicAccount, formData: FormData): number | null => {
   if (account.balance === undefined) return null;
 
@@ -86,7 +72,7 @@ const balanceAfter = (account: PublicAccount, formData: FormData): number | null
 
   if (account.id === formData.accountId) {
     if (formData.type === "INCOME") return account.balance + amount;
-    return account.balance - amount; // EXPENSE, and the outgoing side of a TRANSFER
+    return account.balance - amount;
   }
 
   if (formData.type === "TRANSFER" && account.id === formData.toAccountId) return account.balance + amount;
@@ -94,7 +80,6 @@ const balanceAfter = (account: PublicAccount, formData: FormData): number | null
   return null;
 };
 
-/** What POST /quick-transactions hands back, trimmed to the shape the two lists render. */
 const toPublicTransaction = (transaction: Transaction): PublicTransaction => ({
   id: transaction.id,
   type: transaction.type,
@@ -112,11 +97,10 @@ const shortDateTime = (value: string): string => new Date(value).toLocaleString(
 
 const relativeDue = (daysUntil: number): string => (daysUntil < 0 ? `${Math.abs(daysUntil)} days overdue` : daysUntil === 0 ? "Due today" : `In ${daysUntil} days`);
 
-/** One recorded transaction. Renders the same whether it came from the server or from this session. */
 const ActivityRow: React.FC<{ transaction: PublicTransaction; onTrack?: (transaction: PublicTransaction) => void; isBusy?: boolean }> = ({ transaction, onTrack, isBusy = false }) => {
   const { format } = useCurrency();
 
-  const config = TYPE_CONFIG[transaction.type] ?? TYPE_CONFIG.EXPENSE;
+  const config = TYPE_CONFIG[transaction.type];
   const isTransfer = transaction.type === "TRANSFER";
   const subtitle = isTransfer
     ? [transaction.account?.name, transaction.toAccount?.name].filter(Boolean).join(" → ") || "—"
@@ -142,7 +126,6 @@ const ActivityRow: React.FC<{ transaction: PublicTransaction; onTrack?: (transac
         <p className={`text-xs sm:text-sm font-bold tabular-nums ${config.text}`}>
           {config.prefix} {format(transaction.amount)}
         </p>
-        {/* Only what is not already a series can be turned into one. */}
         {onTrack && !transaction.isRecurring && (
           <Button variant="outline" size="sm" onClick={() => onTrack(transaction)} disabled={isBusy} className="px-2 text-xs">
             🔁 Track
@@ -153,17 +136,18 @@ const ActivityRow: React.FC<{ transaction: PublicTransaction; onTrack?: (transac
   );
 };
 
-/** A tracked series waiting to be confirmed — one tap records it with the amount it always has. */
 const DueRow: React.FC<{ item: ScheduledRecurrence; onLog: (item: ScheduledRecurrence) => void; isBusy: boolean }> = ({ item, onLog, isBusy }) => {
   const { format } = useCurrency();
 
-  const config = TYPE_CONFIG[item.type] ?? TYPE_CONFIG.EXPENSE;
+  const config = TYPE_CONFIG[item.type];
   const isDue = item.status !== "UPCOMING";
 
   return (
     <div className={`flex items-center justify-between gap-2 p-2.5 rounded-lg sm:gap-3 sm:p-3 ${isDue ? "bg-white ring-1 ring-warning-200" : "bg-white ring-1 ring-primary-100"}`}>
       <div className="flex items-center flex-1 min-w-0 gap-2 sm:gap-3">
-        <div className={`flex items-center justify-center shrink-0 w-8 h-8 text-base rounded-full sm:w-10 sm:h-10 sm:text-lg ${config.bg}`}>{item.category?.icon ?? RECURRENCE_ICONS[item.interval]}</div>
+        <div className={`flex items-center justify-center shrink-0 w-8 h-8 text-base rounded-full sm:w-10 sm:h-10 sm:text-lg ${config.bg}`}>
+          {item.category?.icon ?? RECURRENCE_ICONS[item.interval]}
+        </div>
         <div className="flex-1 min-w-0">
           <p className="text-xs font-medium truncate sm:text-sm text-primary-900">{item.description || "No description"}</p>
           <p className="text-xs truncate text-primary-500">
@@ -238,12 +222,6 @@ export const Home: React.FC = () => {
   const [showsActivity, setShowsActivity] = React.useState(false);
   const [recentTransactions, setRecentTransactions] = React.useState<PublicTransaction[]>([]);
   const [dueRecurring, setDueRecurring] = React.useState<ScheduledRecurrence[]>([]);
-  /**
-   * What this browser recorded since the email was verified.
-   *
-   * The server list is only sent when the account owner allows it; this one always works, because
-   * you cannot be shown anything here you did not just enter yourself.
-   */
   const [sessionLog, setSessionLog] = React.useState<PublicTransaction[]>([]);
   const [trackTarget, setTrackTarget] = React.useState<PublicTransaction | null>(null);
   const [trackForm, setTrackForm] = React.useState<{ interval: RecurrenceInterval; endDate: string }>({ interval: "MONTHLY", endDate: "" });
@@ -256,21 +234,15 @@ export const Home: React.FC = () => {
     setAccounts(resources.accounts);
     setShowsBalances(resources.showsBalances);
     setShowsActivity(resources.showsActivity);
-    setRecentTransactions(resources.recentTransactions ?? []);
-    setDueRecurring(resources.dueRecurring ?? []);
+    setRecentTransactions(resources.recentTransactions);
+    setDueRecurring(resources.dueRecurring);
   };
 
-  /**
-   * Re-reads the lookup after a write. Every balance on this page moves when a transaction is
-   * recorded, and so does the schedule - without this the numbers on screen quietly go stale.
-   * Failures are left silent on purpose: the write itself already reported its own outcome.
-   */
   const refreshResources = () => {
     if (!email) return;
     searchEmail(email, { onSuccess: (data) => applyResources(data.data) });
   };
 
-  /** Newest first, and what this session recorded is never dropped while the refresh is in flight. */
   const activity = React.useMemo(() => {
     if (!showsActivity) return sessionLog;
     const known = new Set(recentTransactions.map((transaction) => transaction.id));
@@ -298,7 +270,6 @@ export const Home: React.FC = () => {
     [formData.type, getFilteredCategories],
   );
 
-  // The balance goes straight into the option label, so you can pick an account by how much is in it.
   const accountLabel = React.useCallback(
     (account: PublicAccount) => {
       const base = `${account.icon ?? "💳"} ${account.name}`;
@@ -323,7 +294,6 @@ export const Home: React.FC = () => {
     const withBalance = accounts.filter((a) => a.balance !== undefined);
     if (withBalance.length === 0) return null;
 
-    // Split so that assets − debt always equals net, whatever sign each balance carries.
     const debt = withBalance.filter((a) => isDebt(a)).reduce((sum, a) => sum + Math.abs(a.balance as number), 0);
     const assets = withBalance.filter((a) => !isDebt(a)).reduce((sum, a) => sum + (a.balance as number), 0);
 
@@ -369,12 +339,7 @@ export const Home: React.FC = () => {
     [getDefaultCategory],
   );
 
-  // Turning the repeat off clears the end date with it, so a date left over from a previous
-  // toggle cannot ride along on the next submit.
-  const handleToggleRecurring = React.useCallback(
-    (isRecurring: boolean) => setFormData((prev) => ({ ...prev, isRecurring, recurrenceEndDate: isRecurring ? prev.recurrenceEndDate : "" })),
-    [],
-  );
+  const handleToggleRecurring = React.useCallback((isRecurring: boolean) => setFormData((prev) => ({ ...prev, isRecurring, recurrenceEndDate: isRecurring ? prev.recurrenceEndDate : "" })), []);
 
   const handleSubmitForm = () => {
     const error = validateForm(formData);
@@ -426,13 +391,11 @@ export const Home: React.FC = () => {
     });
   };
 
-  /** Opens the confirm dialog, prefilled with the date the series is currently due. */
   const openLogModal = (item: ScheduledRecurrence) => {
     setLogTarget(item);
     setLogDate(toDatetimeLocal(item.nextOccurrence));
   };
 
-  /** Records the occurrence with the amount and account the series already carries, at the chosen date. */
   const handleLogConfirm = () => {
     if (!logTarget) return;
 
@@ -574,7 +537,6 @@ export const Home: React.FC = () => {
                       setAccounts([]);
                       setCategories([]);
                       setShowsBalances(false);
-                      // Another person's email must not inherit the previous one's activity.
                       setShowsActivity(false);
                       setRecentTransactions([]);
                       setDueRecurring([]);
@@ -592,7 +554,11 @@ export const Home: React.FC = () => {
                       <span className="text-xs font-medium tracking-wide uppercase text-primary-500">Your accounts</span>
                       <div className="text-right">
                         <span className={`text-base sm:text-lg font-bold tabular-nums ${totals.net >= 0 ? "text-primary-900" : "text-red-600"}`}>{format(totals.net)}</span>
-                        {totals.debt > 0 && <p className="text-xs text-primary-500">{format(totals.assets)} in accounts · {format(totals.debt)} owed</p>}
+                        {totals.debt > 0 && (
+                          <p className="text-xs text-primary-500">
+                            {format(totals.assets)} in accounts · {format(totals.debt)} owed
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -606,10 +572,7 @@ export const Home: React.FC = () => {
                           const owes = isDebt(account, isTouched ? (projected as number) : balance);
 
                           return (
-                            <div
-                              key={account.id}
-                              className={`flex items-center justify-between gap-2 px-2 py-1.5 rounded-md transition-colors ${isTouched ? "bg-white ring-1 ring-primary-200" : ""}`}
-                            >
+                            <div key={account.id} className={`flex items-center justify-between gap-2 px-2 py-1.5 rounded-md transition-colors ${isTouched ? "bg-white ring-1 ring-primary-200" : ""}`}>
                               <span className="flex items-center min-w-0 gap-1.5 text-xs sm:text-sm text-primary-700">
                                 <span className="shrink-0">{account.icon ?? "💳"}</span>
                                 <span className="truncate">{account.name}</span>
@@ -717,12 +680,7 @@ export const Home: React.FC = () => {
                           value={formData.recurrenceInterval}
                           onChange={(e) => handleChangeForm("recurrenceInterval", e.target.value)}
                         />
-                        <Input
-                          type="datetime-local"
-                          label="Repeat until (optional)"
-                          value={formData.recurrenceEndDate}
-                          onChange={(e) => handleChangeForm("recurrenceEndDate", e.target.value)}
-                        />
+                        <Input type="datetime-local" label="Repeat until (optional)" value={formData.recurrenceEndDate} onChange={(e) => handleChangeForm("recurrenceEndDate", e.target.value)} />
                       </div>
                     )}
                   </div>
@@ -804,22 +762,14 @@ export const Home: React.FC = () => {
               ) : (
                 <div className="space-y-1.5 sm:space-y-2">
                   {activity.map((transaction) => (
-                    <ActivityRow
-                      key={transaction.id}
-                      transaction={transaction}
-                      // Tracking rewrites a whole series, so it is only offered where the owner
-                      // has opened this page up; a session-only row has no such permission.
-                      onTrack={showsActivity ? openTrackModal : undefined}
-                      isBusy={isRunningRecurringAction}
-                    />
+                    <ActivityRow key={transaction.id} transaction={transaction} onTrack={showsActivity ? openTrackModal : undefined} isBusy={isRunningRecurringAction} />
                   ))}
                 </div>
               )}
 
               {!showsActivity && (
                 <p className="mt-2 text-xs text-primary-400">
-                  Only what you recorded here is shown. Turn on <span className="font-medium">Public activity</span> in Settings → Privacy to see your full recent history and everything that is
-                  due.
+                  Only what you recorded here is shown. Turn on <span className="font-medium">Public activity</span> in Settings → Privacy to see your full recent history and everything that is due.
                 </p>
               )}
             </CardContent>
@@ -872,9 +822,7 @@ export const Home: React.FC = () => {
       <Modal isOpen={!!logTarget} onClose={() => setLogTarget(null)} title="✓ Log occurrence" size="md">
         <div className="space-y-3 sm:space-y-4">
           <div className="p-2.5 sm:p-3 border rounded-lg bg-primary-50 border-primary-100">
-            <p className="text-xs font-medium sm:text-sm text-primary-700">
-              “{logTarget?.description || "This transaction"}” will be recorded with the amount and account the series already carries.
-            </p>
+            <p className="text-xs font-medium sm:text-sm text-primary-700">“{logTarget?.description || "This transaction"}” will be recorded with the amount and account the series already carries.</p>
           </div>
           <Input type="datetime-local" label="Date &amp; time *" value={logDate} onChange={(e) => setLogDate(e.target.value)} required />
           <p className="text-xs text-primary-500">Defaults to the date this occurrence is due — change it to log at a different time.</p>

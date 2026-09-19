@@ -50,7 +50,6 @@ const EMPTY_FORM: FormState = {
 
 const categoryIcon = (category: string): string => CATEGORY_ICONS[category] ?? "📦";
 
-/** Categories are stored snake_case; `formatSettingKey` only handles camelCase, hence this one. */
 const categoryLabel = (category: string): string =>
   category
     .split("_")
@@ -58,13 +57,11 @@ const categoryLabel = (category: string): string =>
     .map((word) => word[0].toUpperCase() + word.slice(1))
     .join(" ");
 
-/** A stored value is always text; this is only how much of it fits on one row. */
 const previewValue = (setting: ManagedAppSetting): string => {
   const flattened = setting.value.replace(/\s+/g, " ").trim();
   return flattened.length > 120 ? `${flattened.slice(0, 120)}…` : flattened || "—";
 };
 
-/** Long text and JSON get a textarea; a key or a number does not need one. */
 const needsTextarea = (type: AppSettingType, value: string): boolean => type === "json" || value.length > 60;
 
 const validate = (form: FormState, isCreate: boolean): string | null => {
@@ -163,8 +160,6 @@ export const AppSettings: React.FC = () => {
   const handleChange = React.useCallback(<TField extends keyof FormState>(field: TField, value: FormState[TField]) => setForm((prev) => ({ ...prev, [field]: value })), []);
 
   const handleTypeChange = React.useCallback((next: AppSettingType) => {
-    // Switching to boolean without seeding a valid value would leave the row failing validation
-    // on a field the editor never touched.
     setForm((prev) => ({ ...prev, type: next, value: next === "boolean" && !["true", "false"].includes(prev.value) ? "false" : prev.value }));
   }, []);
 
@@ -225,8 +220,6 @@ export const AppSettings: React.FC = () => {
 
   if (status === "loading") return <LoadingSkeleton />;
 
-  // The API refuses these routes on its own; this only spares a superadmin-less session a screen
-  // full of red toasts.
   if (!isSuperAdmin) {
     return (
       <div className="max-w-2xl mx-auto mt-6 sm:mt-12">

@@ -47,13 +47,6 @@ export const Modal = ({ isOpen, onClose, title, description, children, size = "m
       <div className={cn("fixed inset-0 bg-primary-900/60 backdrop-blur-sm transition-opacity duration-300", isOpen ? "opacity-100" : "opacity-0")} />
       <div className="fixed inset-0 overflow-y-auto">
         <div className="flex items-end justify-center min-h-full md:items-center md:p-4" onClick={handleBackdropClick}>
-          {/*
-            * The sheet is a flex column with a hard height cap so a long form scrolls INSIDE
-            * it. Without the cap the panel grew to its content height and the title and close
-            * button were pushed off the top of the phone screen, leaving no visible way out of
-            * a tall modal. `dvh` (not `vh`) so the cap follows mobile browser chrome as the
-            * address bar collapses.
-            */}
           <div
             className={cn(
               "w-full transform shadow-2xl transition-all duration-300 flex flex-col",
@@ -89,8 +82,6 @@ export const Modal = ({ isOpen, onClose, title, description, children, size = "m
               )}
             </div>
 
-            {/* `overscroll-contain` keeps a flick at the end of the form from scrolling the
-              * page behind the sheet. The bottom padding clears the iOS home indicator. */}
             <div className="flex-1 overflow-y-auto overscroll-contain px-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:px-6 md:pb-6">{children}</div>
           </div>
         </div>

@@ -24,7 +24,6 @@ export const POST = withApi("users.change_password", async (req: NextRequest) =>
   const isValid = await bcrypt.compare(currentPassword, userData.password);
 
   if (!isValid) {
-    // Security-relevant: repeated hits from one ip are what a brute-force attempt looks like.
     logger.warn("users.change_password_rejected", { reason: "current_password_mismatch" });
     return errorResponse("Current password is incorrect", 401);
   }
@@ -37,7 +36,7 @@ export const POST = withApi("users.change_password", async (req: NextRequest) =>
 
   await prisma.user.update({ where: { id: user.id }, data: { password: hashedPassword, passwordChangedAt: now, passwordExpiresAt } });
 
-  logger.info("users.password_changed", { expiresAt: passwordExpiresAt?.toISOString() ?? null });
+  logger.info("users.password_changed", { expiresAt: passwordExpiresAt.toISOString() });
 
   return successResponse(null, "Password changed successfully");
 });

@@ -9,15 +9,6 @@ import { Badge } from "@/components";
 import { Recurring, RecurringDuePanel } from "./recurring";
 import { Transactions } from "./transactions";
 
-/**
- * Transactions and its recurring schedule are two views of the same thing, so they share a screen
- * rather than two routes: switching tabs keeps the list in place and never costs a navigation.
- *
- * The active tab still lives in the URL (`?view=recurring`) rather than in component state. It is
- * what notification emails and the dashboard link to, and it survives a refresh - neither of which
- * a modal or a drawer could offer.
- */
-
 const VIEW_PARAM = "view";
 const RECURRING_VIEW = "recurring";
 
@@ -38,9 +29,7 @@ const Tab: React.FC<TabProps> = ({ isActive, label, icon, count, onSelect }) => 
     aria-selected={isActive}
     onClick={onSelect}
     className={`flex items-center justify-center gap-1.5 flex-1 sm:flex-none px-3 sm:px-4 py-2 min-h-10 sm:min-h-0 text-sm font-medium rounded-md transition-all ${
-      isActive
-        ? "bg-white shadow-sm text-primary-900 dark:bg-primary-100 dark:text-primary-900"
-        : "text-primary-500 hover:text-primary-900 dark:text-primary-700 dark:hover:text-primary-900"
+      isActive ? "bg-white shadow-sm text-primary-900 dark:bg-primary-100 dark:text-primary-900" : "text-primary-500 hover:text-primary-900 dark:text-primary-700 dark:hover:text-primary-900"
     }`}
   >
     <span aria-hidden="true">{icon}</span>
@@ -62,7 +51,6 @@ export const TransactionsWorkspace: React.FC = () => {
   const router = useRouter();
   const { preferences } = usePreferences();
 
-  // Same filter the tab content uses, so the badge costs no extra request.
   const { due } = useRecurring({ lookaheadDays: preferences.recurringLookaheadDays });
   const dueCount = preferences.recurringReminders ? due.length : 0;
 
@@ -70,15 +58,11 @@ export const TransactionsWorkspace: React.FC = () => {
 
   const selectView = React.useCallback(
     (next: View) => {
-      // Every other param is a filter or a page number belonging to the list - carried across so
-      // coming back from the recurring tab does not silently reset what was being looked at.
       const params = new URLSearchParams(searchParams.toString());
       if (next === RECURRING_VIEW) params.set(VIEW_PARAM, RECURRING_VIEW);
       else params.delete(VIEW_PARAM);
 
       const query = params.toString();
-      // push, not replace: the browser back button should undo a tab switch, as it did when these
-      // were two routes.
       router.push(query ? `${pathname}?${query}` : pathname);
     },
     [searchParams, pathname, router],
@@ -101,11 +85,6 @@ export const TransactionsWorkspace: React.FC = () => {
       {showRecurring ? <Recurring /> : <RecurringDuePanel onViewAll={() => selectView(RECURRING_VIEW)} />}
 
       <div hidden={showRecurring}>
-        {/*
-          Kept mounted while the recurring tab is showing. The list owns its filters, its debounced
-          search box and its page number, and remounting would throw all three away every time
-          someone glanced at the schedule.
-        */}
         <Transactions />
       </div>
     </div>

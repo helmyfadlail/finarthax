@@ -16,9 +16,8 @@ export const POST = withApi<{ id: string }>("recurring.confirm", async (req: Nex
     return validationErrorResponse(fieldErrors);
   }
 
-  // The write itself is shared with the public quick-entry page - see src/lib/recurring-actions.ts.
   const result = await confirmOccurrence(user.id, id, validation.data);
-  if (result.error) return errorResponse(result.error, result.status ?? 400);
+  if (result.error) return errorResponse(result.error, result.status);
 
   return successResponse(result.transaction, result.message);
 });

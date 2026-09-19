@@ -690,7 +690,7 @@ Nothing here can take the app down. If the directory is not writable, file loggi
 
 Set `LOG_TO_CONSOLE=true` to mirror everything to the terminal as well, which is what makes `docker logs` and `journalctl` show the app's logs again; it is off by default. Under Docker the log directory is a mounted volume (`./logs`), so the files are readable straight from the host — see the notes in [`docker-compose.yml`](docker-compose.yml).
 
-**What gets logged.** `logger` ([`src/lib/logger.ts`](src/lib/logger.ts)) writes one JSON object per line to the files. `LOG_FORMAT` only affects the terminal mirror, where `pretty` gives readable colourised lines.
+**What gets logged.** `logger` ([`src/lib/logger.ts`](src/lib/logger.ts)) writes one JSON object per line to the files. `LOG_FORMAT` only affects the terminal mirror, where `pretty` gives readable colourised lines and `json` prints the same compact line files get. It must be set explicitly to `pretty` or `json` — it is no longer picked based on `NODE_ENV`; leaving it unset or misspelled logs a `[logger] LOG_FORMAT is not set...` warning at startup and falls back to `json`.
 
 | Level   | What lands there                                                                       |
 | ------- | -------------------------------------------------------------------------------------- |
@@ -906,7 +906,7 @@ Start from [`.env.example`](.env.example) — it carries this same list with pla
 | `DATABASE_TIMEOUT_MS`        |          | `5000`                              | Deadline for the health-check query              |
 | `HEALTH_CACHE_TTL_MS`        |          | `10000`                             | How long a health result is cached               |
 | `LOG_LEVEL`                  |          | `debug` dev / `info` prod           | `debug`, `info`, `warn` or `error`               |
-| `LOG_FORMAT`                 |          | `pretty` dev / `json` prod          | Terminal mirror only; files are always JSON      |
+| `LOG_FORMAT`                 |          | `json`, warns if unset/invalid      | `pretty` or `json`; terminal mirror only, files are always JSON |
 | `LOG_SERVICE_NAME`           |          | `finarthax`                         | Stamped on every line; log filename prefix       |
 | `LOG_SLOW_REQUEST_MS`        |          | `1000`                              | Requests above this are logged at `warn`         |
 | `LOG_SLOW_QUERY_MS`          |          | `300`                               | Queries above this are logged at `warn`          |
@@ -1001,7 +1001,7 @@ cp .env.example .env     # fill it in first
 docker compose up -d
 ```
 
-Brings up PostgreSQL and the app on port 3000, reading configuration from `.env`. The container waits for PostgreSQL, then `entrypoint.sh` applies the newest folder in `prisma/migrations` with `psql`, recording it in a `__manual_migrations` table so it runs only once.
+Brings up PostgreSQL and the app on port 3000, reading configuration from `.env`. The container waits for PostgreSQL, then `entrypoint.sh` runs `prisma migrate deploy`, which replays whatever migrations the database is missing — the full history on a fresh database, just the newest one on a redeploy. It takes a Postgres advisory lock internally, so it is also safe to run from every pod at once when scaling to multiple replicas (Kubernetes included): whichever pod gets there first applies what's pending, the rest find nothing to do.
 
 That means **the migration must be committed to the image** — generate it locally with `npm run db:migrate` before building.
 

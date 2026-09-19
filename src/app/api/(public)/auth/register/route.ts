@@ -91,8 +91,6 @@ export const POST = withApi("auth.register", async (req: NextRequest) => {
     return user;
   });
 
-  // Signup seeds default categories and a cash account in the same transaction -
-  // a partial account is impossible, but this line proves the whole thing ran.
   logger.info("auth.registered", { newUserId: result.id, email });
 
   return successResponse(result, "Registration successful");

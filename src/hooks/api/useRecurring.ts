@@ -16,6 +16,7 @@ interface ConfirmRecurringData {
   description?: string;
   interval?: RecurrenceInterval;
   keepTracking?: boolean;
+  tagIds?: string[];
 }
 
 const EMPTY_OVERVIEW: RecurringOverview = {

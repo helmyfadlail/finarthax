@@ -12,7 +12,6 @@ export const categorySchema = z.object({
   isDefault: z.boolean().default(false),
 });
 
-/** See the comment on updateAccountSchema: `.partial()` alone would reset `isDefault` to false whenever it's omitted. */
 export const updateCategorySchema = categorySchema.partial().extend({
   isDefault: z.boolean().optional(),
 });

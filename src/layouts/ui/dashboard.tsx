@@ -81,8 +81,8 @@ const SummaryCard: React.FC<SummaryCardProps> = ({ title, amount, change, icon, 
 const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
   const t = useTranslations("dashboardPage");
   const { format } = useCurrency();
-  const type = transaction.type as TransactionType;
-  const config = TX_CONFIG[type] ?? TX_CONFIG.EXPENSE;
+  const type = transaction.type;
+  const config = TX_CONFIG[type];
   const isTransfer = type === "TRANSFER";
   const isCCExp = type === "EXPENSE" && transaction.account?.type === "CREDIT_CARD";
   const isCCPayoff = isTransfer && transaction.toAccount?.type === "CREDIT_CARD";
@@ -96,7 +96,7 @@ const TransactionItem: React.FC<TransactionItemProps> = ({ transaction }) => {
         <div className="flex-1 min-w-0">
           <h4 className="text-xs font-semibold truncate sm:text-sm text-primary-900 dark:text-primary-900">{transaction.description || t("noDescription")}</h4>
           <p className="text-xs truncate text-primary-500 dark:text-primary-700 flex items-center gap-1">
-            {isTransfer ? (transaction.toAccount ? `${transaction.account?.name} → ${transaction.toAccount.name}` : transaction.account?.name) : (transaction.category?.name ?? t("uncategorized"))}
+            {isTransfer ? (transaction.toAccount ? `${transaction.account?.name} → ${transaction.toAccount.name}` : transaction.account?.name) : transaction.category.name}
             {isCCExp && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-danger-500 text-on-solid">debt</span>}
             {isCCPayoff && <span className="px-1 py-0.5 text-[10px] font-semibold rounded bg-success-500 text-on-solid">payoff</span>}
           </p>
@@ -242,7 +242,7 @@ export const Dashboard: React.FC = () => {
 
   const currentMonthName = useMemo(() => new Date().toLocaleDateString("en-US", { month: "long", year: "numeric" }), []);
 
-  const safeMonthlyData = useMemo(() => monthlyData.map((d) => ({ ...d, income: Number(d.income), expense: Number(d.expense), transfer: Number(d.transfer ?? 0) })), [monthlyData]);
+  const safeMonthlyData = useMemo(() => monthlyData.map((d) => ({ ...d, income: Number(d.income), expense: Number(d.expense), transfer: Number(d.transfer) })), [monthlyData]);
   const safeCategoryData = useMemo(() => categoryData.map((d) => ({ ...d, value: Number(d.value) })), [categoryData]);
   const pieData = safeCategoryData.map((item, i) => ({ ...item, fill: item.color && item.color !== "#6b7280" ? item.color : PIE_PALETTE[i % PIE_PALETTE.length] }));
 

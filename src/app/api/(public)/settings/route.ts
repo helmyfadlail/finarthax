@@ -21,8 +21,6 @@ export const GET = withApi("settings.public", async () => {
     try {
       return { ...s, value: JSON.parse(s.value) };
     } catch (error) {
-      // One bad row used to blow up the whole endpoint. Name the key instead and
-      // fall back to the raw string so the rest of the settings still load.
       logger.error("settings.invalid_json", { key: s.key, err: error });
       return s;
     }

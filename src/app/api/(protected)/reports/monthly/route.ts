@@ -19,8 +19,6 @@ export const GET = withApi("reports.monthly", async (req: NextRequest) => {
     orderBy: { date: "desc" },
   });
 
-  // Every total below is normalized to BASE_CURRENCY so amounts from different-currency accounts
-  // can be added together - live rates are only fetched if a foreign-currency account is involved.
   const rates = transactions.some((t) => t.account.currency !== BASE_CURRENCY) ? await getExchangeRates() : null;
   const amt = (t: (typeof transactions)[number]) => convertToBase(t.amount.toNumber(), t.account.currency, rates);
 
@@ -76,14 +74,11 @@ export const GET = withApi("reports.monthly", async (req: NextRequest) => {
 
   const transferSummary = {
     totalMoved: transfer,
-    // Measured at the destination account - the converted amount when the transfer crossed currencies.
     totalReceived: transferWithDest.reduce((s, t) => s + convertToBase((t.convertedAmount ?? t.amount).toNumber(), t.toAccount?.currency ?? BASE_CURRENCY, rates), 0),
     withdrawals: transferWithoutDest.reduce((s, t) => s + amt(t), 0),
     count: counts.transfer,
   };
 
-  // Report endpoints load the full month into memory - the row count explains
-  // both the response size and any latency spike.
   logger.debug("reports.monthly_built", { month, year, transactions: counts.total });
 
   return successResponse({

@@ -355,7 +355,6 @@ export const Settings: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-3 sm:space-y-6">
-            {/* Export */}
             <div className="p-3 sm:p-4 border border-secondary-200 dark:border-secondary-300 rounded-lg bg-secondary-50 dark:bg-secondary-100">
               <div className="flex items-start gap-2.5 sm:gap-3">
                 <span className="text-2xl sm:text-3xl shrink-0">📥</span>

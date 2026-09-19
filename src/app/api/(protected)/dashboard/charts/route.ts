@@ -8,8 +8,6 @@ export const GET = withApi("dashboard.charts", async () => {
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
-  // This endpoint issues a query per month plus one per category, so it is the
-  // most likely place for dashboard slowness - time it explicitly.
   const doneMonthly = logger.time("dashboard.charts.monthly_series");
 
   const monthlyData = [];
@@ -75,8 +73,6 @@ export const GET = withApi("dashboard.charts", async () => {
 
   const transferRates = transfers.some((t) => t.account.currency !== BASE_CURRENCY || (t.toAccount && t.toAccount.currency !== BASE_CURRENCY)) ? await getExchangeRates() : null;
 
-  // "Moved" is measured at the source account (what left it); "received" at the destination
-  // account (what landed there) - the two differ whenever a transfer crossed currencies.
   const totalMoved = transfers.reduce((sum, t) => sum + convertToBase(t.amount.toNumber(), t.account.currency, transferRates), 0);
   const totalReceived = transfers
     .filter((t) => t.toAccountId)

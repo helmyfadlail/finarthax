@@ -56,8 +56,6 @@ const useNavigation = (role: string | undefined) => {
   const goals: NavItem = { name: t("nav.goals"), href: "/admin/dashboard/goals", icon: Target };
   const reports: NavItem = { name: t("nav.reports"), href: "/admin/dashboard/reports", icon: BarChart3 };
   const auditLog: NavItem = { name: t("nav.auditLog"), href: "/admin/dashboard/audit-log", icon: History };
-  // Instance-wide configuration, so it is only offered to the role allowed to change it. The
-  // API refuses it regardless of what is rendered here.
   const appSettings: NavItem | null = role === "SUPERADMIN" ? { name: t("nav.appSettings"), href: "/admin/dashboard/app-settings", icon: Settings2 } : null;
 
   const groups: NavGroup[] = [
@@ -154,10 +152,7 @@ const AccountMenu = ({ session, router, logout, compact = false }: AccountMenuPr
       align="right"
       trigger={
         compact ? (
-          <button
-            aria-label="Account menu"
-            className="flex items-center justify-center w-10 h-10 transition-all rounded-full active:scale-90 focus:outline-none focus:ring-2 focus:ring-secondary-400"
-          >
+          <button aria-label="Account menu" className="flex items-center justify-center w-10 h-10 transition-all rounded-full active:scale-90 focus:outline-none focus:ring-2 focus:ring-secondary-400">
             {!session.user.avatar ? (
               <div className="flex items-center justify-center w-8 h-8 text-xs font-medium rounded-full bg-primary-100 text-primary-700 dark:bg-primary-300 dark:text-primary-900">
                 {formatInitialName(session.user.name || "")}
@@ -175,7 +170,7 @@ const AccountMenu = ({ session, router, logout, compact = false }: AccountMenuPr
             ) : (
               <AvatarImg src={session.user.avatar} alt="User" size="sm" className="shrink-0" />
             )}
-            <span className="max-w-[9rem] truncate text-sm font-medium text-primary-800 dark:text-primary-900">{session.user.name}</span>
+            <span className="max-w-36 truncate text-sm font-medium text-primary-800 dark:text-primary-900">{session.user.name}</span>
             <ChevronDown className="w-4 h-4 text-primary-400 dark:text-primary-600" />
           </button>
         )
@@ -232,7 +227,7 @@ const Sidebar = ({ groups, pathname, router, t }: { groups: NavGroup[]; pathname
                       : "text-primary-700 hover:bg-primary-50 dark:text-primary-800 dark:hover:bg-primary-200",
                   )}
                 >
-                  <Icon className="w-[18px] h-[18px] shrink-0" strokeWidth={1.9} />
+                  <Icon className="w-4.5 h-4.5 shrink-0" strokeWidth={1.9} />
                   <span className="font-medium truncate">{item.name}</span>
                 </button>
               );
@@ -244,17 +239,7 @@ const Sidebar = ({ groups, pathname, router, t }: { groups: NavGroup[]; pathname
   </aside>
 );
 
-const TopBar = ({
-  session,
-  router,
-  logout,
-  title,
-}: {
-  session: Session;
-  router: ReturnType<typeof useRouter>;
-  logout: () => void;
-  title: string;
-}) => {
+const TopBar = ({ session, router, logout, title }: { session: Session; router: ReturnType<typeof useRouter>; logout: () => void; title: string }) => {
   const t = useTranslations("dashboard");
 
   return (
@@ -302,7 +287,7 @@ const BottomNav = ({
           <span className={cn("flex items-center justify-center rounded-xl px-3.5 py-1", isActive && "bg-secondary-50 dark:bg-secondary-100")}>
             <Icon className={cn("w-5 h-5", isActive ? "text-secondary-600 dark:text-secondary-500" : "text-primary-400 dark:text-primary-600")} strokeWidth={isActive ? 2.1 : 1.8} />
           </span>
-          <span className={cn("text-[10px] font-medium truncate max-w-[4rem]", isActive ? "text-secondary-600 dark:text-secondary-500" : "text-primary-400 dark:text-primary-600")}>{item.name}</span>
+          <span className={cn("text-[10px] font-medium truncate max-w-16", isActive ? "text-secondary-600 dark:text-secondary-500" : "text-primary-400 dark:text-primary-600")}>{item.name}</span>
         </button>
       );
     })}
@@ -331,10 +316,7 @@ const MoreSheet = ({
   title: string;
 }) => (
   <>
-    <div
-      onClick={onClose}
-      className={cn("fixed inset-0 z-50 bg-primary-900/60 backdrop-blur-sm transition-opacity md:hidden", open ? "opacity-100" : "opacity-0 pointer-events-none")}
-    />
+    <div onClick={onClose} className={cn("fixed inset-0 z-50 bg-primary-900/60 backdrop-blur-sm transition-opacity md:hidden", open ? "opacity-100" : "opacity-0 pointer-events-none")} />
     <div
       className={cn(
         "fixed inset-x-0 bottom-0 z-50 rounded-t-2xl bg-white dark:bg-primary-100 shadow-2xl pb-[max(1rem,env(safe-area-inset-bottom))] transform transition-transform duration-300 ease-in-out md:hidden",
@@ -410,10 +392,18 @@ const DashboardLayoutInner = ({ children }: { children: React.ReactNode }) => {
   }, [moreOpen]);
 
   useEffect(() => {
+    if (isAuthenticated) localStorage.setItem("finarthax_had_session", "1");
+  }, [isAuthenticated]);
+
+  useEffect(() => {
     if (status === "loading") return;
     if (!isAuthenticated) {
-      const reason = session && !session.user ? "?reason=password_expired" : "";
-      window.location.href = `/login${reason}`;
+      let reason = "";
+      if (session && !session.user) reason = "password_expired";
+      else if (localStorage.getItem("finarthax_had_session")) reason = "session_expired";
+
+      localStorage.removeItem("finarthax_had_session");
+      window.location.href = reason ? `/login?reason=${reason}` : "/login";
     }
   }, [status, isAuthenticated, session]);
 
@@ -447,14 +437,7 @@ const DashboardLayoutInner = ({ children }: { children: React.ReactNode }) => {
       <Sidebar groups={navigation.groups} pathname={pathname} router={router} t={t} />
       <TopBar session={session as Session} router={router} logout={logout} title={currentTitle} />
 
-      <BottomNav
-        primary={navigation.primary}
-        pathname={pathname}
-        router={router}
-        onMore={() => setMoreOpen(true)}
-        moreLabel={t("nav.more")}
-        isMoreActive={isMoreActive}
-      />
+      <BottomNav primary={navigation.primary} pathname={pathname} router={router} onMore={() => setMoreOpen(true)} moreLabel={t("nav.more")} isMoreActive={isMoreActive} />
       <MoreSheet open={moreOpen} onClose={() => setMoreOpen(false)} items={navigation.secondary} pathname={pathname} router={router} title={t("nav.more")} />
 
       <main className="min-h-screen pt-[calc(3.75rem+env(safe-area-inset-top))] pb-[calc(4.25rem+env(safe-area-inset-bottom))] md:pb-0 md:ml-64 bg-primary-50 dark:bg-primary-50">

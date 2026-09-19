@@ -2,19 +2,44 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Button, Input, Skeleton } from "@/components";
 import { useAuth, useSettings } from "@/hooks";
 import { QUICK_TRANSACTION_LINK_DEFAULT } from "@/static";
 
 const LOGIN = "login";
 
+const AUTH_ERROR_MESSAGES: Record<string, string> = {
+  AccessDenied: "Access denied. Please try again or use a different account.",
+  OAuthAccountNotLinked: "This email is already registered with a password. Please sign in with your email and password instead.",
+  OAuthSignin: "Could not start Google sign-in. Please try again.",
+  OAuthCallback: "Google sign-in failed. Please try again.",
+  Configuration: "Sign-in is misconfigured. Please contact support.",
+};
+
+const AUTH_NOTICE_MESSAGES: Record<string, string> = {
+  session_expired: "Your session has expired. Please sign in again.",
+  password_expired: "Your password has expired. Please sign in again to reset it.",
+};
+
 export const Login = () => {
+  const searchParams = useSearchParams();
   const [email, setEmail] = React.useState<string>("");
   const [password, setPassword] = React.useState<string>("");
   const [error, setError] = React.useState<string>("");
 
   const { loginWithGoogle, login, isLoggingIn, loginError } = useAuth();
   const { getAppSetting, isLoadingAppSettings } = useSettings();
+
+  const authErrorMessage = React.useMemo(() => {
+    const authError = searchParams.get("error");
+    return authError ? (AUTH_ERROR_MESSAGES[authError] ?? "Sign-in failed. Please try again.") : "";
+  }, [searchParams]);
+
+  const noticeMessage = React.useMemo(() => {
+    const reason = searchParams.get("reason");
+    return reason ? (AUTH_NOTICE_MESSAGES[reason] ?? "") : "";
+  }, [searchParams]);
 
   const loginData = React.useMemo(() => {
     const resolve = (key: string) => {
@@ -59,7 +84,7 @@ export const Login = () => {
     login({ email, password });
   };
 
-  const errorMessage = error || loginError?.message;
+  const errorMessage = error || loginError?.message || authErrorMessage;
 
   if (isLoadingAppSettings) {
     return (
@@ -119,7 +144,7 @@ export const Login = () => {
             <p className="mt-1 text-primary-500">{loginData.description}</p>
           </div>
 
-          {errorMessage && (
+          {errorMessage ? (
             <div className="flex items-start gap-2 p-3 mb-6 text-sm text-red-700 border border-red-200 rounded-lg bg-red-50">
               <svg className="size-5 shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
                 <path
@@ -130,6 +155,15 @@ export const Login = () => {
               </svg>
               <span>{errorMessage}</span>
             </div>
+          ) : (
+            noticeMessage && (
+              <div className="flex items-start gap-2 p-3 mb-6 text-sm border rounded-lg text-amber-700 border-amber-200 bg-amber-50">
+                <svg className="size-5 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+                <span>{noticeMessage}</span>
+              </div>
+            )
           )}
 
           <form onSubmit={handleLogin} className="space-y-4">
@@ -201,7 +235,6 @@ export const Login = () => {
             </Link>
           </p>
 
-          {/* The quick-entry page needs no account, so signing in is never the only way forward. */}
           <Link
             href="/"
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border-2 border-dashed border-primary-200 px-4 py-2.5 text-sm font-medium text-primary-600 transition-colors hover:border-primary-400 hover:bg-primary-50 hover:text-primary-800"
