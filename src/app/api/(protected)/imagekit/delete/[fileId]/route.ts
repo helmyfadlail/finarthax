@@ -1,8 +1,10 @@
 import { NextRequest } from "next/server";
-import { logger, withApi } from "@/lib";
+import { logger, requireAuth, withApi } from "@/lib";
 import { errorResponse, successResponse } from "@/utils";
 
 export const DELETE = withApi<{ fileId: string }>("imagekit.delete", async (req: NextRequest, { params }) => {
+  await requireAuth();
+
   const privateKey = process.env.IMAGEKIT_PRIVATE_KEY;
 
   if (!privateKey) {

@@ -105,8 +105,8 @@ class ApiClient {
     return data;
   }
 
-  async getBlob(endpoint: string, options?: FetchOptions): Promise<Blob> {
-    const { params, ...fetchOptions } = options ?? {};
+  async getBlob(endpoint: string, options?: FetchOptions & { expectedType?: string }): Promise<Blob> {
+    const { params, expectedType, ...fetchOptions } = options ?? {};
 
     let url = `${this.baseURL}${endpoint}`;
     if (params) {
@@ -122,9 +122,19 @@ class ApiClient {
 
     const response = await fetch(url, { ...fetchOptions });
 
-    if (!response.ok) throwApiError(response, null, `Request failed: ${response.status} ${response.statusText}`);
+    if (!response.ok) {
+      const isJson = response.headers.get("content-type")?.includes("application/json");
+      const payload = isJson ? await response.json().catch(() => null) : null;
+      throwApiError(response, payload, `Request failed: ${response.status} ${response.statusText}`);
+    }
 
-    return response.blob();
+    const blob = await response.blob();
+    const requestId = response.headers.get("x-request-id");
+
+    if (blob.size === 0) throw new ApiError("The server returned an empty file. Please try again.", response.status, requestId);
+    if (expectedType && !blob.type.startsWith(expectedType)) throw new ApiError("The server returned an unexpected file type. Please try again.", response.status, requestId);
+
+    return blob;
   }
 
   async get<TResponse>(endpoint: string, options?: FetchOptions): Promise<TResponse> {

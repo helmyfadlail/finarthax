@@ -32,7 +32,9 @@ export const useSettings = () => {
 
   const exportDataMutation = useMutation({
     mutationFn: async () => {
-      const blob = await apiClient.getBlob("/users/export");
+      const blob = await apiClient.getBlob("/users/export", { expectedType: "application/pdf" });
+
+      if ((await blob.slice(0, 5).text()) !== "%PDF-") throw new Error("The downloaded report is not a valid PDF. Please try again.");
 
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");

@@ -1,7 +1,7 @@
 import { NextRequest } from "next/server";
-import { logger, prisma, recordAuditLog, requireAuth, withApi } from "@/lib";
+import { logger, prisma, recordAuditLog, requireAuth, validateCategory, withApi } from "@/lib";
 import { Prisma } from "prisma-client/client";
-import { successResponse, validationErrorResponse } from "@/utils";
+import { errorResponse, successResponse, validationErrorResponse } from "@/utils";
 import z from "zod";
 import { budgetSchema } from "@/types";
 
@@ -55,6 +55,9 @@ export const POST = withApi("budgets.create", async (req: NextRequest) => {
   }
 
   const data = validation.data;
+
+  const { error: categoryError } = await validateCategory(user.id, data.categoryId);
+  if (categoryError) return errorResponse(categoryError, 404);
 
   const startDate = new Date(data.year, data.month - 1, 1);
   const endDate = new Date(data.year, data.month, 0);

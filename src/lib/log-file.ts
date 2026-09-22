@@ -30,6 +30,7 @@ class RotatingLogFile {
   private currentPath = "";
   private index = 0;
   private written = 0;
+  private lastExistenceCheck = 0;
 
   constructor(private readonly prefix: string) {}
 
@@ -63,6 +64,7 @@ class RotatingLogFile {
   private openAt(date: string, index: number, size: number) {
     this.close();
 
+    fs.mkdirSync(/*turbopackIgnore: true*/ directory, { recursive: true });
     const file = this.pathFor(date, index);
 
     this.stream = fs.createWriteStream(file, { flags: "a" });
@@ -74,7 +76,16 @@ class RotatingLogFile {
     this.written = size;
   }
 
+  private reopenIfRemoved() {
+    const now = Date.now();
+    if (!this.stream || now - this.lastExistenceCheck < 1_000) return;
+
+    this.lastExistenceCheck = now;
+    if (!fs.existsSync(/*turbopackIgnore: true*/ this.currentPath)) this.close();
+  }
+
   write(line: string) {
+    this.reopenIfRemoved();
     const date = today();
 
     if (!this.stream || date !== this.currentDate) {

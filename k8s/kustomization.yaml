@@ -1,0 +1,29 @@
+# Apply everything in the right order with one command:
+#
+#   kubectl apply -k k8s/
+#
+# `kubectl apply -f k8s/` applies files alphabetically, which runs configmap.yaml before
+# namespace.yaml and fails with "namespaces finarthax not found". Kustomize sorts resources by
+# kind instead (Namespace, then ConfigMap/Secret/PersistentVolume(Claim)/Service, then workloads),
+# so the order no longer depends on file names.
+#
+# secret.yaml is gitignored (real credentials). Create it first: cp k8s/secret.example.yaml k8s/secret.yaml
+#
+# Do not point `kubectl apply -f` at this directory: it would try to apply this file itself.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - postgres-pv.yaml
+  - postgres-pvc.yaml
+  - postgres-service.yaml
+  - postgres-deployment.yaml
+  - finarthax-service.yaml
+  - finarthax-deployment.yaml
+  - digest-cronjob.yaml
+  # ingress.yaml is left out on purpose: it does nothing without an ingress controller and
+  # points at a placeholder host. Add it here once a controller is installed:
+  # - ingress.yaml

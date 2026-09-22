@@ -99,3 +99,90 @@ jobs:
       - name: Confirm the database matches schema.prisma
         # Catches a schema change that was never turned into a migration.
         run: npx prisma migrate diff --from-config-datasource --to-schema prisma/schema.prisma --exit-code
+
+  integration:
+    name: Application and performance tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: quality
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_USER: finarthax
+          POSTGRES_PASSWORD: finarthax
+          POSTGRES_DB: finarthax
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U finarthax"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # Everything the app reads at boot. Google credentials are placeholders: the tests only check
+      # that sign-in redirects to Google with the right callback, they never complete a login.
+      NEXTAUTH_URL: http://127.0.0.1:3000
+      NEXTAUTH_SECRET: ci-only-secret-not-used-anywhere-else
+      SESSION_EXPIRATION: "900"
+      GOOGLE_CLIENT_ID: ci-placeholder.apps.googleusercontent.com
+      GOOGLE_CLIENT_SECRET: ci-placeholder
+      BASE_CURRENCY: IDR
+      BASE_CURRENCY_SYMBOL: Rp
+      EXCHANGE_RATE_URL: https://api.exchangerate-api.com/v4/latest
+      DATABASE_TIMEOUT_MS: "5000"
+      HEALTH_CACHE_TTL_MS: "10000"
+      APP_SETTINGS_CACHE_TTL_MS: "300000"
+      RATES_CACHE_TTL_MS: "3600000"
+      LOG_TO_CONSOLE: "false"
+      BASE_URL: http://127.0.0.1:3000
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci --no-audit --no-fund
+
+      - run: npx prisma generate
+
+      - name: Migrate and seed
+        # NODE_ENV is set per step, never for the job: production makes `npm ci` skip devDependencies
+        # (tsx, prisma), and NODE_ENV=production is what selects the production seed.
+        env:
+          NODE_ENV: production
+        run: |
+          npx prisma migrate deploy
+          npx prisma db seed
+
+      - run: npm run build
+
+      - name: Start the app
+        env:
+          NODE_ENV: production
+        run: |
+          nohup npm start > app.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf "$BASE_URL/api/health" > /dev/null && exit 0
+            sleep 2
+          done
+          echo "::error::app did not become healthy"; cat app.log; exit 1
+
+      - name: Application tests
+        run: npm test
+
+      - name: Performance
+        # Smaller than the local defaults so a shared runner stays quick; budgets are unchanged.
+        env:
+          PERF_USERS: "10"
+          PERF_REQUESTS: "8"
+          PERF_DATASET: "500"
+        run: npm run test:perf
+
+      - name: App log on failure
+        if: failure()
+        run: tail -n 200 app.log

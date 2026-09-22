@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: finarthax-config
+  namespace: finarthax
+data:
+  POSTGRES_DB: "finarthax_db_development"
+  POSTGRES_HOST: "postgres-service"
+  POSTGRES_PORT: "5432"
+  NODE_ENV: "production"
+  IMAGEKIT_URL_ENDPOINT: "https://ik.imagekit.io/finarthax"
+  # Lifetime of a signed upload token, capped at 3600 by the API. Leaving it unset
+  # makes the expiry NaN and every upload authorisation fails.
+  IMAGEKIT_UPLOAD_EXPIRE_SEC: "1800"
+
+  # Must match finarthax-service's port exactly (k8s/finarthax-service.yaml) AND
+  # the redirect URI already registered for this OAuth client in Google Cloud
+  # Console (http://localhost:3000/api/auth/callback/google) — NextAuth builds
+  # the Google redirect_uri from this value verbatim, and a mismatch on either
+  # side fails with redirect_uri_mismatch or a dead connection. Swap for a real
+  # domain (and register its callback URL with Google) once exposed beyond
+  # localhost.
+  NEXTAUTH_URL: "http://localhost:3000"
+
+  # Session lifetime in seconds
+  SESSION_EXPIRATION: "16000"
+
+  # Promoted to SUPERADMIN by `npm run db:seed` once this account is registered.
+  SUPERADMIN_EMAIL: "finarthax_user@gmail.com"
+
+  # Currency amounts are stored in; everything else is converted for display only
+  BASE_CURRENCY: "IDR"
+  BASE_CURRENCY_SYMBOL: "Rp"
+  EXCHANGE_RATE_URL: "https://api.exchangerate-api.com/v4/latest"
+
+  # Sender address for password resets and notification emails
+  RESEND_EMAIL_FROM: "Finarthax <onboarding@resend.dev>"
+
+  # Health probe tuning. Leaving these unset falls back to the same values in code;
+  # they are spelled out here so the liveness probe budget is visible next to it.
+  DATABASE_TIMEOUT_MS: "5000"
+  HEALTH_CACHE_TTL_MS: "10000"
+  APP_SETTINGS_CACHE_TTL_MS: "300000"
+  RATES_CACHE_TTL_MS: "3600000"
+
+  # Logging. The app writes files into the emptyDir mounted at /app/logs, which
+  # `kubectl exec` can grep; they are lost when the pod is replaced, so point
+  # LOG_DIR at a PersistentVolumeClaim if they must outlive it.
+  #
+  # LOG_TO_CONSOLE is "false" to match the other environments, which means
+  # `kubectl logs` shows only the startup banner. In a cluster with a log
+  # collector you almost certainly want "true" here — stdout is what it reads.
+  LOG_LEVEL: "info"
+  LOG_SERVICE_NAME: "finarthax"
+  LOG_DIR: "/app/logs"
+  LOG_FILE_MAX_SIZE_MB: "10"
+  LOG_FILE_RETENTION_DAYS: "7"
+  LOG_SLOW_REQUEST_MS: "1000"
+  LOG_SLOW_QUERY_MS: "300"
+  LOG_REQUEST_BODY: "false"
+  LOG_TO_FILE: "true"
+  LOG_TO_CONSOLE: "false"
+  LOG_FORMAT: "json"

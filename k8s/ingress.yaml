@@ -1,0 +1,31 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: finarthax-ingress
+  namespace: finarthax
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    # For cert-manager (SSL):
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: your-future-domain.com # Replace with your domain
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: finarthax-service
+                port:
+                  number: 80
+  # For SSL/TLS:
+  # tls:
+  # - hosts:
+  #   - your-domain.com
+  #   secretName: finarthax-tls
+
+  # NOTE: For ngrok setup, you DON'T need to apply this ingress
+  # Just use port-forward + ngrok tunnel
+  # This ingress is here for when you get a real domain later

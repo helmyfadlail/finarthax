@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: finarthax-service
+  namespace: finarthax
+spec:
+  selector:
+    app: finarthax
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000
+      name: http
+  # Docker Desktop's Kubernetes auto-binds LoadBalancer services to localhost, so
+  # this is reachable at http://localhost:3000 with no port-forward needed. Kept
+  # at 3000 (not 80) so it matches NEXTAUTH_URL and the redirect_uri already
+  # registered with Google — changing this port requires also registering the
+  # new callback URL in Google Cloud Console, or Google login breaks with
+  # redirect_uri_mismatch. On a real cloud cluster this provisions an actual
+  # external load balancer instead.
+  type: LoadBalancer
+  # For a cluster with no LoadBalancer support (e.g. bare-metal without MetalLB):
+  # type: NodePort
+  # To go back to requiring `kubectl port-forward` / a manually-managed tunnel:
+  # type: ClusterIP

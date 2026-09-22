@@ -987,6 +987,25 @@ Two practical notes: `encrypt`/`decrypt` leave a `.env.bak` holding the previous
 | `npm run decrypt`     | Open the values in `.env`    |
 | `npm run env:status`  | Show which values are sealed |
 | `npm run env:key`     | Write a new `.env.key`       |
+| `npm test`            | Application tests: every feature, against a running app |
+| `npm run test:perf`   | Performance and load tests against a running app |
+| `npm run k8s:validate`| Check the rendered k8s manifests |
+
+### Testing
+
+There are two test files, both driving a real deployment over HTTP. They create their own throwaway users, so they are safe to point at any environment: set `BASE_URL` (default `http://localhost:3000`). The database must be seeded first (`npx prisma db seed`), otherwise registration is disabled.
+
+- [tests/app.test.ts](tests/app.test.ts) — the application: sign-up and sign-in, access control on every endpoint, accounts, categories, tags, transactions (create, edit, delete, transfer, filters, paging), CSV export and import, recurring series (track, log with tags, skip, dismiss, detection), budgets, goals, dashboard and reports, notifications, the audit log, profile and settings, password change, account deletion, public quick entry, administration, isolation between users, every dashboard page in every language, the PDF report (including a regression check for blank pages), and the Kubernetes manifest checks.
+- [tests/performance.test.ts](tests/performance.test.ts) — latency budgets for public pages and every read on a 1,000-transaction account, concurrent writes (with checks that balances and budgets stay exact), CSV and PDF export and import, a mixed workload, and a check that latency does not degrade over a sustained run.
+
+```bash
+BASE_URL=http://localhost:3000 npm test
+BASE_URL=http://localhost:3000 npm run test:perf   # PERF_USERS, PERF_REQUESTS, PERF_P95_MS, PERF_WRITE_P95_MS, PERF_DATASET, PERF_EXPORT_MS tune load and budgets
+```
+
+Two groups of scenarios are skipped unless you opt in: `TEST_SUPERADMIN_EMAIL` and `TEST_SUPERADMIN_PASSWORD` enable the admin app-settings scenario, and `TEST_CRON_SECRET` enables the scheduled-job endpoints. The password-reset email itself is not sent by the tests, so no real email goes out.
+
+CI runs both on every pull request against a real Postgres, and `.github/workflows/k8s.yml` validates `k8s/` when it changes.
 
 ---
 
@@ -1030,9 +1049,12 @@ ENV_ENCRYPTION_KEY="$(cat .env.key)" docker compose up -d
 Manifests in [k8s/](k8s/) cover the namespace, config map, secret, PostgreSQL (with a PV/PVC), the app deployment and service, an ingress, and the digest CronJobs:
 
 ```bash
-kubectl apply -f k8s/namespace.yaml
-kubectl apply -f k8s/
+cp k8s/secret.example.yaml k8s/secret.yaml   # once; then put real values in it (it is gitignored)
+kubectl apply -k k8s/
+kubectl rollout status deployment/postgres deployment/finarthax -n finarthax
 ```
+
+Use `-k`, not `-f k8s/`. `-f` applies files alphabetically, so `configmap.yaml` runs before `namespace.yaml` and fails with `namespaces "finarthax" not found`. [k8s/kustomization.yaml](k8s/kustomization.yaml) lists the resources and Kustomize orders them by kind (Namespace first). It leaves out `ingress.yaml`, which does nothing without an ingress controller — apply it separately with `kubectl apply -f k8s/ingress.yaml` once one is installed. `kubectl apply -k k8s/ --dry-run=server` validates the whole set against your cluster without changing anything, and CI runs the same check.
 
 Before applying, set the real values in [k8s/secret.yaml](k8s/secret.yaml) — at minimum `NEXTAUTH_SECRET`, `POSTGRES_PASSWORD` and `CRON_SECRET`, plus `RESEND_API_KEY` if you want email. Everything non-secret lives in [k8s/configmap.yaml](k8s/configmap.yaml): the public URL, currency defaults, session lifetime and the health-probe budget.
 

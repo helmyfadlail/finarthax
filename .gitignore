@@ -50,8 +50,9 @@ next-env.d.ts
 # prisma
 /generated/prisma
 
-# kubernetes and docker
-k8s/
+# kubernetes: manifests are tracked, but the real secret (credentials) never is.
+# Copy k8s/secret.example.yaml to k8s/secret.yaml locally.
+k8s/secret.yaml
 
 # claude setting
 .claude/
@@ -65,3 +66,5 @@ DEPLOYMENT.md
 # ...except migrations. `prisma migrate deploy` applies only what is committed, so an ignored
 # migration.sql is a schema change that never reaches the server.
 !prisma/migrations/**/*.sql
+# generated test results and reports (tests/reports)
+tests/reports/

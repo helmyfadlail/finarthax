@@ -18,3 +18,4 @@ export * from "./notifications";
 export * from "./maintenance";
 export * from "./password-policy";
 export * from "./health";
+export * from "./pdf-report";

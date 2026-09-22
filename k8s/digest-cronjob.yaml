@@ -1,0 +1,122 @@
+# Scheduled notification emails.
+#
+# The app deliberately runs no scheduler of its own: it exposes
+# POST /api/notifications/digest and lets the platform decide when to call it.
+# Every send still passes each account's preference gate, so these jobs only
+# decide *when* the app is asked — never *who* receives.
+#
+# Both jobs authenticate with CRON_SECRET from the finarthax-secret. If that
+# secret is left at its placeholder the endpoint answers 401; if it is empty the
+# endpoint stays disabled and answers 503.
+#
+#   kubectl apply -f k8s/digest-cronjob.yaml
+#   kubectl get cronjobs -n finarthax
+#   kubectl create job --from=cronjob/finarthax-digest-recurring manual-run -n finarthax
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: finarthax-digest-recurring
+  namespace: finarthax
+  labels:
+    app: finarthax
+    component: digest
+spec:
+  # Every morning at 07:00 — reminds people what is due today.
+  schedule: "0 7 * * *"
+  timeZone: "Asia/Jakarta"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 86400
+      template:
+        metadata:
+          labels:
+            app: finarthax
+            component: digest
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: digest
+              image: curlimages/curl:8.11.1
+              env:
+                - name: CRON_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: finarthax-secret
+                      key: CRON_SECRET
+              args:
+                - "-sS"
+                - "--fail-with-body"
+                - "--max-time"
+                - "300"
+                - "-X"
+                - "POST"
+                - "-H"
+                - "Authorization: Bearer $(CRON_SECRET)"
+                - "http://finarthax-service.finarthax.svc.cluster.local/api/notifications/digest?kind=recurring"
+              resources:
+                requests:
+                  memory: "32Mi"
+                  cpu: "10m"
+                limits:
+                  memory: "64Mi"
+                  cpu: "50m"
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: finarthax-digest-weekly
+  namespace: finarthax
+  labels:
+    app: finarthax
+    component: digest
+spec:
+  # Monday at 08:00 — the week-in-review summary.
+  schedule: "0 8 * * 1"
+  timeZone: "Asia/Jakarta"
+  concurrencyPolicy: Forbid
+  startingDeadlineSeconds: 600
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 2
+      ttlSecondsAfterFinished: 604800
+      template:
+        metadata:
+          labels:
+            app: finarthax
+            component: digest
+        spec:
+          restartPolicy: OnFailure
+          containers:
+            - name: digest
+              image: curlimages/curl:8.11.1
+              env:
+                - name: CRON_SECRET
+                  valueFrom:
+                    secretKeyRef:
+                      name: finarthax-secret
+                      key: CRON_SECRET
+              args:
+                - "-sS"
+                - "--fail-with-body"
+                - "--max-time"
+                - "600"
+                - "-X"
+                - "POST"
+                - "-H"
+                - "Authorization: Bearer $(CRON_SECRET)"
+                - "http://finarthax-service.finarthax.svc.cluster.local/api/notifications/digest?kind=weekly"
+              resources:
+                requests:
+                  memory: "32Mi"
+                  cpu: "10m"
+                limits:
+                  memory: "64Mi"
+                  cpu: "50m"

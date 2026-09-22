@@ -148,43 +148,49 @@ export const POST = withApi("transactions.import", async (req) => {
   let created = 0;
 
   if (resolved.length > 0) {
-    await prisma.$transaction(async (tx) => {
-      for (const row of resolved) {
-        const tagIds = row.tagIds.map((name) => tagByName.get(name)?.id).filter((id): id is string => !!id);
+    await prisma.$transaction(
+      async (tx) => {
+        for (const row of resolved) {
+          const tagIds = row.tagIds.map((name) => tagByName.get(name)?.id).filter((id): id is string => !!id);
 
-        const transaction = await tx.transaction.create({
-          data: {
-            userId: user.id,
-            accountId: row.accountId,
-            toAccountId: row.toAccountId,
-            categoryId: row.categoryId,
-            amount: row.amount,
-            type: row.type,
-            description: row.description || undefined,
-            date: row.date,
-            isRecurring: false,
-            recurrenceInterval: null,
-            recurrenceKey: null,
-            nextOccurrence: null,
-            ...(tagIds.length > 0 && { tags: { connect: tagIds.map((id) => ({ id })) } }),
-          },
-          include: TRANSACTION_INCLUDE,
-        });
+          const transaction = await tx.transaction.create({
+            data: {
+              userId: user.id,
+              accountId: row.accountId,
+              toAccountId: row.toAccountId,
+              categoryId: row.categoryId,
+              amount: row.amount,
+              type: row.type,
+              description: row.description || undefined,
+              date: row.date,
+              isRecurring: false,
+              recurrenceInterval: null,
+              recurrenceKey: null,
+              nextOccurrence: null,
+              ...(tagIds.length > 0 && { tags: { connect: tagIds.map((id) => ({ id })) } }),
+            },
+            include: TRANSACTION_INCLUDE,
+          });
 
-        await applyBalanceChange(tx, { type: row.type, accountId: row.accountId, toAccountId: row.toAccountId, amount: row.amount }, "apply");
-        await applyBudgetChange(tx, user.id, { type: row.type, categoryId: row.categoryId, amount: row.amount, date: row.date }, "apply");
+          await applyBalanceChange(tx, { type: row.type, accountId: row.accountId, toAccountId: row.toAccountId, amount: row.amount }, "apply");
+          await applyBudgetChange(tx, user.id, { type: row.type, categoryId: row.categoryId, amount: row.amount, date: row.date }, "apply");
 
-        await recordAuditLog({
-          entityType: "transaction",
-          entityId: transaction.id,
-          action: "create",
-          newValue: { type: transaction.type, amount: row.amount, accountId: transaction.accountId, source: "csv_import" },
-          actor: user,
-        });
+          await recordAuditLog({
+            entityType: "transaction",
+            entityId: transaction.id,
+            action: "create",
+            newValue: { type: transaction.type, amount: row.amount, accountId: transaction.accountId, source: "csv_import" },
+            actor: user,
+          });
 
-        created += 1;
-      }
-    });
+          created += 1;
+        }
+      },
+      {
+        timeout: Math.min(120_000, Math.max(15_000, resolved.length * 100)),
+        maxWait: 10_000,
+      },
+    );
   }
 
   logger.info("transactions.imported", { created, skipped: errors.length });
